@@ -348,13 +348,13 @@ public:
 
                     minActivityCoeff_[globalIdx][compIdx] =
                         std::min(minActivityCoeff_[globalIdx][compIdx],
-                                 Toolbox::value(fs.fugacityCoefficient(phaseIdx, compIdx))
+                                 std::max(1e-7, Toolbox::value(fs.fugacityCoefficient(phaseIdx, compIdx)))
                                  * Toolbox::value(fs.pressure(phaseIdx)));
                     Opm::Valgrind::CheckDefined(minActivityCoeff_[globalIdx][compIdx]);
                 }
-                if (minActivityCoeff_[globalIdx][compIdx] <= 0)
-                    throw Opm::NumericalIssue("The minumum activity coefficient for component "+std::to_string(compIdx)
-                                                +" on DOF "+std::to_string(globalIdx)+" is negative or zero!");
+//                if (minActivityCoeff_[globalIdx][compIdx] <= 0)
+//                    throw Opm::NumericalIssue("The minumum activity coefficient for component "+std::to_string(compIdx)
+//                                                +" on DOF "+std::to_string(globalIdx)+" is negative or zero!");
             }
         }
     }

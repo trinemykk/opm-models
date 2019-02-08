@@ -99,7 +99,7 @@ protected:
                 if (ncp0EqIdx <= eqIdx && eqIdx < Indices::ncp0EqIdx + numPhases)
                     continue;
                 this->error_ =
-                    std::max(std::abs(r[eqIdx]*this->model().eqWeight(dofIdx, eqIdx)),
+                    std::max(std::abs(r[eqIdx]),
                              this->error_);
             }
         }
@@ -114,6 +114,14 @@ protected:
                                         +" is larger than maximum allowed error of "
                                         +std::to_string(double(EWOMS_GET_PARAM(TypeTag, Scalar, NewtonMaxError))));
     }
+
+#if 0
+#warning BIG!!! HACK!!!!
+    bool converged() const
+    {
+        return this->numIterations() >= 4;
+    }
+#endif
 
     /*!
      * \copydoc FvBaseNewtonMethod::updatePrimaryVariables_
@@ -168,6 +176,7 @@ protected:
             Scalar maxDelta = 0.7 * minPhi;
 
             clampValue_(val, oldVal - maxDelta, oldVal + maxDelta);
+            val = std::max(0.0, val); // do not allow negative fugacities
         }
 
         // do not become grossly unphysical in a single iteration for the first few

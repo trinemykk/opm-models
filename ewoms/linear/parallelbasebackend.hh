@@ -233,6 +233,8 @@ public:
 
     void prepareRhs(const Matrix& M, Vector& b)
     {
+        //Dune::printSparseMatrix(std::cout, M, "M", "row");
+
         // make sure that the overlapping matrix and block vectors
         // have been created
         prepare_(M);
@@ -254,8 +256,14 @@ public:
     bool solve(Vector& x)
     {
 #if ! DUNE_VERSION_NEWER(DUNE_COMMON, 2,7)
-        Dune::FMatrixPrecision<LinearSolverScalar>::set_singular_limit(1.e-30);
-        Dune::FMatrixPrecision<LinearSolverScalar>::set_absolute_limit(1.e-30);
+        Dune::FMatrixPrecision<LinearSolverScalar>::set_singular_limit(1e-30);
+        Dune::FMatrixPrecision<LinearSolverScalar>::set_absolute_limit(1e-30);
+#endif
+
+#if 0
+        enum { numEq = GET_PROP_VALUE(TypeTag, NumEq) };
+        for (int i = 0; i < numEq; ++i)
+            std::cout << "pv " << i << ": " << this->simulator_.model().primaryVarName(i) << std::endl;
 #endif
 
         (*overlappingx_) = 0.0;
