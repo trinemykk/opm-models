@@ -139,6 +139,10 @@ opm_add_test(art2dgf
   DRIVER_ARGS --plain
   TEST_ARGS "data/fracture-raw.art")
 
+opm_add_test(chiwoms
+             EXE_NAME chiwoms
+             SOURCES chiwoms/chiwoms.cpp  chiwoms/co2_c8_dens.c  chiwoms/co2_c8_enth.c  chiwoms/co2_c8_visc.c  chiwoms/co2_h2o_dens.c  chiwoms/co2_h2o_enth.c  chiwoms/co2_h2o_visc.c  chiwoms/padua.cpp)
+
 # add targets for all tests of the models. we add the water-air test
 # first because it take longest and so that we don't have to wait for
 # them as long for parallel test runs
