@@ -522,7 +522,7 @@ public:
         //fs.setSaturation(FluidSystem::waterPhaseIdx, (j < NY/2) ? 0.2 : 0.8);
 
         // saturation, oil-filled at upper half, water-filled at lower half
-        if (j < NY/2) {
+        if (true || (j < NY/2)) {
             fs.setSaturation(FluidSystem::oilPhaseIdx, 1.);
             fs.setSaturation(FluidSystem::waterPhaseIdx, 0.);
         }
@@ -560,6 +560,7 @@ public:
                       /*setEnthalpy=*/ true);
         }
 
+        std::cout << "hello" << std::endl;
         // const auto& matParams = this->materialLawParams(context, spaceIdx,
         // timeIdx);
         //values.assignMassConservative(fs, matParams, /*inEquilibrium=*/true);
@@ -608,7 +609,7 @@ public:
 	    // left side has a fixed inflow rate in the lower half
 	    if((pos[XDIM] < this->boundingBoxMin()[XDIM] + eps) &&
 	       (pos[YDIM] < this->boundingBoxMin()[YDIM] +
-	        (this->boundingBoxMax()[YDIM] - this->boundingBoxMin()[YDIM])/2.)) {
+                (this->boundingBoxMax()[YDIM] - this->boundingBoxMin()[YDIM]))) {
 		    // create some noise in the injection rate
             const double noise = 0;//this->norm_dist(this->rand_gen);
 
