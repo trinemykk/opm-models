@@ -48,16 +48,6 @@
 #include <opm/material/binarycoefficients/H2O_CO2.hpp>
 #include <opm/material/binarycoefficients/Brine_CO2.hpp>
 
-#include "padua.h"
-extern struct poly2d_t co2_c8_dens;
-extern struct poly2d_t co2_c8_visc;
-extern struct poly2d_t co2_c8_enth;
-extern struct poly2d_t co2_h2o_dens;
-extern struct poly2d_t co2_h2o_visc;
-extern struct poly2d_t co2_h2o_enth;
-#include "ewoms_compat.h"
-
-
 namespace Ewoms {
 /*!
  * \ingroup Fluidsystems
