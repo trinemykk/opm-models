@@ -267,7 +267,7 @@ public:
 
 	    Scalar rho_avg = rho_top;
 
-	    Scalar pres_btm, rho_btm, rho_old = 0;
+	    Scalar pres_btm = 0.0, rho_btm = 0.0, rho_old = 0.0;
 	    while(std::fabs(rho_old - rho_avg) > tiny) {
 		    // save for comparison next step
 		    rho_old = rho_avg;
@@ -296,8 +296,7 @@ public:
         Scalar pres_top = topResvPres;
         for(unsigned j = 0; j < NY; ++j) {
 	        // first half is filled with oil, next half is filled with water
-	        Scalar pres_btm = bottomPressure(
-                pres_top, (j < NY/2) ? oilPhaseIdx : waterPhaseIdx);
+	        Scalar pres_btm = bottomPressure(pres_top, oilPhaseIdx);
 
 	        // at this point we have a stable average density; now let's
 	        // turn this into an average pressure for the cell
@@ -483,14 +482,6 @@ public:
     {
         Opm::CompositionalFluidState<Scalar, FluidSystem> fs;
         const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
-        const double dy = (Y_SIZE / 100.) / NY;
-
-        // since the initialization matrices are turned upside-down compared
-        // to the grid, we must subtract the index from the top to find the
-        // appropriate index in the initialization matrix from the coordinate
-        // (i, j) is thus only valid for lookup in init_comp and init_pres
-        unsigned j = (NY-1) - static_cast<unsigned>(std::floor(
-                    (pos[YDIM] - this->boundingBoxMin()[YDIM]) / dy));
 
         // get capillary pressure
         Scalar pC[numPhases];
@@ -502,8 +493,6 @@ public:
         fs.setPressure(waterPhaseIdx, 20e6);
 
         // composition
-        Scalar sol_oleic_water = 0;
-        Scalar sol_aqueous_oil = 0;
         fs.setMoleFraction(oilPhaseIdx, CO2Idx, 0.049);
         fs.setMoleFraction(oilPhaseIdx, OctaneIdx, 0.95);
         fs.setMoleFraction(oilPhaseIdx, BrineIdx, 0.001);
@@ -522,7 +511,7 @@ public:
         //fs.setSaturation(FluidSystem::waterPhaseIdx, (j < NY/2) ? 0.2 : 0.8);
 
         // saturation, oil-filled at upper half, water-filled at lower half
-        if (true || (j < NY/2)) {
+        if (false && pos[0] < this->boundingBoxMax()[0]/2) {
             fs.setSaturation(FluidSystem::oilPhaseIdx, 1.);
             fs.setSaturation(FluidSystem::waterPhaseIdx, 0.);
         }
@@ -549,7 +538,8 @@ public:
         typename FluidSystem::template ParameterCache<Scalar> paramCache;
         typedef Opm::ComputeFromReferencePhase<Scalar, FluidSystem> CFRP;
         if (fs.saturation(waterPhaseIdx) > .1){
-            CFRP::solve(fs, paramCache,
+	  std::cerr << "water\n";
+	  CFRP::solve(fs, paramCache,
                         /*refPhaseIdx=*/ waterPhaseIdx,
                         /*setViscosity=*/ true,
                         /*setEnthalpy=*/ true);
@@ -560,11 +550,12 @@ public:
                       /*setEnthalpy=*/ true);
         }
 
-        std::cout << "hello" << std::endl;
         // const auto& matParams = this->materialLawParams(context, spaceIdx,
         // timeIdx);
         //values.assignMassConservative(fs, matParams, /*inEquilibrium=*/true);
         values.assignNaive(fs);
+
+	std::cout << "primary variables for cell " << context.globalSpaceIndex(spaceIdx, timeIdx) << ": " << values << "\n";
     }
 
     /// Constant temperature
@@ -610,9 +601,6 @@ public:
 	    if((pos[XDIM] < this->boundingBoxMin()[XDIM] + eps) &&
 	       (pos[YDIM] < this->boundingBoxMin()[YDIM] +
                 (this->boundingBoxMax()[YDIM] - this->boundingBoxMin()[YDIM]))) {
-		    // create some noise in the injection rate
-            const double noise = 0;//this->norm_dist(this->rand_gen);
-
 		    // assign rate to the CO2 component of the inflow
 		    RateVector massRate(0.);
             massRate[contiCO2EqIdx] =  -1e-7;
