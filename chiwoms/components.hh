@@ -17,7 +17,6 @@ extern struct poly2d_t co2_c8_enth;
 extern struct poly2d_t co2_h2o_dens;
 extern struct poly2d_t co2_h2o_visc;
 extern struct poly2d_t co2_h2o_enth;
-#include "ewoms_compat.h"
 
 namespace Ewoms {
 /*!
