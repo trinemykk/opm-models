@@ -374,10 +374,10 @@ public:
             }else if (compIdx == CO2Idx)
                 return 500e3/fluidState.pressure(oilPhaseIdx);
             else {
-            return PengRobinsonMixture::computeFugacityCoefficient(fluidState,
-                                                                   paramCache,
-                                                                   phaseIdx,
-                                                                   compIdx);
+	      return PengRobinsonMixture::computeFugacityCoefficient(fluidState,
+								     paramCache,
+								     phaseIdx,
+								     compIdx);
             }
 #endif
         } else {
