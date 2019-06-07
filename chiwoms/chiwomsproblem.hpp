@@ -103,22 +103,26 @@ private:
     typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
     enum {
         oilPhaseIdx = FluidSystem::oilPhaseIdx,
-        waterPhaseIdx = FluidSystem::waterPhaseIdx
+        waterPhaseIdx = FluidSystem::waterPhaseIdx,
+        gasPhaseIdx = FluidSystem::gasPhaseIdx,
     };
 
     typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef Opm::TwoPhaseMaterialTraits<
+    typedef Opm::ThreePhaseMaterialTraits<
 	    Scalar,
         /*wettingPhaseIdx=*/ FluidSystem::waterPhaseIdx,
-        /*nonWettingPhaseIdx=*/ FluidSystem::oilPhaseIdx> Traits;
+        /*nonWettingPhaseIdx=*/ FluidSystem::oilPhaseIdx,
+        /*gasPhaseIdx=*/ FluidSystem::gasPhaseIdx> Traits;
+
 
     // define the material law which is parameterized by effective
     // saturations
-    typedef Opm::RegularizedBrooksCorey<Traits> EffMaterialLaw;
+    typedef Opm::NullMaterial<Traits> EffMaterialLaw;
 
 public:
-    // define the material law parameterized by absolute saturations
-    typedef Opm::EffToAbsLaw<EffMaterialLaw> type;
+//    // define the material law parameterized by absolute saturations
+//    typedef Opm::EffToAbsLaw<EffMaterialLaw> type;
+    typedef EffMaterialLaw type;
 };
 
 // Write the Newton convergence behavior to disk?
@@ -367,12 +371,14 @@ public:
     }
 
     void initHydrology() {
+#if 0
         this->mat_.setResidualSaturation(oilPhaseIdx,
                                          0);
         this->mat_.setResidualSaturation(waterPhaseIdx,
                                          0);
         this->mat_.setEntryPressure(0);
 	    this->mat_.setLambda(EWOMS_GET_PARAM(TypeTag, Scalar, PoreSizeDist));
+#endif
 	    this->mat_.finalize();
     }
 
