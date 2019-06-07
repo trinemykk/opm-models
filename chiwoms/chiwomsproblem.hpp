@@ -15,13 +15,15 @@
 // or indirectly may reference DUNE headers
 #include "onephasefluidsystem.hh"
 #include "twophasefluidsystem.hh"
+#include "ChiFlash.hpp"
 
 #include <ewoms/common/propertysystem.hh>
 #include <ewoms/common/start.hh>
 
 #include <ewoms/io/structuredgridvanguard.hh>
 
-#include <ewoms/models/ncp/ncpmodel.hh>
+//#include <ewoms/models/ncp/ncpmodel.hh>
+#include <ewoms/models/flash/flashmodel.hh>
 #include <ewoms/models/immiscible/immisciblemodel.hh>
 
 #include <ewoms/disc/ecfv/ecfvdiscretization.hh>
@@ -74,6 +76,15 @@ NEW_PROP_TAG(PoreSizeDist);
 // Set the problem property
 SET_TYPE_PROP(ChiwomsProblem, Problem,
               Ewoms::ChiwomsProblem<TypeTag>);
+
+SET_PROP(ChiwomsProblem, FlashSolver)
+{
+private:
+    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
+    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
+public:
+    typedef Opm::ChiFlash<Scalar, FluidSystem> type;
+};
 
 // Set fluid configuration
 SET_PROP(ChiwomsProblem, FluidSystem)
