@@ -75,7 +75,7 @@ struct EOS
                 // outlandish values.
                 LhsEval fenced_p = Opm::min(Opm::max(p, poly.lo_x), poly.up_x);
                 LhsEval fenced_x = Opm::min(Opm::max(x, poly.lo_y), poly.up_y);
-        padua_eval(&poly, 1, &fenced_p, &fenced_x, &val);
+        //padua_eval(&poly, 1, &fenced_p, &fenced_x, &val);
                 return val;
         }
 
