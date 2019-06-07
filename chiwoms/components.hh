@@ -75,44 +75,44 @@ struct EOS
                 // outlandish values.
                 LhsEval fenced_p = Opm::min(Opm::max(p, poly.lo_x), poly.up_x);
                 LhsEval fenced_x = Opm::min(Opm::max(x, poly.lo_y), poly.up_y);
-        //padua_eval(&poly, 1, &fenced_p, &fenced_x, &val);
+                padua_eval(&poly, 1, &fenced_p, &fenced_x, &val);
                 return val;
         }
 
         template<typename LhsEval>
         static LhsEval oleic_density(LhsEval T, LhsEval p, LhsEval x) {
                 assert(T == (TEMPERATURE + 273.15));
-                return eval(co2_c8_dens, T, p, x);
+                return 650;
         }
 
         template<typename LhsEval>
         static LhsEval aqueous_density(LhsEval T, LhsEval p, LhsEval x) {
                 assert(T == (TEMPERATURE + 273.15));
-                return eval(co2_h2o_dens, T, p, x);
+                return 1000;
         }
 
         template<typename LhsEval>
         static LhsEval oleic_viscosity(LhsEval T, LhsEval p, LhsEval x) {
                 assert(T == (TEMPERATURE + 273.15));
-                return eval(co2_c8_visc, T, p, x);
+                return 5e-3;
         }
 
         template<typename LhsEval>
         static LhsEval aqueous_viscosity(LhsEval T, LhsEval p, LhsEval x) {
                 assert(T == (TEMPERATURE + 273.15));
-                return eval(co2_h2o_visc, T, p, x);
+                return 1e-3;
         }
 
         template<typename LhsEval>
         static LhsEval oleic_enthalpy(LhsEval T, LhsEval p, LhsEval x) {
                 assert(T == (TEMPERATURE + 273.15));
-                return eval(co2_c8_enth, T, p, x);
+                return 0;
         }
 
         template<typename LhsEval>
         static LhsEval aqueous_enthalpy(LhsEval T, LhsEval p, LhsEval x) {
                 assert(T == (TEMPERATURE + 273.15));
-                return eval(co2_h2o_enth, T, p, x);
+                return 0;
         }
 };
 
