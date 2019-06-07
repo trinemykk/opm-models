@@ -78,16 +78,18 @@ public:
          ****************************************/
 
         //! \copydoc BaseFluidSystem::numPhases
-        static const int numPhases = 2;
+        static const int numPhases = 3;
 
         //! Index of the liquid phase
     static const int oilPhaseIdx = 0;
-    static const int waterPhaseIdx = 1;
+    static const int gasPhaseIdx = 1;
+    static const int waterPhaseIdx = 2;
 
         //! \copydoc BaseFluidSystem::phaseName
         static const char* phaseName(unsigned phaseIdx)
         {
                 static const char* name[] = {"o",  // oleic phase
+                                             "g",  // gas phase
                                              "w"}; // aquous phase
 
                 assert(0 <= phaseIdx && phaseIdx < numPhases);
@@ -280,6 +282,9 @@ public:
         if(phaseIdx == oilPhaseIdx) {
             //return 650.;
             return EOS::oleic_density(T, p, x);
+        } else if(phaseIdx == gasPhaseIdx) {
+            typedef Opm::IdealGas<Scalar> IdealGas;
+            return IdealGas::density(LhsEval(molarMass(CO2Idx)), T, p);
         }
         else {
             //return 1000.;
@@ -380,7 +385,11 @@ public:
 								     compIdx);
             }
 #endif
-        } else {
+        }
+        else if (phaseIdx == gasPhaseIdx) {
+            return 1.0;
+        }
+        else {
             assert(phaseIdx == waterPhaseIdx);
             //return PengRobinsonMixture::computeFugacityCoefficient(fluidState,
             //                                                       paramCache,
@@ -421,6 +430,7 @@ public:
      */
     static Scalar interactionCoefficient(unsigned comp1Idx, unsigned comp2Idx)
     {
+        return 0;
         unsigned i = std::min(comp1Idx, comp2Idx);
         unsigned j = std::max(comp1Idx, comp2Idx);
         #warning interactionCoefficients from Ivar
@@ -433,23 +443,6 @@ public:
         return 0;
     }
 
-    template <class LhsEval>
-    static LhsEval henryCoeffWater_(unsigned compIdx, const LhsEval& temperature)
-    {
-
-        // use henry's law for the solutes and the vapor pressure for
-        // the solvent.
-        switch (compIdx) {
-        case BrineIdx: return Brine::vaporPressure(temperature);
-
-            // the values of the Henry constant for the solutes have
-            // are faked so far...
-#warning set correct Henry constants
-        case CO2Idx: return 5.57601e+09;
-        case OctaneIdx: return 1e10;
-        default: throw std::logic_error("Unknown component index "+std::to_string(compIdx));
-        }
-    }
 };
 
 };//namespace ewoms
