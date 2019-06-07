@@ -5,7 +5,7 @@
 
 BEGIN_PROPERTIES
 
-NEW_TYPE_TAG(ChiwomsNcpEcfvProblem, INHERITS_FROM(NcpModel, ChiwomsProblem));
+NEW_TYPE_TAG(ChiwomsNcpEcfvProblem, INHERITS_FROM(FlashModel, ChiwomsProblem));
 SET_TAG_PROP(ChiwomsNcpEcfvProblem, SpatialDiscretizationSplice, EcfvDiscretization);
 //SET_TAG_PROP(ChiwomsNcpEcfvProblem, LocalLinearizerSplice, AutoDiffLocalLinearizer);
 
