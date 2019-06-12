@@ -48,56 +48,37 @@ namespace Opm {
 
 /*!
  * \brief Determines the phase compositions, pressures and saturations
- *        given the total mass of all components.
+ *        given the total mass of all components for the chiwoms problem.
  *
- * In a M-phase, N-component context, we have the following
- * unknowns:
- *
- * - M pressures
- * - M saturations
- * - M*N mole fractions
- *
- * This sums up to M*(N + 2). On the equations side of things,
- * we have:
- *
- * - (M - 1)*N equations stemming from the fact that the
- *   fugacity of any component is the same in all phases:
- *   \f$\forall \alpha, \beta, \kappa: f_\alpha^\kappa = f_\beta^\kappa\f$
- * - 1 equation from the closure condition of all saturations:
- *   \f$\sum_\alpha S_\alpha = 1\f$
- * - M - 1 constraints from the capillary pressures:
- *   \f$p_\beta = p_\alpha + p_c\alpha,\beta\f$
- * - N constraints from the fact that the total mass of each
- *   component is given:
- *   \f$sum_\alpha rhoMolar_\alpha x_\alpha^\kappa = const\f$
- * - M model constraints. Here, we use the NCP constraints:
- *   \f$ 0 = \mathrm{min}{S_\alpha, 1 - \sum_\kappa x_\alpha^\kappa}\f$
- *
- * This also sums up to M*(N + 2).
- *
- * The following assumptions apply: Capillary pressures are taken into account
- * explicitly, so only the pressure of the first phase is implicitly solved for. Also,
- * the closure condition for the saturations is taken into account explicitly, i.e., we
- * don't need to implicitly solve for the last saturation. These two assumptions reduce
- * the number of unknowns to the following M*(N + 1):
- *
- * - 1 pressure
- * - M - 1 saturations
- * - M*N mole fractions
  */
 template <class Scalar, class FluidSystem>
 class ChiFlash
 {
     enum { numPhases = FluidSystem::numPhases };
     enum { numComponents = FluidSystem::numComponents };
+    enum { BrineIdx = FluidSystem::BrineIdx }; //rename for generic ?
+    enum { OctaneIdx = FluidSystem::OctaneIdx }; //rename for generic ?
+    enum { CO2Idx = FluidSystem::CO2Idx }; //rename for generic ?
+    enum { waterPhaseIdx = FluidSystem::waterPhaseIdx};
+    enum { oilPhaseIdx = FluidSystem::oilPhaseIdx};
+    enum { gasPhaseIdx = FluidSystem::gasPhaseIdx};
+    enum { numMiscibleComponents = 2}; //octane, co2
+    enum { numMisciblePhases = 2}; //oil, gas
+    enum {
+        numEq =
+           numMisciblePhases+
+           numMisciblePhases*numMiscibleComponents
+    };//pressure, saturation, composition
 
     enum {
-        p0PvIdx = 0,
-        S0PvIdx = 1,
-        x00PvIdx = S0PvIdx + numPhases - 1
+        p0PvIdx = 0, // pressure first phase primary variable index
+        S0PvIdx = 1, // saturation first phase primary variable index
+        x00PvIdx = S0PvIdx + 1, // molefraction first phase first component primary variable index
+        //numMiscibleComponennets*numMisciblePhases-1 molefractions/primvar follow
     };
 
-    static const int numEq = numPhases*(numComponents + 1);
+
+
 
 public:
     /*!
@@ -107,30 +88,64 @@ public:
     static void guessInitial(FluidState& fluidState,
                              const Dune::FieldVector<Evaluation, numComponents>& globalMolarities)
     {
+        // water saturation
+        Evaluation brineMass = globalMolarities[BrineIdx] * FluidSystem::molarMass(BrineIdx);
+        Evaluation waterSaturation = Opm::min(1.0, brineMass/1000); //mass/density
+
+        fluidState.setSaturation(waterPhaseIdx, waterSaturation);
+        // oil and gas saturation
+        fluidState.setSaturation(oilPhaseIdx, (1.0-waterSaturation)/2.0);
+        fluidState.setSaturation(gasPhaseIdx, (1.0-waterSaturation)/2.0);
+
+
         // the sum of all molarities
         Evaluation sumMoles = 0;
-        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx)
+        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+            if (compIdx == BrineIdx)
+                    continue;
             sumMoles += globalMolarities[compIdx];
+        }
 
         for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++ phaseIdx) {
+            if (phaseIdx == waterPhaseIdx)
+                continue;
             // composition
-            for (unsigned compIdx = 0; compIdx < numComponents; ++ compIdx)
-                fluidState.setMoleFraction(phaseIdx,
-                                           compIdx,
-                                           globalMolarities[compIdx]/sumMoles);
+            for (unsigned compIdx = 0; compIdx < numComponents; ++ compIdx){
+                if (compIdx == BrineIdx){
+                    fluidState.setMoleFraction(phaseIdx,
+                                               compIdx,
+                                               0.0);
+                } else {
+                    fluidState.setMoleFraction(phaseIdx,
+                                               compIdx,
+                                               globalMolarities[compIdx]/sumMoles);
+                }
+            }
 
             // pressure. use atmospheric pressure as initial guess
-            fluidState.setPressure(phaseIdx, 1.0135e5);
-
-            // saturation. assume all fluids to be equally distributed
-            fluidState.setSaturation(phaseIdx, 1.0/numPhases);
+            fluidState.setPressure(phaseIdx, 20.0e6);
         }
+
+        // set composition in water to only water
+        fluidState.setMoleFraction(waterPhaseIdx,
+                                   BrineIdx,
+                                   1.0);
+        fluidState.setMoleFraction(waterPhaseIdx,
+                                   OctaneIdx,
+                                   0.0);
+        fluidState.setMoleFraction(waterPhaseIdx,
+                                   CO2Idx,
+                                   0.0);
 
         // set the fugacity coefficients of all components in all phases
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;
         paramCache.updateAll(fluidState);
         for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++ phaseIdx) {
+            if (phaseIdx == waterPhaseIdx)
+                continue;
             for (unsigned compIdx = 0; compIdx < numComponents; ++ compIdx) {
+                if (compIdx == BrineIdx)
+                    continue;
                 const typename FluidState::Scalar phi =
                     FluidSystem::fugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx);
                 fluidState.setFugacityCoefficient(phaseIdx, compIdx, phi);
@@ -139,10 +154,8 @@ public:
     }
 
     /*!
-     * \brief Calculates the chemical equilibrium from the component
-     *        fugacities in a phase.
+     * \brief Calculates the fluid state from the total mass of the components
      *
-     * The phase's fugacities must already be set.
      */
     template <class MaterialLaw, class FluidState>
     static void solve(FluidState& fluidState,
@@ -155,7 +168,6 @@ public:
 
         typedef Dune::FieldMatrix<InputEval, numEq, numEq> Matrix;
         typedef Dune::FieldVector<InputEval, numEq> Vector;
-
         typedef Opm::DenseAd::Evaluation</*Scalar=*/InputEval,
                                          /*numDerivs=*/numEq> FlashEval;
 
@@ -194,9 +206,12 @@ public:
         // copy the global molarities to a vector of evaluations. Remember that the
         // global molarities are constants. (but we need to copy them to a vector of
         // FlashEvals anyway in order to avoid getting into hell's kitchen.)
-        Dune::FieldVector<FlashEval, numComponents> flashGlobalMolarities;
-        for (unsigned compIdx = 0; compIdx < numComponents; ++ compIdx)
+        Dune::FieldVector<FlashEval, numMiscibleComponents> flashGlobalMolarities;
+        for (unsigned compIdx = 0; compIdx < numComponents; ++ compIdx){
+            if (compIdx == BrineIdx)
+                continue;
             flashGlobalMolarities[compIdx] = globalMolarities[compIdx];
+        }
 
         FlashDefectVector defect;
         const unsigned nMax = 50; // <- maximum number of newton iterations
@@ -414,22 +429,31 @@ protected:
 
         // fugacity of any component must be equal in all phases
         for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+            if (compIdx == BrineIdx)
+                continue;
             for (unsigned phaseIdx = 1; phaseIdx < numPhases; ++phaseIdx) {
+                if (phaseIdx==waterPhaseIdx)
+                    continue;
+#warning REPLACE with real equations
                 b[eqIdx] =
                     fluidState.fugacity(/*phaseIdx=*/0, compIdx)
                     - fluidState.fugacity(phaseIdx, compIdx);
                 ++eqIdx;
             }
         }
-        assert(eqIdx == numComponents*(numPhases - 1));
+        assert(eqIdx == numMiscibleComponents*numMisciblePhases);
 
         // the fact saturations must sum up to 1 is included implicitly and also,
         // capillary pressures are treated implicitly!
 
-        // global molarities are given
+        // global molarities of the miscible components/phases are given
         for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+            if (compIdx==BrineIdx)
+                continue;
             b[eqIdx] = 0.0;
             for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
+                if (phaseIdx == waterPhaseIdx)
+                    continue;
                 b[eqIdx] +=
                     fluidState.saturation(phaseIdx)
                     * fluidState.molarity(phaseIdx, compIdx);
@@ -439,19 +463,7 @@ protected:
             ++eqIdx;
         }
 
-        // model assumptions (-> non-linear complementarity functions) must be adhered
-        for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
-            FlashEval oneMinusSumMoleFrac = 1.0;
-            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx)
-                oneMinusSumMoleFrac -= fluidState.moleFraction(phaseIdx, compIdx);
-
-            if (oneMinusSumMoleFrac > fluidState.saturation(phaseIdx))
-                b[eqIdx] = fluidState.saturation(phaseIdx);
-            else
-                b[eqIdx] = oneMinusSumMoleFrac;
-
-            ++eqIdx;
-        }
+        assert(eqIdx == numEq);
     }
 
     template <class MaterialLaw, class FlashFluidState, class EvalVector>
