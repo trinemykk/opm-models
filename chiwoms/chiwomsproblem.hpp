@@ -14,7 +14,7 @@
 // note that this header must be included before anything that directly
 // or indirectly may reference DUNE headers
 #include "onephasefluidsystem.hh"
-#include "twophasefluidsystem.hh"
+#include "threephasefluidsystem.hh"
 #include "ChiFlash.hpp"
 
 #include <ewoms/common/propertysystem.hh>
@@ -93,7 +93,7 @@ private:
     typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
 
 public:
-    typedef Ewoms::TwoPhaseCo2OctaneBrineFluidSystem<Scalar> type;
+    typedef Ewoms::ThreePhaseCo2OctaneBrineFluidSystem<Scalar> type;
 };
 
 // Set the material Law
