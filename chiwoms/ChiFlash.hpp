@@ -173,6 +173,7 @@ public:
 
         typedef Dune::FieldVector<FlashEval, numEq> FlashDefectVector;
         typedef Opm::CompositionalFluidState<FlashEval, FluidSystem, /*energy=*/false> FlashFluidState;
+        typedef Dune::FieldVector<typename FluidState::Scalar, numComponents> ComponentVector;
 
 #if ! DUNE_VERSION_NEWER(DUNE_COMMON, 2,7)
         Dune::FMatrixPrecision<InputEval>::set_singular_limit(1e-35);
@@ -184,6 +185,37 @@ public:
 
         typename FluidSystem::template ParameterCache<FlashEval> flashParamCache;
         flashParamCache.assignPersistentData(paramCache);
+
+
+
+        //initial guess for the K value, L value and global composition z in RachfordRice
+        ComponentVector K;
+        ComponentVector z;
+        Scalar L;
+        Scalar L_min = 1e10;
+        Scalar L_max = -1e10;
+        Scalar totalMoles = 0;
+
+        for (int compIdx = 0; compIdx<numComponents; ++compIdx) {
+            K[compIdx] = wilsonK_(fluidState, compIdx);
+            L_min = Opm::min(L_min, 1/(1-K[compIdx]));
+            L_max = Opm::max(L_max, 1/(1-K[compIdx]));
+
+            totalMoles += globalMolarities[compIdx];
+
+        }
+        L = (L_min + L_max)/2;
+        z = globalMolarities;
+        z /= totalMoles;
+
+        //Rachford Rice equation
+        L = solveRachfordRice_g_(K, L, z);
+
+        //Phase stability test
+        bool isStable;
+        ComponentVector x;
+        ComponentVector y;
+        phaseStabilityTest_(isStable, x, y, fluidState, z);
 
         /////////////////////////
         // Newton method
@@ -418,6 +450,170 @@ protected:
         }
     }
 
+    template <class FlashFluidState>
+    static typename FlashFluidState::Scalar wilsonK_(const FlashFluidState& fluidState, int compIdx)
+    {
+        typedef typename FlashFluidState::Scalar FlashEval;
+        const auto& acf = FluidSystem::acentricFactor(compIdx);
+        const auto& T_crit = FluidSystem::criticalTemperature(compIdx);
+        const auto& T = fluidState.temperature(0);
+        const auto& p_crit = FluidSystem::criticalPressure(compIdx);
+        const auto& p = fluidState.pressure(0); //for now assume no capillary pressure
+
+        return Opm::exp(5.3727 * (1+acf) * (1-T_crit/T) * p_crit/p);
+
+    }
+
+    template <class Vector>
+    static typename Vector::field_type rachfordRice_g_(const Vector& K, const Scalar L, const Vector& z)
+    {
+        typename Vector::field_type g=0;
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            g += (z[compIdx]*(K[compIdx]-1))/(1+L*(K[compIdx]-1));
+        }
+        return g;
+    }
+
+    template <class Vector>
+    static typename Vector::field_type rachfordRice_dg_dL_(const Vector& K, const Scalar L, const Vector& z)
+    {
+        typename Vector::field_type dg=0;
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            dg += -(z[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((1+L*(K[compIdx]-1))*(1+L*(K[compIdx]-1)));
+        }
+        return dg;
+    }
+
+    template <class Vector>
+    static typename Vector::field_type solveRachfordRice_g_(const Vector& K, Scalar L, const Vector& z)
+    {
+        for (int iteration=0; iteration<100; ++iteration){
+            //L=Lold+g/dg;
+            Scalar g = rachfordRice_g_(K, L, z);
+            Scalar dg_dL = rachfordRice_dg_dL_(K, L, z);
+            L -= g/dg_dL;
+            //check for convergence
+            Scalar delta = g/dg_dL;
+            if ( Opm::abs(delta) < 1e-10 )
+                return L;
+
+        }
+
+        throw std::runtime_error("Rachford Rice did not converge within maximum number of iterations" );
+
+    }
+
+    template <class FlashFluidState, class ComponentVector>
+    static void phaseStabilityTest_(bool& isStable, ComponentVector& x, ComponentVector& y, const FlashFluidState& fluidState, const ComponentVector& globalComposition)
+    {
+        bool isTrivialL, isTrivialV;
+        ComponentVector K_l, K_v;
+        Scalar S_l, S_v;
+
+        checkStability_(fluidState, isTrivialV, K_v, y, S_v, globalComposition, /*isGas=*/true);
+        bool V_stable = (S_v < (1.0 + 1e-5)) || isTrivialV;
+
+        checkStability_(fluidState, isTrivialL, K_l, x, S_l, globalComposition, /*isGas=*/false);
+        bool L_stable = (S_l < (1.0 + 1e-5)) || isTrivialL;
+
+        isStable = L_stable && V_stable; //todo: understand this. should maybe called {L,V}_unstable??
+        if (isStable) {
+            // single phase, i.e. phase composition is equivalent to the global composition
+            x = globalComposition;
+            y = globalComposition;
+        }
+    }
+
+    template <class FlashFluidState, class ComponentVector>
+    static void checkStability_(const FlashFluidState& fluidState, bool& isTrivial, ComponentVector& K, ComponentVector& xy_loc, Scalar& S_loc, const ComponentVector& globalComposition, bool isGas)
+    {
+        typedef typename FlashFluidState::Scalar FlashEval;
+
+        //make two fake phases inside one phase and check for positive volume
+        FlashFluidState fluidState_fake = fluidState;
+        FlashFluidState fluidState_global = fluidState;
+
+        for (int compIdx = 0; compIdx < numComponents; ++compIdx)
+            K[compIdx] = wilsonK_(fluidState, compIdx);
+
+        for (int i = 0; i < 19000; ++i) {
+            S_loc = 0.0;
+            if (isGas) {
+                xy_loc;
+                for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                    xy_loc[compIdx] = K[compIdx] * globalComposition[compIdx];
+                    S_loc += xy_loc[compIdx];
+                }
+                for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                    xy_loc[compIdx] /= S_loc;
+                    fluidState_fake.setMoleFraction(gasPhaseIdx, compIdx, xy_loc[compIdx]);
+                }
+            }
+            else {
+                ComponentVector xy_loc;
+                for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                    xy_loc[compIdx] = globalComposition[compIdx]/K[compIdx];
+                    S_loc += xy_loc[compIdx];
+                }
+                for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                    xy_loc[compIdx] /= S_loc;
+                    fluidState_fake.setMoleFraction(oilPhaseIdx, compIdx, xy_loc[compIdx]);
+                }
+            }
+
+            int phaseIdx = (isGas?gasPhaseIdx:oilPhaseIdx);
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                fluidState_global.setMoleFraction(phaseIdx, compIdx, globalComposition[compIdx]);
+            }
+
+            typename FluidSystem::template ParameterCache<FlashEval> paramCache_fake;
+            paramCache_fake.updatePhase(fluidState_fake, phaseIdx);
+
+            typename FluidSystem::template ParameterCache<FlashEval> paramCache_global;
+            paramCache_global.updatePhase(fluidState_global, phaseIdx);
+
+            //fugacity for fake phases each component
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+
+                Scalar phiFake = FluidSystem::fugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
+                Scalar phiGlobal = FluidSystem::fugacityCoefficient(fluidState_global, paramCache_global, phaseIdx, compIdx);
+
+                fluidState_fake.setFugacityCoefficient(phaseIdx, compIdx, phiFake);
+                fluidState_global.setFugacityCoefficient(phaseIdx, compIdx, phiGlobal);
+            }
+
+            ComponentVector R;
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                if (isGas)
+                    R[compIdx] = fluidState_global.fugacity(oilPhaseIdx, compIdx)/fluidState_fake.fugacity(oilPhaseIdx, compIdx)/S_loc;
+                else
+                    R[compIdx] = fluidState_fake.fugacity(gasPhaseIdx, compIdx)/fluidState_global.fugacity(gasPhaseIdx, compIdx)*S_loc;
+            }
+
+            for (int compIdx=0; compIdx<numComponents; ++compIdx)
+                K[compIdx] *= R[compIdx];
+
+            Scalar R_norm = 0.0;
+            Scalar K_norm = 0.0;
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                auto a = R[compIdx] - 1.0;
+                auto b = Opm::log(K[compIdx]);
+
+                R_norm += a*a;
+                K_norm += b*b;
+            }
+
+            isTrivial = (K_norm < 1e-5);
+            if (isTrivial || R_norm < 1e-10)
+                return;
+            //note: make sure that no molefraction is smaller than 1e-8 ?
+            //note: take care of water!
+        }
+
+        throw std::runtime_error("stability test did not converge");
+    }
+
+
     template <class FlashFluidState, class FlashDefectVector, class FlashComponentVector>
     static void evalDefect_(FlashDefectVector& b,
                             const FlashFluidState& fluidState,
@@ -427,19 +623,24 @@ protected:
 
         unsigned eqIdx = 0;
 
-        // fugacity of any component must be equal in all phases
+
         for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
             if (compIdx == BrineIdx)
                 continue;
-            for (unsigned phaseIdx = 1; phaseIdx < numPhases; ++phaseIdx) {
-                if (phaseIdx==waterPhaseIdx)
-                    continue;
-#warning REPLACE with real equations
-                b[eqIdx] =
-                    fluidState.fugacity(/*phaseIdx=*/0, compIdx)
-                    - fluidState.fugacity(phaseIdx, compIdx);
-                ++eqIdx;
-            }
+
+
+#warning WTF
+//            b[eqIdx] =
+//                    compute_W_oilPhase(fluidState, compIdx)
+//                    - compute_W_gasPhase(fluidState, compIdx);
+            ++eqIdx;
+        }
+
+        for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
+            if (phaseIdx == waterPhaseIdx)
+                continue;
+
+#warning WTF2
         }
         assert(eqIdx == numMiscibleComponents*numMisciblePhases);
 
