@@ -217,68 +217,24 @@ public:
         ComponentVector y;
         phaseStabilityTest_(isStable, x, y, fluidState, z);
 
-        /////////////////////////
-        // Newton method
-        /////////////////////////
+//        //Fugacity coefficients and compressibility
+//        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+//            fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
+//            fluidState.setMoleFraction(gasPhaseIdx, compIdx, y[compIdx]);
+//        }
+//        typename FluidSystem::template ParameterCache<FlashEval> paramCache;
+//        paramCache.updatePhase(fluidState, oilPhaseIdx);
+//        paramCache.updatePhase(fluidState, gasPhaseIdx);
 
-        // Jacobian matrix
-        Matrix J;
-        // solution, i.e. phase composition
-        Vector deltaX;
-        // right hand side
-        Vector b;
+//        //compressibility
+//        const Scalar R = Opm::Constants<Scalar>::R;
+//        FlashEval Z_L = (paramCache.molarVolume(oilPhaseIdx) * fluidState.pressure(oilPhaseIdx) )/
+//                (R * FluidState.temperature(oilPhaseIdx));
+//        FlashEval Z_V = (paramCache.molarVolume(gasPhaseIdx) * fluidState.pressure(gasPhaseIdx) )/
+//                (R * FluidState.temperature(gasPhaseIdx));
 
-        Valgrind::SetUndefined(J);
-        Valgrind::SetUndefined(deltaX);
-        Valgrind::SetUndefined(b);
 
-        FlashFluidState flashFluidState;
-        assignFlashFluidState_<MaterialLaw>(fluidState, flashFluidState, matParams, flashParamCache);
 
-        // copy the global molarities to a vector of evaluations. Remember that the
-        // global molarities are constants. (but we need to copy them to a vector of
-        // FlashEvals anyway in order to avoid getting into hell's kitchen.)
-        Dune::FieldVector<FlashEval, numMiscibleComponents> flashGlobalMolarities;
-        for (unsigned compIdx = 0; compIdx < numComponents; ++ compIdx){
-            if (compIdx == BrineIdx)
-                continue;
-            flashGlobalMolarities[compIdx] = globalMolarities[compIdx];
-        }
-
-        FlashDefectVector defect;
-        const unsigned nMax = 50; // <- maximum number of newton iterations
-        for (unsigned nIdx = 0; nIdx < nMax; ++nIdx) {
-            // calculate the defect of the flash equations and their derivatives
-            evalDefect_(defect, flashFluidState, flashGlobalMolarities);
-            Valgrind::CheckDefined(defect);
-
-            // create field matrices and vectors out of the evaluation vector to solve
-            // the linear system of equations.
-            for (unsigned eqIdx = 0; eqIdx < numEq; ++ eqIdx) {
-                for (unsigned pvIdx = 0; pvIdx < numEq; ++ pvIdx)
-                    J[eqIdx][pvIdx] = defect[eqIdx].derivative(pvIdx);
-
-                b[eqIdx] = defect[eqIdx].value();
-            }
-            Valgrind::CheckDefined(J);
-            Valgrind::CheckDefined(b);
-
-            // Solve J*x = b
-            deltaX = 0.0;
-            try { J.solve(deltaX, b); }
-            catch (const Dune::FMatrixError& e) {
-                throw Opm::NumericalIssue(e.what());
-            }
-            Valgrind::CheckDefined(deltaX);
-
-            // update the fluid quantities.
-            Scalar relError = update_<MaterialLaw>(globalMolarities, flashFluidState, matParams, flashParamCache, deltaX);
-
-            if (relError < tolerance) {
-                assignOutputFluidState_(flashFluidState, fluidState);
-                return;
-            }
-        }
 
         std::ostringstream oss;
         oss << "ChiFlash solver failed:"
@@ -305,6 +261,8 @@ public:
 
         MaterialLawParams matParams;
         solve<MaterialLaw>(fluidState, matParams, globalMolarities, tolerance);
+
+        //newtonCompositionUpdate_
     }
 
 
@@ -511,12 +469,12 @@ protected:
         Scalar S_l, S_v;
 
         checkStability_(fluidState, isTrivialV, K_v, y, S_v, globalComposition, /*isGas=*/true);
-        bool V_stable = (S_v < (1.0 + 1e-5)) || isTrivialV;
+        bool V_unstable = (S_v < (1.0 + 1e-5)) || isTrivialV;
 
         checkStability_(fluidState, isTrivialL, K_l, x, S_l, globalComposition, /*isGas=*/false);
         bool L_stable = (S_l < (1.0 + 1e-5)) || isTrivialL;
 
-        isStable = L_stable && V_stable; //todo: understand this. should maybe called {L,V}_unstable??
+        isStable = L_stable && V_unstable; //L-stable means succes in making liquid, V-unstable means no success in making vapour
         if (isStable) {
             // single phase, i.e. phase composition is equivalent to the global composition
             x = globalComposition;
@@ -613,58 +571,152 @@ protected:
         throw std::runtime_error("stability test did not converge");
     }
 
-
-    template <class FlashFluidState, class FlashDefectVector, class FlashComponentVector>
-    static void evalDefect_(FlashDefectVector& b,
-                            const FlashFluidState& fluidState,
-                            const FlashComponentVector& globalMolarities)
+    template <class FlashFluidState, class ComponentVector>
+    static void newtonCompositionUpdate_(ComponentVector& K, Scalar& L, const FlashFluidState& fluidState, const ComponentVector& globalComposition)
     {
-        typedef typename FlashFluidState::Scalar FlashEval;
-
-        unsigned eqIdx = 0;
-
-
-        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-            if (compIdx == BrineIdx)
-                continue;
-
-
-#warning WTF
-//            b[eqIdx] =
-//                    compute_W_oilPhase(fluidState, compIdx)
-//                    - compute_W_gasPhase(fluidState, compIdx);
-            ++eqIdx;
+        if(L == 0 || L == 1) {
+            //single-phase gas or single-phase oil
+            for(int compIdx; compIdx<numComponents; ++compIdx){
+                fluidState.setMoleFraction(oilPhaseIdx, compIdx, globalComposition[compIdx]);
+                fluidState.setMoleFraction(gasPhaseIdx, compIdx, globalComposition[compIdx]);
+            }
+            return;
         }
 
-        for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
-            if (phaseIdx == waterPhaseIdx)
-                continue;
+        //two-phase case
+        ComponentVector x;
+        ComponentVector y;
+        Scalar sumx=0;
+        Scalar sumy=0;
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            x[compIdx] = globalComposition[compIdx]/(L + (1-L)*K[compIdx]);
+            sumx += x[compIdx];
 
-#warning WTF2
+            y[compIdx] = (K[compIdx]*globalComposition[compIdx])/(L + (1-L)*K[compIdx]);
+            sumy += y[compIdx];
         }
-        assert(eqIdx == numMiscibleComponents*numMisciblePhases);
+        //normalization
+        x /= sumx;
+        y /= sumy;
 
-        // the fact saturations must sum up to 1 is included implicitly and also,
-        // capillary pressures are treated implicitly!
+        for(int compIdx; compIdx<numComponents; ++compIdx){
+            fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
+            fluidState.setMoleFraction(gasPhaseIdx, compIdx, y[compIdx]);
+        }
 
-        // global molarities of the miscible components/phases are given
-        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-            if (compIdx==BrineIdx)
+        //newton
+        typedef Dune::FieldVector<Scalar, numMiscibleComponents*2+1> NewtonVector;
+        typedef Dune::FieldMatrix<Scalar, numMiscibleComponents*2+1, numMiscibleComponents*2+1> NewtonMatrix;
+                NewtonVector newtonX;
+                NewtonVector newtonB;
+                NewtonMatrix newtonA;
+                NewtonVector newtonDelta;
+
+                newtonX[0] = fluidState.moleFraction(oilPhaseIdx, OctaneIdx);
+                newtonX[1] = fluidState.moleFraction(oilPhaseIdx, CO2Idx);
+                newtonX[2] = fluidState.moleFraction(gasPhaseIdx, OctaneIdx);
+                newtonX[3] = fluidState.moleFraction(gasPhaseIdx, CO2Idx);
+                newtonX[4] = L;
+
+        for (int i = 0; i< 100; ++i){
+            evalDefect_(newtonB, newtonX, fluidState, globalComposition);
+            evalJacobian_(newtonA, newtonX, fluidState, globalComposition);
+
+            newtonA.solve(newtonDelta, newtonB);
+            newtonX -= newtonDelta;
+
+            if(std::abs(newtonDelta.one_norm())<1e-6)
+                break;
+
+
+        }
+
+        throw std::runtime_error("Newton composition update did not converge within maxIterations");
+
+    }
+
+
+    template <class FluidState, class DefectVector, class ComponentVector>
+    static void evalDefect_(DefectVector& b,
+                            DefectVector& x,
+                            const FluidState& fluidStateIn,
+                            const ComponentVector& globalComposition)
+    {
+        FluidState fluidState(fluidStateIn);
+        //primary variables
+        fluidState.setMoleFraction(oilPhaseIdx, OctaneIdx, x[0]);
+        fluidState.setMoleFraction(oilPhaseIdx, CO2Idx, x[1]);
+        fluidState.setMoleFraction(oilPhaseIdx, BrineIdx, 0);
+
+        fluidState.setMoleFraction(gasPhaseIdx, OctaneIdx, x[2]);
+        fluidState.setMoleFraction(gasPhaseIdx, CO2Idx, x[3]);
+        fluidState.setMoleFraction(gasPhaseIdx, BrineIdx, 0);
+
+        Scalar L = x[4];
+
+        //compute fugacities
+        typedef typename FluidSystem::template ParameterCache<typename FluidState::Scalar> ParamCache;
+        ParamCache paramCache;
+        for (int phaseIdx=0; phaseIdx<numPhases; ++phaseIdx){
+            if (phaseIdx==waterPhaseIdx)
                 continue;
-            b[eqIdx] = 0.0;
-            for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
-                if (phaseIdx == waterPhaseIdx)
-                    continue;
-                b[eqIdx] +=
-                    fluidState.saturation(phaseIdx)
-                    * fluidState.molarity(phaseIdx, compIdx);
+
+            paramCache.updatePhase(fluidState, phaseIdx);
+
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                Scalar phi = FluidSystem::fugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx);
+                fluidState.setFugacityCoefficient(phaseIdx, compIdx, phi);
             }
 
-            b[eqIdx] -= globalMolarities[compIdx];
-            ++eqIdx;
+
         }
 
-        assert(eqIdx == numEq);
+
+        //todo: make this AD (x, y and L)
+        // z-Lx-(1-L)y=0 (for both components)
+        b[0] = globalComposition[OctaneIdx] - L*fluidState.moleFraction(oilPhaseIdx, OctaneIdx)
+                - (1-L)*fluidState.moleFraction(gasPhaseIdx, OctaneIdx);
+        b[1] = globalComposition[CO2Idx] - L*fluidState.moleFraction(oilPhaseIdx, CO2Idx)
+                - (1-L)*fluidState.moleFraction(gasPhaseIdx, CO2Idx);
+        // f_Gas = f_Oil
+        b[2] = fluidState.fugacity(oilPhaseIdx, OctaneIdx) - fluidState.fugacity(gasPhaseIdx, OctaneIdx);
+        b[3] = fluidState.fugacity(oilPhaseIdx, CO2Idx) - fluidState.fugacity(gasPhaseIdx, CO2Idx);
+        //sum(x)=sum(y)
+        b[4] = fluidState.moleFraction(oilPhaseIdx, OctaneIdx) - fluidState.moleFraction(gasPhaseIdx, OctaneIdx);
+        b[4] += fluidState.moleFraction(oilPhaseIdx, CO2Idx) - fluidState.moleFraction(gasPhaseIdx, CO2Idx);
+
+        //unknowns: L, x_Octane, x_CO2, y_Octane, y_CO2
+
+
+    }
+
+    template <class FluidState, class DefectVector, class DefectMatrix, class ComponentVector>
+    static void evalJacobian_(DefectMatrix& A,
+                              const DefectVector& xIn,
+                            const FluidState& fluidStateIn,
+                            const ComponentVector& globalComposition)
+    {
+        DefectVector x(xIn);
+        DefectVector b0;
+        evalDefect_(b0, x, fluidStateIn, globalComposition);
+        Scalar epsilon = 1e-8;
+        //make the jacobian of Ax=b
+        for(int i=0; i<b0.size(); ++i){
+            x[i] += epsilon;
+            DefectVector bEps;
+            evalDefect_(bEps, x, fluidStateIn, globalComposition);
+            x[i] -= epsilon;
+            //derivative of all eqs wrt primary variable i
+            DefectVector derivI(bEps);
+            derivI -= b0;
+            derivI /= epsilon;
+
+            for(int j=0; j<b0.size(); ++j){
+                A[j][i] = derivI[j];
+            }
+
+        }
+
     }
 
     template <class MaterialLaw, class FlashFluidState, class FlashEvalVector, class EvalVector>
