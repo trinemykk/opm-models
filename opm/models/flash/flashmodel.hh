@@ -189,6 +189,7 @@ class FlashModel
     enum { numComponents = GET_PROP_VALUE(TypeTag, NumComponents) };
     enum { enableDiffusion = GET_PROP_VALUE(TypeTag, EnableDiffusion) };
     enum { enableEnergy = GET_PROP_VALUE(TypeTag, EnableEnergy) };
+    enum {pressure0Idx = Indices::pressure0Idx};
 
 
     typedef Opm::EnergyModule<TypeTag, enableEnergy> EnergyModule;
@@ -235,10 +236,10 @@ public:
             return tmp;
 
         std::ostringstream oss;
-        if (Indices::cTot0Idx <= pvIdx && pvIdx < Indices::cTot0Idx
-                                                  + numComponents)
-            oss << "c_tot," << FluidSystem::componentName(/*compIdx=*/pvIdx
-                                                          - Indices::cTot0Idx);
+        if (Indices::z0Idx <= pvIdx && pvIdx < Indices::z0Idx + numComponents-1)
+            oss << "z_" << FluidSystem::componentName(/*compIdx=*/pvIdx- Indices::z0Idx);
+        else if (pvIdx==pressure0Idx)
+            oss << "pressure_" << FluidSystem::phaseName(0);
         else
             assert(false);
 
@@ -275,14 +276,10 @@ public:
         if (tmp > 0)
             return tmp;
 
-        unsigned compIdx = pvIdx - Indices::cTot0Idx;
+        if (pvIdx == pressure0Idx)
+            return 1e-6;
+        return 1;
 
-        // make all kg equal. also, divide the weight of all total
-        // compositions by 100 to make the relative errors more
-        // comparable to the ones of the other models (at 10% porosity
-        // the medium is fully saturated with water at atmospheric
-        // conditions if 100 kg/m^3 are present!)
-        return FluidSystem::molarMass(compIdx) / 100.0;
     }
 
     /*!
