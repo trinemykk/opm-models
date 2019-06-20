@@ -54,7 +54,7 @@ class ChiParameterCache
 
     enum { waterPhaseIdx = FluidSystem::waterPhaseIdx };
     enum { oilPhaseIdx = FluidSystem::oilPhaseIdx };
-    enum { gasPhaseIdx = 99};
+    enum { gasPhaseIdx = FluidSystem::gasPhaseIdx};
 
 public:
     //! The cached parameters for the oil phase
