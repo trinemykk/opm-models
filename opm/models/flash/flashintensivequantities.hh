@@ -66,7 +66,8 @@ class FlashIntensiveQuantities
     typedef typename GET_PROP_TYPE(TypeTag, ThreadManager) ThreadManager;
 
     // primary variable indices
-    enum { cTot0Idx = Indices::cTot0Idx };
+    enum { z0Idx = Indices::z0Idx };
+    enum { pressure0Idx = Indices::pressure0Idx };
     enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
     enum { numComponents = GET_PROP_VALUE(TypeTag, NumComponents) };
     enum { enableDiffusion = GET_PROP_VALUE(TypeTag, EnableDiffusion) };
@@ -108,11 +109,20 @@ public:
         const auto& problem = elemCtx.problem();
         Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
 
-        // extract the total molar densities of the components
-        ComponentVector cTotal;
-        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx)
-            cTotal[compIdx] = priVars.makeEvaluation(cTot0Idx + compIdx, timeIdx);
+        // extract the global mole fractions
+        ComponentVector z;
+        Evaluation lastZ = 1.0;
+        for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
+            z[compIdx] = priVars.makeEvaluation(z0Idx + compIdx, timeIdx);
+            lastZ -= z[compIdx];
+        }
+        z[numComponents - 1] = lastZ;
 
+        Evaluation p = priVars.makeEvaluation(pressure0Idx, timeIdx);
+        for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
+            fluidState_.setPressure(phaseIdx, p);
+
+#if 0
         const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
         if (hint) {
             // use the same fluid state as the one of the hint, but
@@ -124,18 +134,15 @@ public:
         }
         else
             FlashSolver::guessInitial(fluidState_, cTotal);
+#endif
 
         // compute the phase compositions, densities and pressures
-        typename FluidSystem::template ParameterCache<Evaluation> paramCache;
-        const MaterialLawParams& materialParams =
-            problem.materialLawParams(elemCtx, dofIdx, timeIdx);
-        FlashSolver::template solve<MaterialLaw>(fluidState_,
-                                                 materialParams,
-                                                 paramCache,
-                                                 cTotal,
-                                                 flashTolerance);
+        FlashSolver::solve(fluidState_, z);
 
         // calculate relative permeabilities
+        const MaterialLawParams& materialParams = problem.materialLawParams(elemCtx, dofIdx, timeIdx);
+
+        typename FluidSystem::template ParameterCache<Evaluation> paramCache;
         MaterialLaw::relativePermeabilities(relativePermeability_,
                                             materialParams, fluidState_);
         Opm::Valgrind::CheckDefined(relativePermeability_);

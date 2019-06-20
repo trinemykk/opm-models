@@ -66,7 +66,8 @@ class FlashPrimaryVariables : public FvBasePrimaryVariables<TypeTag>
     typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
 
     // primary variable indices
-    enum { cTot0Idx = Indices::cTot0Idx };
+    enum { z0Idx = Indices::z0Idx };
+    enum { pressure0Idx = Indices::pressure0Idx };
 
     enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
     enum { numComponents = GET_PROP_VALUE(TypeTag, NumComponents) };
@@ -122,12 +123,20 @@ public:
         EnergyModule::setPriVarTemperatures(*this, fluidState);
 
         // determine the phase presence.
+        Dune::FieldVector<Scalar, numComponents> z(0.0);
+        Scalar sumMoles = 0.0;
         for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
             for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-                this->operator[](cTot0Idx + compIdx) +=
-                    fluidState.molarity(phaseIdx, compIdx) * fluidState.saturation(phaseIdx);
+                Scalar tmp = fluidState.molarity(phaseIdx, compIdx) * fluidState.saturation(phaseIdx);
+                z[compIdx] += tmp;
+                sumMoles += tmp;
             }
         }
+        z /= sumMoles;
+
+        for (int i = 0; i < numComponents - 1; ++i)
+            (*this)[z0Idx + i] = z[i];
+        (*this)[pressure0Idx] = fluidState.pressure(0);
     }
 
     /*!
@@ -137,9 +146,11 @@ public:
      */
     void print(std::ostream& os = std::cout) const
     {
-        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-            os << "(c_tot," << FluidSystem::componentName(compIdx) << " = "
-               << this->operator[](cTot0Idx + compIdx);
+        os << "(p_" << FluidSystem::phaseName(0) << " = "
+           << this->operator[](pressure0Idx);
+        for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
+            os << ", z_" << FluidSystem::componentName(compIdx) << " = "
+               << this->operator[](z0Idx + compIdx);
         }
         os << ")" << std::flush;
     }
