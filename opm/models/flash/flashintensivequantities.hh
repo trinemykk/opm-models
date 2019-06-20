@@ -113,6 +113,10 @@ public:
         for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx)
             cTotal[compIdx] = priVars.makeEvaluation(cTot0Idx + compIdx, timeIdx);
 
+        Evaluation p = priVars.makeEvaluation(pressure0Idx, timeIdx);
+        for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
+            fluidState_.setPressure(phaseIdx, p);
+
         const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
         if (hint) {
             // use the same fluid state as the one of the hint, but
