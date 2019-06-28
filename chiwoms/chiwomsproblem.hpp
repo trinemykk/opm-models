@@ -206,11 +206,12 @@ class ChiwomsProblem : public GET_PROP_TYPE(TypeTag, BaseProblem)
     enum { numPhases = FluidSystem::numPhases };
     enum {
         oilPhaseIdx = FluidSystem::oilPhaseIdx,
-        waterPhaseIdx = FluidSystem::waterPhaseIdx
+        waterPhaseIdx = FluidSystem::waterPhaseIdx,
+        gasPhaseIdx = FluidSystem::gasPhaseIdx,
     };
-    enum { CO2Idx = FluidSystem::CO2Idx };
-    enum { OctaneIdx = FluidSystem::OctaneIdx };
-    enum { BrineIdx = FluidSystem::BrineIdx };
+    enum { CO2Idx = FluidSystem::CO2Idx };//change to comp1
+    enum { OctaneIdx = FluidSystem::OctaneIdx };//change to comp0
+    enum { BrineIdx = FluidSystem::BrineIdx };//change to comp2
     enum { conti0EqIdx = Indices::conti0EqIdx };
     enum { contiCO2EqIdx = conti0EqIdx + CO2Idx };
     enum { enableEnergy = GET_PROP_VALUE(TypeTag, EnableEnergy) };
@@ -307,16 +308,12 @@ public:
         // start at the top of each column, working downwards calculating the
         // pressure based on the weight above
         Scalar topResvPres = EWOMS_GET_PARAM(TypeTag, Scalar, TopResvPres);
-
         Scalar pres_top = topResvPres;
         for(unsigned j = 0; j < NY; ++j) {
-	        // first half is filled with oil, next half is filled with water
 	        Scalar pres_btm = bottomPressure(pres_top, oilPhaseIdx);
-
 	        // at this point we have a stable average density; now let's
 	        // turn this into an average pressure for the cell
 	        init_pres[j] = (pres_btm + pres_top) / 2.;
-
 	        // prepare for the next iteration; one cell lower
 	        pres_top = pres_btm;
         }
@@ -371,14 +368,6 @@ public:
     }
 
     void initHydrology() {
-#if 0
-        this->mat_.setResidualSaturation(oilPhaseIdx,
-                                         0);
-        this->mat_.setResidualSaturation(waterPhaseIdx,
-                                         0);
-        this->mat_.setEntryPressure(0);
-	    this->mat_.setLambda(EWOMS_GET_PARAM(TypeTag, Scalar, PoreSizeDist));
-#endif
 	    this->mat_.finalize();
     }
 
@@ -506,66 +495,42 @@ public:
         MaterialLaw::capillaryPressures(pC, matParams, fs);
 
         // pressure; oleic phase is the reference
-        fs.setPressure(oilPhaseIdx, 20e6);
-        fs.setPressure(waterPhaseIdx, 20e6);
+        fs.setPressure(oilPhaseIdx, 11250000);
+        fs.setPressure(waterPhaseIdx, 11250000);
+        fs.setPressure(gasPhaseIdx,11250000);
 
         // composition
-        fs.setMoleFraction(oilPhaseIdx, CO2Idx, 0.049);
-        fs.setMoleFraction(oilPhaseIdx, OctaneIdx, 0.95);
-        fs.setMoleFraction(oilPhaseIdx, BrineIdx, 0.001);
+        fs.setMoleFraction(oilPhaseIdx, CO2Idx, 1.0);
+        fs.setMoleFraction(oilPhaseIdx, OctaneIdx, 0.0);
+        fs.setMoleFraction(oilPhaseIdx, BrineIdx, 0.0);
 
-        fs.setMoleFraction(waterPhaseIdx, CO2Idx, 0.0000);
-        fs.setMoleFraction(waterPhaseIdx, OctaneIdx, 0.0000);
+        fs.setMoleFraction(gasPhaseIdx, CO2Idx, 1.0);
+        fs.setMoleFraction(gasPhaseIdx, OctaneIdx, 0.0);
+        fs.setMoleFraction(gasPhaseIdx, BrineIdx, 0.0);
+
+        fs.setMoleFraction(waterPhaseIdx, CO2Idx, 0.0);
+        fs.setMoleFraction(waterPhaseIdx, OctaneIdx, 0.0);
         fs.setMoleFraction(waterPhaseIdx, BrineIdx, 1.0);
 
         // temperature
         fs.setTemperature(temperature_);
 
-        // saturation, oil-filled at upper half, water-filled at lower half
-        // DOES NOT CONV WITH fugacity != 1 when co2 is injected
-        // conv with fugacity = 1 (no mixing) when co2 is injected
-        //fs.setSaturation(FluidSystem::oilPhaseIdx, (j < NY/2) ? 0.8 : 0.2);
-        //fs.setSaturation(FluidSystem::waterPhaseIdx, (j < NY/2) ? 0.2 : 0.8);
-
-        // saturation, oil-filled at upper half, water-filled at lower half
-        if (false && pos[0] < this->boundingBoxMax()[0]/2) {
-            fs.setSaturation(FluidSystem::oilPhaseIdx, 1.);
-            fs.setSaturation(FluidSystem::waterPhaseIdx, 0.);
-        }
-        else {
-            fs.setSaturation(FluidSystem::oilPhaseIdx, 0.);
-            fs.setSaturation(FluidSystem::waterPhaseIdx, 1.);
-        }
-
         // saturation, oil-filled
-        // conv with small interaction when when co2 is injected
-        // conv with fugacity = 1 (no mixing) when co2 is injected
-        //fs.setSaturation(FluidSystem::oilPhaseIdx, 1.);
-        //fs.setSaturation(FluidSystem::waterPhaseIdx, 0);
-
-        // saturation, water-filled
-        // DOES NOT CONV WITH fugacity != 1 co2 injected
-        // does conv with fugacity != 1 , co2 injected
-     //  fs.setSaturation(FluidSystem::oilPhaseIdx, (j < NY/2) ? 0. : 0.);
-     //  fs.setSaturation(FluidSystem::waterPhaseIdx, (j < NY/2) ? 1. : 1.);
+            fs.setSaturation(FluidSystem::oilPhaseIdx, 1.0);
+            fs.setSaturation(FluidSystem::waterPhaseIdx, 0.0);
+            fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
 
 
         // fill in viscosity and enthalpy based on the state set above
         // and the fluid system defined in this class
         typename FluidSystem::template ParameterCache<Scalar> paramCache;
         typedef Opm::ComputeFromReferencePhase<Scalar, FluidSystem> CFRP;
-        if (fs.saturation(waterPhaseIdx) > .1){
-	  std::cerr << "water\n";
-	  CFRP::solve(fs, paramCache,
-                        /*refPhaseIdx=*/ waterPhaseIdx,
-                        /*setViscosity=*/ true,
-                        /*setEnthalpy=*/ true);
-        } else {
+
           CFRP::solve(fs, paramCache,
                       /*refPhaseIdx=*/ oilPhaseIdx,
                       /*setViscosity=*/ true,
                       /*setEnthalpy=*/ true);
-        }
+
 
         // const auto& matParams = this->materialLawParams(context, spaceIdx,
         // timeIdx);
@@ -575,26 +540,32 @@ public:
 	std::cout << "primary variables for cell " << context.globalSpaceIndex(spaceIdx, timeIdx) << ": " << values << "\n";
     }
 
-    /// Constant temperature
+    // Constant temperature
     template <class Context>
     Scalar temperature(const Context& context OPM_UNUSED,
                        unsigned spaceIdx OPM_UNUSED,
                        unsigned timeIdx OPM_UNUSED) const
-    { return temperature_; }
+    {
+        return temperature_;
+    }
 
-    /// Constant permeability
+    // Constant permeability
     template <class Context>
     const DimMatrix& intrinsicPermeability(const Context& context OPM_UNUSED,
                                            unsigned spaceIdx OPM_UNUSED,
                                            unsigned timeIdx OPM_UNUSED) const
-    { return K_; }
+    {
+        return K_;
+    }
 
-    /// Constant porosity
+    // Constant porosity
     template <class Context>
     Scalar porosity(const Context& context  OPM_UNUSED,
                     unsigned spaceIdx OPM_UNUSED,
                     unsigned timeIdx OPM_UNUSED) const
-    { return porosity_; }
+    {
+        return porosity_;
+    }
 
     /*!
      * \copydoc FvBaseMultiPhaseProblem::materialLawParams
@@ -602,7 +573,9 @@ public:
     template <class Context>
     const MaterialLawParams& materialLawParams(const Context& context,
                                                unsigned spaceIdx, unsigned timeIdx) const
-    { return this->mat_; }
+    {
+        return this->mat_;
+    }
 
     template <class Context>
     void boundary(BoundaryRateVector& values, const Context& context,
@@ -614,93 +587,35 @@ public:
         const Scalar eps = std::numeric_limits<double>::epsilon();
 	    const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
 
-	    // left side has a fixed inflow rate in the lower half
+        // left side has a fixed inflow rate
 	    if((pos[XDIM] < this->boundingBoxMin()[XDIM] + eps) &&
 	       (pos[YDIM] < this->boundingBoxMin()[YDIM] +
-                (this->boundingBoxMax()[YDIM] - this->boundingBoxMin()[YDIM]))) {
+           (this->boundingBoxMax()[YDIM] - this->boundingBoxMin()[YDIM])))
+        {
 		    // assign rate to the CO2 component of the inflow
 		    RateVector massRate(0.);
-            massRate[contiCO2EqIdx] =  -1e-7;
+            massRate[contiCO2EqIdx] = 0.0;// -1e-7;
 		    values.setMassRate(massRate);
 	    }
-#if 0
-	    else if(pos[XDIM] > this->boundingBoxMax()[XDIM] - eps) {
-		    // get mole fraction in incident element
-		    Scalar x_co2_in_oil = Toolbox::value(
-			    context.intensiveQuantities(spaceIdx, timeIdx).fluidState()
-                .moleFraction(oilPhaseIdx, CO2Idx));
-		    Scalar x_co2_in_brine = Toolbox::value(
-			    context.intensiveQuantities(spaceIdx, timeIdx).fluidState()
-                .moleFraction(waterPhaseIdx, CO2Idx));
-		    Scalar x_c8 = Toolbox::value(
-			    context.intensiveQuantities(spaceIdx, timeIdx).fluidState()
-                .moleFraction(oilPhaseIdx, OctaneIdx));
-		    Scalar x_h2o = Toolbox::value(
-			    context.intensiveQuantities(spaceIdx, timeIdx).fluidState()
-                .moleFraction(waterPhaseIdx, BrineIdx));
 
-
-		    Opm::CompositionalFluidState<Scalar, FluidSystem> fs;
-		    // saturation, only one phase for the time being
-            fs.setSaturation(FluidSystem::oilPhaseIdx, 1.);
-            fs.setSaturation(FluidSystem::waterPhaseIdx, 0.);
-
-		    // copy mole fraction over
-            fs.setMoleFraction(oilPhaseIdx, CO2Idx, x_co2_in_oil);
-            fs.setMoleFraction(oilPhaseIdx, OctaneIdx, x_c8);
-            fs.setMoleFraction(waterPhaseIdx, CO2Idx, x_co2_in_brine);
-            fs.setMoleFraction(waterPhaseIdx, BrineIdx, x_h2o);
-
-		    const double dy = (Y_SIZE / 100.) / NY;
-		    // since the initialization matrices are turned upside-down compared
-		    // to the grid, we must subtract the index from the top to find the
-		    // appropriate index in the initialization matrix from the coordinate
-		    // (i, j) is thus only valid for lookup in init_comp and init_pres
-		    unsigned j = (NY-1) - static_cast<unsigned>(std::floor(
-                    (pos[YDIM] - this->boundingBoxMin()[YDIM]) / dy));
-
-		    // get capillary pressure
-		    Scalar pC[numPhases];
-		    const auto& matParams = this->materialLawParams(context, spaceIdx, timeIdx);
-		    MaterialLaw::capillaryPressures(pC, matParams, fs);
-
-		    // hydrostatic pressure in outlet
-            fs.setPressure(oilPhaseIdx, this->init_pres[j]);
-            fs.setPressure(waterPhaseIdx, this->init_pres[j] + (pC[waterPhaseIdx] - pC[oilPhaseIdx]));
-		    fs.setTemperature(this->temperature_);
-		    fs.checkDefined();
-
-		    // update dependent quantities, such as viscosities
-		    typename FluidSystem::template ParameterCache<Scalar> paramCache;
-		    typedef Opm::ComputeFromReferencePhase<Scalar, FluidSystem> CFRP;
-		    CFRP::solve(fs, paramCache,
-                        /*refPhaseIdx=*/oilPhaseIdx,
-		                /*setViscosity=*/true,
-		                /*setEnthalpy=*/true);
-
-		    values.setFreeFlow(context, spaceIdx, timeIdx, fs);
-	    }
-#endif
 	    else {
-		    // closed on top and bottom
-		    values.setNoFlow();
+            values.setNoFlow();// closed on top and bottom
 	    }
     }
 
-    /// No source terms
+    // No source terms
     template <class Context>
     void source(RateVector& rate, const Context& context OPM_UNUSED,
                 unsigned spaceIdx OPM_UNUSED,
                 unsigned timeIdx OPM_UNUSED) const
-    { rate = Scalar(0.0); }
+    {
+        rate = Scalar(0.0);
+    }
 
 private:
     DimMatrix K_;
-
     Scalar porosity_;
-
     Scalar temperature_;
-
     MaterialLawParams mat_;
 
     // initialize a random sequence that will return some normal distributed
