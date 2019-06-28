@@ -169,12 +169,8 @@ public:
             if (compIdx == BrineIdx)
                 continue;
             K[compIdx] = wilsonK_(fluidState, compIdx);
-
-            L_min = Opm::min(L_min, 1/(1-K[compIdx]));
-            L_max = Opm::max(L_max, 1/(1-K[compIdx]));
         }
 
-        L = (L_min + L_max)/2;
         L = 0.5;
         std::cout << "global composition:" << globalComposition << std::endl;
         //Rachford Rice equation
@@ -322,6 +318,10 @@ protected:
     template <class Vector>
     static typename Vector::field_type solveRachfordRice_g_(const Vector& K, Scalar L, const Vector& globalComposition)
     {
+        //L_min = Opm::min(L_min, 1/(1-K[compIdx]));
+        //L_max = Opm::max(L_max, 1/(1-K[compIdx]));
+        //L = (L_min + L_max)/2;
+        //TODO: reimplement with bisection of L if L not in Lmin, Lmax !!!
         for (int iteration=0; iteration<200; ++iteration){
             //L=Lold+g/dg;
             Scalar g = rachfordRice_g_(K, L, globalComposition);
