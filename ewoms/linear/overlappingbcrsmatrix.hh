@@ -448,8 +448,7 @@ private:
 
     // send the overlap indices to a peer
     template <class NativeBCRSMatrix>
-    void sendIndices_(const NativeBCRSMatrix& nativeMatrix OPM_UNUSED_NOMPI,
-                      ProcessRank peerRank OPM_UNUSED_NOMPI)
+    void sendIndices_(const NativeBCRSMatrix& nativeMatrix, ProcessRank peerRank)
     {
 #if HAVE_MPI
         // send size of foreign overlap to peer
@@ -531,7 +530,7 @@ private:
     }
 
     // receive the overlap indices to a peer
-    void receiveIndices_(ProcessRank peerRank OPM_UNUSED_NOMPI)
+    void receiveIndices_(ProcessRank peerRank)
     {
 #if HAVE_MPI
         // receive size of foreign overlap to peer
@@ -579,7 +578,7 @@ private:
 #endif // HAVE_MPI
     }
 
-    void sendEntries_(ProcessRank peerRank OPM_UNUSED_NOMPI)
+    void sendEntries_(ProcessRank peerRank)
     {
 #if HAVE_MPI
         auto &mpiSendBuff = *entryValuesSendBuff_[peerRank];
@@ -608,7 +607,7 @@ private:
 #endif // HAVE_MPI
     }
 
-    void receiveAddEntries_(ProcessRank peerRank OPM_UNUSED_NOMPI)
+    void receiveAddEntries_(ProcessRank peerRank)
     {
 #if HAVE_MPI
         auto &mpiRecvBuff = *entryValuesRecvBuff_[peerRank];
@@ -636,7 +635,7 @@ private:
 #endif // HAVE_MPI
     }
 
-    void receiveCopyEntries_(int peerRank OPM_UNUSED_NOMPI)
+    void receiveCopyEntries_(int peerRank)
     {
 #if HAVE_MPI
         MpiBuffer<block_type> &mpiRecvBuff = *entryValuesRecvBuff_[peerRank];

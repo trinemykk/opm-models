@@ -124,17 +124,6 @@
         #ParamName, #ParamName,                                         \
         /*errorIfNotRegistered=*/false))
 
-/*!
- * \ingroup Parameter
- *
- * \brief Retrieves the lists of parameters specified at runtime and their values.
- *
- * The two arguments besides the TypeTag are assumed to be STL containers which store
- * std::pair<std::string, std::string>.
- */
-#define EWOMS_GET_PARAM_LISTS(TypeTag, UsedParamList, UnusedParamList)    \
-    (::Ewoms::Parameters::getLists<TypeTag>(UsedParamList, UnusedParamList))
-
 //!\cond SKIP_THIS
 #define EWOMS_RESET_PARAMS_(TypeTag)            \
     (::Ewoms::Parameters::reset<TypeTag>())
@@ -745,7 +734,7 @@ std::string parseCommandLineOptions(int argc,
         }
         seenKeys.insert(paramName);
 
-        if (s.empty() || s[0] != '=') {
+        if (s.empty() || s[0] != '=' || s.size()==1) {
             std::string msg =
                 std::string("Parameter '")+paramName+"' is missing a value. "
                 +" Please use "+argv[i]+"=value.";
@@ -954,13 +943,15 @@ public:
 
     static void clear()
     {
+        typedef typename GET_PROP(TypeTag, ParameterMetaData) ParamsMeta;
+
         ParamsMeta::clear();
     }
 
     template <class ParamType, class PropTag>
-    static bool isSet(const char *propTagName OPM_OPTIM_UNUSED,
-                      const char *paramName OPM_OPTIM_UNUSED,
-                      bool errorIfNotRegistered = true)
+    static const bool isSet(const char *propTagName,
+                            const char *paramName,
+                            bool errorIfNotRegistered = true)
     {
 
 #ifndef NDEBUG
@@ -970,6 +961,7 @@ public:
         check_(Dune::className<ParamType>(), propTagName, paramName);
 #endif
 
+        typedef typename GET_PROP(TypeTag, ParameterMetaData) ParamsMeta;
         if (errorIfNotRegistered) {
             if (ParamsMeta::registrationOpen())
                 throw std::runtime_error("Parameters can only checked after _all_ of them have "
@@ -1004,8 +996,7 @@ private:
     };
 
     static void check_(const std::string& paramTypeName,
-                       const std::string& propertyName,
-                       const char *paramName)
+                       const std::string& propertyName, const char *paramName)
     {
         typedef std::unordered_map<std::string, Blubb> StaticData;
         static StaticData staticData;
@@ -1047,6 +1038,7 @@ private:
         check_(Dune::className<ParamType>(), propTagName, paramName);
 #endif
 
+        typedef typename GET_PROP(TypeTag, ParameterMetaData) ParamsMeta;
         if (errorIfNotRegistered) {
             if (ParamsMeta::registrationOpen())
                 throw std::runtime_error("Parameters can only retieved after _all_ of them have "
@@ -1077,34 +1069,6 @@ const ParamType get(const char *propTagName, const char *paramName, bool errorIf
     return Param<TypeTag>::template get<ParamType, PropTag>(propTagName,
                                                             paramName,
                                                             errorIfNotRegistered);
-}
-
-template <class TypeTag, class Container>
-void getLists(Container& usedParams, Container& unusedParams)
-{
-    usedParams.clear();
-    unusedParams.clear();
-
-    typedef typename GET_PROP(TypeTag, ParameterMetaData) ParamsMeta;
-    if (ParamsMeta::registrationOpen())
-        throw std::runtime_error("Parameter lists can only retieved after _all_ of them have "
-                                 "been registered.");
-
-    // get all parameter keys
-    std::list<std::string> allKeysList;
-    const auto& paramTree = ParamsMeta::tree();
-    getFlattenedKeyList_(allKeysList, paramTree);
-
-    for (const auto& key : allKeysList) {
-        if (ParamsMeta::registry().find(key) == ParamsMeta::registry().end()) {
-            // key was not registered
-            unusedParams.emplace_back(key, paramTree[key]);
-        }
-        else {
-            // key was registered
-            usedParams.emplace_back(key, paramTree[key]);
-        }
-    }
 }
 
 template <class TypeTag>

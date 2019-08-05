@@ -136,9 +136,7 @@ public:
     /*!
      * \brief Send a border index to a remote process.
      */
-    void sendBorderIndex(ProcessRank peerRank OPM_UNUSED_NOMPI,
-                         Index domesticIdx OPM_UNUSED_NOMPI,
-                         Index peerLocalIdx OPM_UNUSED_NOMPI)
+    void sendBorderIndex(ProcessRank peerRank, Index domesticIdx, Index peerLocalIdx)
     {
 #if HAVE_MPI
         PeerIndexGlobalIndex sendBuf;
@@ -157,7 +155,7 @@ public:
      * \brief Receive an index on the border from a remote
      *        process and add it the translation maps.
      */
-    void receiveBorderIndex(ProcessRank peerRank OPM_UNUSED_NOMPI)
+    void receiveBorderIndex(ProcessRank peerRank)
     {
 #if HAVE_MPI
         PeerIndexGlobalIndex recvBuf;
@@ -282,7 +280,7 @@ protected:
 #endif // HAVE_MPI
     }
 
-    void sendBorderTo_(ProcessRank peerRank OPM_UNUSED_NOMPI)
+    void sendBorderTo_(ProcessRank peerRank)
     {
 #if HAVE_MPI
         // send (local index on myRank, global index) pairs to the
@@ -305,7 +303,7 @@ protected:
 #endif // HAVE_MPI
     }
 
-    void receiveBorderFrom_(ProcessRank peerRank OPM_UNUSED_NOMPI)
+    void receiveBorderFrom_(ProcessRank peerRank)
     {
 #if HAVE_MPI
         // retrieve the global indices for which we are not master

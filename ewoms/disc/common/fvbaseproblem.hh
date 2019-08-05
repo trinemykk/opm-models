@@ -178,10 +178,6 @@ public:
                              "before the simulation bails out");
         EWOMS_REGISTER_PARAM(TypeTag, bool, EnableAsyncVtkOutput,
                              "Dispatch a separate thread to write the VTK output");
-        EWOMS_REGISTER_PARAM(TypeTag, bool, ContinueOnConvergenceError,
-                             "Continue with a non-converged solution instead of giving up "
-                             "if we encounter a time step size smaller than the minimum time "
-                             "step size.");
     }
 
     /*!
@@ -513,34 +509,28 @@ public:
      */
     void timeIntegration()
     {
-        unsigned maxFails = asImp_().maxTimeIntegrationFailures();
-        Scalar minTimeStepSize = asImp_().minTimeStepSize();
+        unsigned maxFails = EWOMS_GET_PARAM(TypeTag, unsigned, MaxTimeStepDivisions);
+        Scalar minTimeStepSize = EWOMS_GET_PARAM(TypeTag, Scalar, MinTimeStepSize);
 
-        std::string errorMessage;
+        // if the time step size of the simulator is smaller than
+        // the specified minimum size and we're not going to finish
+        // the simulation or an episode, try with the minimum size.
+        if (simulator().timeStepSize() < minTimeStepSize &&
+            !simulator().episodeWillBeOver() &&
+            !simulator().willBeFinished())
+        {
+            simulator().setTimeStepSize(minTimeStepSize);
+        }
+
         for (unsigned i = 0; i < maxFails; ++i) {
             bool converged = model().update();
             if (converged)
                 return;
 
             Scalar dt = simulator().timeStepSize();
-            Scalar nextDt = dt / 2.0;
-            if (dt < minTimeStepSize*(1 + 1e-9)) {
-                if (asImp_().continueOnConvergenceError()) {
-                    if (gridView().comm().rank() == 0)
-                        std::cout << "Newton solver did not converge with minimum time step of "
-                                  << dt << " seconds. Continuing with unconverged solution!\n"
-                                  << std::flush;
-                    return;
-                }
-                else {
-                    errorMessage =
-                        "Time integration did not succeed with the minumum time step size of "
-                        + std::to_string(double(minTimeStepSize)) + " seconds. Giving up!";
-                    break; // give up: we can't make the time step smaller anymore!
-                }
-            }
-            else if (nextDt < minTimeStepSize)
-                nextDt = minTimeStepSize;
+            Scalar nextDt = dt / 2;
+            if (nextDt < minTimeStepSize)
+                break; // give up: we can't make the time step smaller anymore!
             simulator().setTimeStepSize(nextDt);
 
             // update failed
@@ -550,34 +540,10 @@ public:
                           << nextDt << " seconds\n" << std::flush;
         }
 
-        if (errorMessage.empty())
-            errorMessage =
-                "Newton solver didn't converge after "
-                +std::to_string(maxFails)+" time-step divisions. dt="
-                +std::to_string(double(simulator().timeStepSize()));
-        throw std::runtime_error(errorMessage);
+        throw std::runtime_error("Newton solver didn't converge after "
+                                 +std::to_string(maxFails)+" time-step divisions. dt="
+                                 +std::to_string(double(simulator().timeStepSize())));
     }
-
-    /*!
-     * \brief Returns the minimum allowable size of a time step.
-     */
-    Scalar minTimeStepSize() const
-    { return EWOMS_GET_PARAM(TypeTag, Scalar, MinTimeStepSize); }
-
-    /*!
-     * \brief Returns the maximum number of subsequent failures for the time integration
-     *        before giving up.
-     */
-    unsigned maxTimeIntegrationFailures() const
-    { return EWOMS_GET_PARAM(TypeTag, unsigned, MaxTimeStepDivisions); }
-
-    /*!
-     * \brief Returns if we should continue with a non-converged solution instead of
-     *        giving up if we encounter a time step size smaller than the minimum time
-     *        step size.
-     */
-    bool continueOnConvergenceError() const
-    { return EWOMS_GET_PARAM(TypeTag, unsigned, ContinueOnConvergenceError); }
 
     /*!
      * \brief Impose the next time step size to be used externally.

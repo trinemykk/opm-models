@@ -233,7 +233,7 @@ public:
      * \brief Assign the energy specific primary variables to a PrimaryVariables object
      */
     static void assignPrimaryVars(PrimaryVariables& priVars,
-                                  Scalar temperature OPM_UNUSED)
+                                  Scalar temperature)
     {
         if (!enableEnergy)
             return;
