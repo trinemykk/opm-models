@@ -416,7 +416,13 @@ public:
      *        the end of the simlation.
      */
     Scalar timeStepSize() const
-    { return timeStepSize_; }
+    {
+           Scalar maximumTimeStepSize =
+               std::min(episodeMaxTimeStepSize(),
+                        std::max( Scalar(0), endTime() - this->time()));
+
+           return std::min(timeStepSize_, maximumTimeStepSize);
+       }
 
     /*!
      * \brief Returns number of time steps which have been
@@ -748,7 +754,7 @@ public:
                     dt = forcedTimeSteps_[timeStepIdx_];
                 else
                     // ask the problem to provide the next time step size
-                    dt = std::min(maxTimeStepSize(), problem_->nextTimeStepSize());
+                    dt = problem_->nextTimeStepSize();
 
                 setTimeStepSize(dt);
             }
