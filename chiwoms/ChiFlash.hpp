@@ -158,6 +158,13 @@ public:
         if (tolerance <= 0)
             tolerance = std::min<Scalar>(1e-3, 1e8*std::numeric_limits<Scalar>::epsilon());
 
+        // NOTE pseudocode for what the code does:
+        // for two-phase --> go directly to flash (TODO)
+        // for single-phase : DO STABILITYTEST --> initial K0 (TODO)
+        // solve Rachford Rice (using K0, L0, z) for stabilityTest showing that singlePhase --> twoPhase --> L0 (TODO)
+        // newtonCompositionUpdate using p, T, z, K and L
+
+
         //initial guess for the K value, L value in RachfordRice
         ComponentVector K;
         Scalar L;
@@ -173,10 +180,12 @@ public:
 
         L = 0.5;
         std::cout << "global composition:" << globalComposition << std::endl;
+
         //Rachford Rice equation
         std::cout << "lambda:" << L << std::endl;
         L = solveRachfordRice_g_(K, L, globalComposition);
         std::cout << "lambda ny:" << L << std::endl;
+
         //Phase stability test
         bool isStable;
         ComponentVector x;
