@@ -301,8 +301,3 @@ opm_add_test(tutorial1
 
 opm_add_test(test_tasklets
              DRIVER_ARGS --plain)
-
-opm_add_test(test_mpiutil
-             PROCESSORS 4
-             CONDITION ${MPI_FOUND} AND Boost_UNIT_TEST_FRAMEWORK_FOUND
-             DRIVER_ARGS --parallel-program=4)
