@@ -23,7 +23,7 @@
 /*!
  * \file
  *
- * \copydoc Ewoms::BlackOilNewtonMethod
+ * \copydoc Opm::BlackOilNewtonMethod
  */
 #ifndef EWOMS_BLACK_OIL_NEWTON_METHOD_HH
 #define EWOMS_BLACK_OIL_NEWTON_METHOD_HH
@@ -46,7 +46,7 @@ SET_SCALAR_PROP(NewtonMethod, PriVarOscilationThreshold, 1e-5);
 
 END_PROPERTIES
 
-namespace Ewoms {
+namespace Opm {
 
 /*!
  * \ingroup BlackOilModel
@@ -187,6 +187,7 @@ protected:
         static constexpr bool enablePolymer = Indices::polymerConcentrationIdx >= 0;
         static constexpr bool enablePolymerWeight = Indices::polymerMoleWeightIdx >= 0;
         static constexpr bool enableEnergy = Indices::temperatureIdx >= 0;
+        static constexpr bool enableFoam = Indices::foamConcentrationIdx >= 0;
 
         currentValue.checkDefined();
         Opm::Valgrind::CheckDefined(update);
@@ -236,7 +237,7 @@ protected:
             // limit pressure delta
             if (pvIdx == Indices::pressureSwitchIdx) {
                 if (std::abs(delta) > dpMaxRel_*currentValue[pvIdx])
-                    delta = Ewoms::signum(delta)*dpMaxRel_*currentValue[pvIdx];
+                    delta = Opm::signum(delta)*dpMaxRel_*currentValue[pvIdx];
             }
             // water saturation delta
             else if (pvIdx == Indices::waterSaturationIdx)
@@ -284,6 +285,10 @@ protected:
                     nextValue[pvIdx] = 0.0;
             }
 
+            // keep the foam concentration above 0
+            if (enableFoam && pvIdx == Indices::foamConcentrationIdx)
+                nextValue[pvIdx] = std::max(nextValue[pvIdx], 0.0);
+
             // keep the temperature above 100 and below 1000 Kelvin
             if (enableEnergy && pvIdx == Indices::temperatureIdx)
                 nextValue[pvIdx] = std::max(std::min(nextValue[pvIdx], 1000.0), 100.0);
@@ -314,6 +319,6 @@ private:
     // to detect and hinder oscillations
     std::vector<bool> wasSwitched_;
 };
-} // namespace Ewoms
+} // namespace Opm
 
 #endif

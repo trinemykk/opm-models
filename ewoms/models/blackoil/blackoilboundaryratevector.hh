@@ -23,7 +23,7 @@
 /*!
  * \file
  *
- * \copydoc Ewoms::BlackOilBoundaryRateVector
+ * \copydoc Opm::BlackOilBoundaryRateVector
  */
 #ifndef EWOMS_BLACK_OIL_BOUNDARY_RATE_VECTOR_HH
 #define EWOMS_BLACK_OIL_BOUNDARY_RATE_VECTOR_HH
@@ -34,7 +34,7 @@
 #include "blackoilintensivequantities.hh"
 #include "blackoilenergymodules.hh"
 
-namespace Ewoms {
+namespace Opm {
 
 /*!
  * \ingroup BlackOilModel
@@ -61,10 +61,11 @@ class BlackOilBoundaryRateVector : public GET_PROP_TYPE(TypeTag, RateVector)
     enum { enableEnergy = GET_PROP_VALUE(TypeTag, EnableEnergy) };
     enum { conti0EqIdx = Indices::conti0EqIdx };
     enum { contiEnergyEqIdx = Indices::contiEnergyEqIdx };
+    enum { enableFoam = GET_PROP_VALUE(TypeTag, EnableFoam) };
 
     static constexpr bool blackoilConserveSurfaceVolume = GET_PROP_VALUE(TypeTag, BlackoilConserveSurfaceVolume);
 
-    typedef Ewoms::BlackOilEnergyModule<TypeTag, enableEnergy> EnergyModule;
+    typedef Opm::BlackOilEnergyModule<TypeTag, enableEnergy> EnergyModule;
 
 public:
     /*!
@@ -265,6 +266,6 @@ public:
     }
 };
 
-} // namespace Ewoms
+} // namespace Opm
 
 #endif

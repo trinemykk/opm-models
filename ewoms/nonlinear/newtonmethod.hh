@@ -22,7 +22,7 @@
 */
 /*!
  * \file
- * \copydoc Ewoms::NewtonMethod
+ * \copydoc Opm::NewtonMethod
  */
 #ifndef EWOMS_NEWTON_METHOD_HH
 #define EWOMS_NEWTON_METHOD_HH
@@ -49,15 +49,15 @@
 
 #include <unistd.h>
 
-namespace Ewoms {
+namespace Opm {
 // forward declaration of classes
 template <class TypeTag>
 class NewtonMethod;
 }
 
-namespace Ewoms {
+namespace Opm {
 // forward declaration of property tags
-} // namespace Ewoms
+} // namespace Opm
 
 BEGIN_PROPERTIES
 
@@ -147,8 +147,8 @@ NEW_PROP_TAG(NewtonTargetIterations);
 NEW_PROP_TAG(NewtonMaxIterations);
 
 // set default values for the properties
-SET_TYPE_PROP(NewtonMethod, NewtonMethod, Ewoms::NewtonMethod<TypeTag>);
-SET_TYPE_PROP(NewtonMethod, NewtonConvergenceWriter, Ewoms::NullConvergenceWriter<TypeTag>);
+SET_TYPE_PROP(NewtonMethod, NewtonMethod, Opm::NewtonMethod<TypeTag>);
+SET_TYPE_PROP(NewtonMethod, NewtonConvergenceWriter, Opm::NullConvergenceWriter<TypeTag>);
 SET_BOOL_PROP(NewtonMethod, NewtonWriteConvergence, false);
 SET_BOOL_PROP(NewtonMethod, NewtonVerbose, true);
 SET_SCALAR_PROP(NewtonMethod, NewtonTolerance, 1e-8);
@@ -160,7 +160,7 @@ SET_INT_PROP(NewtonMethod, NewtonMaxIterations, 18);
 
 END_PROPERTIES
 
-namespace Ewoms {
+namespace Opm {
 /*!
  * \ingroup Newton
  * \brief The multi-dimensional Newton method.
@@ -332,7 +332,7 @@ public:
 
         Linearizer& linearizer = model().linearizer();
 
-        Ewoms::TimerGuard prePostProcessTimerGuard(prePostProcessTimer_);
+        Opm::TimerGuard prePostProcessTimerGuard(prePostProcessTimer_);
 
         // tell the implementation that we begin solving
         prePostProcessTimer_.start();
@@ -340,10 +340,10 @@ public:
         prePostProcessTimer_.stop();
 
         try {
-            Ewoms::TimerGuard innerPrePostProcessTimerGuard(prePostProcessTimer_);
-            Ewoms::TimerGuard linearizeTimerGuard(linearizeTimer_);
-            Ewoms::TimerGuard updateTimerGuard(updateTimer_);
-            Ewoms::TimerGuard solveTimerGuard(solveTimer_);
+            Opm::TimerGuard innerPrePostProcessTimerGuard(prePostProcessTimer_);
+            Opm::TimerGuard linearizeTimerGuard(linearizeTimer_);
+            Opm::TimerGuard updateTimerGuard(updateTimer_);
+            Opm::TimerGuard solveTimerGuard(solveTimer_);
 
             // execute the method as long as the implementation thinks
             // that we should do another iteration
@@ -529,21 +529,23 @@ public:
      * scaled by the ratio between the target iterations and the
      * iterations required to actually solve the last time-step.
      */
-    Scalar suggestTimeStepSize(Scalar oldTimeStep) const
+    Scalar suggestTimeStepSize(Scalar oldDt) const
     {
         // be aggressive reducing the time-step size but
         // conservative when increasing it. the rationale is
         // that we want to avoid failing in the next time
         // integration which would be quite expensive
         if (numIterations_ > targetIterations_()) {
-            Scalar percent = Scalar(numIterations_ - targetIterations_())
-                             / targetIterations_();
-            return oldTimeStep / (1.0 + percent);
+            Scalar percent = Scalar(numIterations_ - targetIterations_())/targetIterations_();
+            Scalar nextDt = std::max(problem().minTimeStepSize(),
+                                     oldDt/(1.0 + percent));
+            return nextDt;
         }
 
-        Scalar percent = Scalar(targetIterations_() - numIterations_)
-                         / targetIterations_();
-        return oldTimeStep * (1.0 + percent / 1.2);
+        Scalar percent = Scalar(targetIterations_() - numIterations_)/targetIterations_();
+        Scalar nextDt = std::max(problem().minTimeStepSize(),
+                                 oldDt*(1.0 + percent/1.2));
+        return nextDt;
     }
 
     /*!
@@ -572,16 +574,16 @@ public:
     const LinearSolverBackend& linearSolver() const
     { return linearSolver_; }
 
-    const Ewoms::Timer& prePostProcessTimer() const
+    const Opm::Timer& prePostProcessTimer() const
     { return prePostProcessTimer_; }
 
-    const Ewoms::Timer& linearizeTimer() const
+    const Opm::Timer& linearizeTimer() const
     { return linearizeTimer_; }
 
-    const Ewoms::Timer& solveTimer() const
+    const Opm::Timer& solveTimer() const
     { return solveTimer_; }
 
-    const Ewoms::Timer& updateTimer() const
+    const Opm::Timer& updateTimer() const
     { return updateTimer_; }
 
 protected:
@@ -954,10 +956,10 @@ protected:
 
     Simulator& simulator_;
 
-    Ewoms::Timer prePostProcessTimer_;
-    Ewoms::Timer linearizeTimer_;
-    Ewoms::Timer solveTimer_;
-    Ewoms::Timer updateTimer_;
+    Opm::Timer prePostProcessTimer_;
+    Opm::Timer linearizeTimer_;
+    Opm::Timer solveTimer_;
+    Opm::Timer updateTimer_;
 
     std::ostringstream endIterMsgStream_;
 
@@ -986,6 +988,6 @@ private:
     { return *static_cast<const Implementation *>(this); }
 };
 
-} // namespace Ewoms
+} // namespace Opm
 
 #endif

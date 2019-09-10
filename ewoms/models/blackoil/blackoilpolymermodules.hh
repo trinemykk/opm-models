@@ -53,7 +53,7 @@
 
 #include <string>
 
-namespace Ewoms {
+namespace Opm {
 /*!
  * \ingroup BlackOil
  * \brief Contains the high level supplements required to extend the black oil
@@ -509,7 +509,7 @@ public:
             // polymers have been disabled at compile time
             return;
 
-        Ewoms::VtkBlackOilPolymerModule<TypeTag>::registerParameters();
+        Opm::VtkBlackOilPolymerModule<TypeTag>::registerParameters();
     }
 
     /*!
@@ -522,7 +522,7 @@ public:
             // polymers have been disabled at compile time
             return;
 
-        model.addOutputModule(new Ewoms::VtkBlackOilPolymerModule<TypeTag>(simulator));
+        model.addOutputModule(new Opm::VtkBlackOilPolymerModule<TypeTag>(simulator));
     }
 
     static bool primaryVarApplies(unsigned pvIdx)
@@ -844,15 +844,14 @@ public:
 
         const Scalar eps = 1e-14;
         // return 1.0 if the polymer has no effect on the water.
-        if (std::abs((viscosityMultiplier - 1.0)) < eps){
-            return ToolboxLocal::createBlank(v0) + 1.;
-        }
+        if (std::abs((viscosityMultiplier - 1.0)) < eps)
+            return ToolboxLocal::createConstant(v0, 1.0);
 
         const std::vector<Scalar>& shearEffectRefLogVelocity = plyshlogShearEffectRefLogVelocity_[pvtnumRegionIdx];
         auto v0AbsLog = Opm::log(Opm::abs(v0));
         // return 1.0 if the velocity /sharte is smaller than the first velocity entry.
         if (v0AbsLog < shearEffectRefLogVelocity[0])
-            return ToolboxLocal::createBlank(v0) + 1.0;
+            return ToolboxLocal::createConstant(v0, 1.0);
 
         // compute shear factor from input
         // Z = (1 + (P - 1) * M(v)) / P
@@ -1013,7 +1012,7 @@ BlackOilPolymerModule<TypeTag, enablePolymerV>::skprpolyTables_;
 
 /*!
  * \ingroup BlackOil
- * \class Ewoms::BlackOilPolymerIntensiveQuantities
+ * \class Opm::BlackOilPolymerIntensiveQuantities
  *
  * \brief Provides the volumetric quantities required for the equations needed by the
  *        polymers extension of the black-oil model.
@@ -1196,7 +1195,7 @@ public:
 
 /*!
  * \ingroup BlackOil
- * \class Ewoms::BlackOilPolymerExtensiveQuantities
+ * \class Opm::BlackOilPolymerExtensiveQuantities
  *
  * \brief Provides the polymer specific extensive quantities to the generic black-oil
  *        module's extensive quantities.
@@ -1349,6 +1348,6 @@ public:
 };
 
 
-} // namespace Ewoms
+} // namespace Opm
 
 #endif

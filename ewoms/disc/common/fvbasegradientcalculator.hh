@@ -23,7 +23,7 @@
 /*!
  * \file
  *
- * \copydoc Ewoms::FvBaseGradientCalculator
+ * \copydoc Opm::FvBaseGradientCalculator
  */
 #ifndef EWOMS_FV_BASE_GRADIENT_CALCULATOR_HH
 #define EWOMS_FV_BASE_GRADIENT_CALCULATOR_HH
@@ -34,7 +34,7 @@
 
 #include <dune/common/fvector.hh>
 
-namespace Ewoms {
+namespace Opm {
 template<class TypeTag>
 class EcfvDiscretization;
 
@@ -60,8 +60,8 @@ class FvBaseGradientCalculator
     // we assume that the geometry with the most pointsq is a cube.
     enum { maxFap = 2 << dim };
 
-    typedef Dune::FieldVector<Scalar, dim> DimVector;
-    typedef Dune::FieldVector<Evaluation, dim> EvalDimVector;
+    typedef Dune::FieldVector<Scalar, dimWorld> DimVector;
+    typedef Dune::FieldVector<Evaluation, dimWorld> EvalDimVector;
 
 public:
     /*!
@@ -353,6 +353,6 @@ private:
         exteriorDistance = std::sqrt(std::abs(exteriorDistance));
     }
 };
-} // namespace Ewoms
+} // namespace Opm
 
 #endif

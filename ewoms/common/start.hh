@@ -83,7 +83,7 @@ END_PROPERTIES
 
 //! \cond SKIP_THIS
 
-namespace Ewoms {
+namespace Opm {
 /*!
  * \brief Announce all runtime parameters to the registry but do not specify them yet.
  */
@@ -118,7 +118,11 @@ static inline void registerAllParameters_(bool finalizeRegistration = true)
  * \param argv Array with the command line argument strings
  */
 template <class TypeTag>
-static inline int setupParameters_(int argc, const char **argv, bool registerParams = true)
+static inline int setupParameters_(int argc,
+                                   const char **argv,
+                                   bool registerParams=true,
+                                   bool allowUnused=false,
+                                   bool handleHelp = true)
 {
     typedef typename GET_PROP_TYPE(TypeTag, Problem) Problem;
 
@@ -138,7 +142,7 @@ static inline int setupParameters_(int argc, const char **argv, bool registerPar
     // fill the parameter tree with the options from the command line
     const auto& positionalParamCallback = Problem::handlePositionalParameter;
     std::string helpPreamble = "";
-    if (myRank == 0)
+    if (myRank == 0 && handleHelp)
         helpPreamble = Problem::helpPreamble(argc, argv);
     std::string s =
         Parameters::parseCommandLineOptions<TypeTag>(argc,
@@ -169,6 +173,36 @@ static inline int setupParameters_(int argc, const char **argv, bool registerPar
 
         // read the parameter file.
         Parameters::parseParameterFile<TypeTag>(paramFileName, /*overwrite=*/false);
+    }
+
+    // make sure that no unknown parameters are encountered
+    typedef std::pair<std::string, std::string> KeyValuePair;
+    typedef std::list<KeyValuePair> ParamList;
+
+    ParamList usedParams;
+    ParamList unusedParams;
+
+    EWOMS_GET_PARAM_LISTS(TypeTag, usedParams, unusedParams);
+    if (!allowUnused && !unusedParams.empty()) {
+        if (myRank == 0) {
+            if (unusedParams.size() == 1)
+                std::cerr << "The following explicitly specified parameter is unknown:\n";
+            else
+                std::cerr << "The following " << unusedParams.size()
+                          << " explicitly specified parameters are unknown:\n";
+
+            std::cerr << "\n";
+            for (const auto& keyValue : unusedParams)
+                std::cerr << "   " << keyValue.first << "=\"" << keyValue.second << "\"\n";
+            std::cerr << "\n";
+
+            std::cerr << "Use\n"
+                      << "\n"
+                      << "  " << argv[0] << " --help\n"
+                      << "\n"
+                      <<"to obtain the list of recognized command line parameters.\n\n";
+        }
+        return /*status=*/1;
     }
 
     return /*status=*/0;
@@ -330,20 +364,20 @@ static inline int start(int argc, char **argv)
             if (printParams) {
                 bool printSeparator = false;
                 if (printParams == 1 || !isatty(fileno(stdout))) {
-                    Ewoms::Parameters::printValues<TypeTag>();
+                    Opm::Parameters::printValues<TypeTag>();
                     printSeparator = true;
                 }
                 else
                     // always print the list of specified but unused parameters
                     printSeparator =
                         printSeparator ||
-                        Ewoms::Parameters::printUnused<TypeTag>();
+                        Opm::Parameters::printUnused<TypeTag>();
                 if (printSeparator)
                     std::cout << endParametersSeparator;
             }
             else
                 // always print the list of specified but unused parameters
-                if (Ewoms::Parameters::printUnused<TypeTag>())
+                if (Opm::Parameters::printUnused<TypeTag>())
                     std::cout << endParametersSeparator;
         }
 
@@ -351,7 +385,7 @@ static inline int start(int argc, char **argv)
         int printProps = EWOMS_GET_PARAM(TypeTag, int, PrintProperties);
         if (printProps && myRank == 0) {
             if (printProps == 1 || !isatty(fileno(stdout)))
-                Ewoms::Properties::printValues<TypeTag>();
+                Opm::Properties::printValues<TypeTag>();
         }
 
         // instantiate and run the concrete problem. make sure to
@@ -404,6 +438,6 @@ static inline int start(int argc, char **argv)
     }
 }
 
-} // namespace Ewoms
+} // namespace Opm
 
 #endif

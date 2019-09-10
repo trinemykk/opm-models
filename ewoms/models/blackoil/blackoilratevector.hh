@@ -23,7 +23,7 @@
 /*!
  * \file
  *
- * \copydoc Ewoms::BlackOilRateVector
+ * \copydoc Opm::BlackOilRateVector
  */
 #ifndef EWOMS_BLACK_OIL_RATE_VECTOR_HH
 #define EWOMS_BLACK_OIL_RATE_VECTOR_HH
@@ -35,7 +35,7 @@
 
 #include "blackoilintensivequantities.hh"
 
-namespace Ewoms {
+namespace Opm {
 
 /*!
  * \ingroup BlackOilModel
@@ -58,6 +58,7 @@ class BlackOilRateVector
 
     typedef BlackOilSolventModule<TypeTag> SolventModule;
     typedef BlackOilPolymerModule<TypeTag> PolymerModule;
+    typedef BlackOilFoamModule<TypeTag> FoamModule;
 
     enum { numEq = GET_PROP_VALUE(TypeTag, NumEq) };
     enum { numComponents = GET_PROP_VALUE(TypeTag, NumComponents) };
@@ -67,6 +68,7 @@ class BlackOilRateVector
     enum { enableSolvent = GET_PROP_VALUE(TypeTag, EnableSolvent) };
     enum { enablePolymer = GET_PROP_VALUE(TypeTag, EnablePolymer) };
     enum { enablePolymerMolarWeight = GET_PROP_VALUE(TypeTag, EnablePolymerMW) };
+    enum { enableFoam = GET_PROP_VALUE(TypeTag, EnableFoam) };
 
     typedef Opm::MathToolbox<Evaluation> Toolbox;
     typedef Dune::FieldVector<Evaluation, numEq> ParentType;
@@ -144,6 +146,10 @@ public:
             (*this)[Indices::contiPolymerEqIdx] *= PolymerModule::molarMass(pvtRegionIdx);
         }
 
+        if ( enableFoam ) {
+            throw std::logic_error("setMolarRate() not implemented for foam");
+        }
+
         // convert to "surface volume" if requested
         if (GET_PROP_VALUE(TypeTag, BlackoilConserveSurfaceVolume)) {
             if (FluidSystem::phaseIsActive(FluidSystem::gasPhaseIdx)) {
@@ -202,6 +208,6 @@ public:
     }
 };
 
-} // namespace Ewoms
+} // namespace Opm
 
 #endif

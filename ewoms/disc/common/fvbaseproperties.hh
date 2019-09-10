@@ -36,7 +36,7 @@
 
 #include <ewoms/common/basicproperties.hh>
 #include <ewoms/io/vtkprimaryvarsmodule.hh>
-#include <ewoms/linear/parallelbicgstabbackend.hh>
+#include <opm/simulators/linalg/parallelbicgstabbackend.hh>
 
 BEGIN_PROPERTIES
 
@@ -238,6 +238,13 @@ NEW_PROP_TAG(MinTimeStepSize);
  *        Newton solver.
  */
 NEW_PROP_TAG(MaxTimeStepDivisions);
+
+/*!
+ * \brief Continue with a non-converged solution instead of giving up
+ *        if we encounter a time step size smaller than the minimum time
+ *        step size.
+ */
+NEW_PROP_TAG(ContinueOnConvergenceError);
 
 /*!
  * \brief Specify whether all intensive quantities for the grid should be

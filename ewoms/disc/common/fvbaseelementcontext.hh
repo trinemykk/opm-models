@@ -23,7 +23,7 @@
 /*!
  * \file
  *
- * \copydoc Ewoms::FvBaseElementContext
+ * \copydoc Opm::FvBaseElementContext
  */
 #ifndef EWOMS_FV_BASE_ELEMENT_CONTEXT_HH
 #define EWOMS_FV_BASE_ELEMENT_CONTEXT_HH
@@ -39,7 +39,7 @@
 
 #include <vector>
 
-namespace Ewoms {
+namespace Opm {
 
 /*!
  * \ingroup FiniteVolumeDiscretizations
@@ -78,11 +78,11 @@ class FvBaseElementContext
     typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
     typedef typename GridView::template Codim<0>::Entity Element;
 
-    static const unsigned dim = GridView::dimension;
+    static const unsigned dimWorld = GridView::dimensionworld;
     static const unsigned numEq = GET_PROP_VALUE(TypeTag, NumEq);
 
     typedef typename GridView::ctype CoordScalar;
-    typedef Dune::FieldVector<CoordScalar, dim> GlobalPosition;
+    typedef Dune::FieldVector<CoordScalar, dimWorld> GlobalPosition;
 
     // we don't allow copies of element contexts!
     FvBaseElementContext(const FvBaseElementContext& ) = delete;
@@ -103,10 +103,10 @@ public:
     }
 
     static void *operator new(size_t size)
-    { return Ewoms::aligned_alloc(alignof(FvBaseElementContext), size); }
+    { return Opm::aligned_alloc(alignof(FvBaseElementContext), size); }
 
     static void operator delete(void *ptr)
-    { Ewoms::aligned_free(ptr); }
+    { Opm::aligned_free(ptr); }
 
     /*!
      * \brief Construct all volume and extensive quantities of an element
@@ -589,8 +589,8 @@ protected:
 
     GradientCalculator gradientCalculator_;
 
-    std::vector<DofStore_, Ewoms::aligned_allocator<DofStore_, alignof(DofStore_)> > dofVars_;
-    std::vector<ExtensiveQuantities, Ewoms::aligned_allocator<ExtensiveQuantities, alignof(ExtensiveQuantities)> > extensiveQuantities_;
+    std::vector<DofStore_, Opm::aligned_allocator<DofStore_, alignof(DofStore_)> > dofVars_;
+    std::vector<ExtensiveQuantities, Opm::aligned_allocator<ExtensiveQuantities, alignof(ExtensiveQuantities)> > extensiveQuantities_;
 
     const Simulator *simulatorPtr_;
     const Element *elemPtr_;
@@ -602,6 +602,6 @@ protected:
     bool enableStorageCache_;
 };
 
-} // namespace Ewoms
+} // namespace Opm
 
 #endif

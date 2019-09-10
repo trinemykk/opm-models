@@ -22,7 +22,7 @@
 */
 /*!
  * \file
- * \copydoc Ewoms::MpiBuffer
+ * \copydoc Opm::MpiBuffer
  */
 #ifndef EWOMS_MPI_BUFFER_HH
 #define EWOMS_MPI_BUFFER_HH
@@ -36,7 +36,7 @@
 #include <type_traits>
 #include <cassert>
 
-namespace Ewoms {
+namespace Opm {
 
 /*!
  * \brief Simplifies handling of buffers to be used in conjunction with MPI
@@ -82,7 +82,7 @@ public:
     /*!
      * \brief Send the buffer asyncronously to a peer process.
      */
-    void send(unsigned peerRank)
+    void send(unsigned peerRank OPM_UNUSED_NOMPI)
     {
 #if HAVE_MPI
         MPI_Isend(data_,
@@ -108,7 +108,7 @@ public:
     /*!
      * \brief Receive the buffer syncronously from a peer rank
      */
-    void receive(unsigned peerRank)
+    void receive(unsigned peerRank OPM_UNUSED_NOMPI)
     {
 #if HAVE_MPI
         MPI_Recv(data_,
@@ -234,6 +234,6 @@ private:
 #endif // HAVE_MPI
 };
 
-} // namespace Ewoms
+} // namespace Opm
 
 #endif

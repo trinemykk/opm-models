@@ -23,7 +23,7 @@
 /*!
  * \file
  *
- * \copydoc Ewoms::FvBaseProblem
+ * \copydoc Opm::FvBaseProblem
  */
 #ifndef EWOMS_FV_BASE_PROBLEM_HH
 #define EWOMS_FV_BASE_PROBLEM_HH
@@ -45,7 +45,7 @@
 
 #include <sys/stat.h>
 
-namespace Ewoms {
+namespace Opm {
 
 /*!
  * \ingroup FiniteVolumeDiscretizations
@@ -64,7 +64,7 @@ private:
     typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
 
     static const int vtkOutputFormat = GET_PROP_VALUE(TypeTag, VtkOutputFormat);
-    typedef Ewoms::VtkMultiWriter<GridView, vtkOutputFormat> VtkMultiWriter;
+    typedef Opm::VtkMultiWriter<GridView, vtkOutputFormat> VtkMultiWriter;
 
     typedef typename GET_PROP_TYPE(TypeTag, Model) Model;
     typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
@@ -178,6 +178,10 @@ public:
                              "before the simulation bails out");
         EWOMS_REGISTER_PARAM(TypeTag, bool, EnableAsyncVtkOutput,
                              "Dispatch a separate thread to write the VTK output");
+        EWOMS_REGISTER_PARAM(TypeTag, bool, ContinueOnConvergenceError,
+                             "Continue with a non-converged solution instead of giving up "
+                             "if we encounter a time step size smaller than the minimum time "
+                             "step size.");
     }
 
     /*!
@@ -276,7 +280,7 @@ public:
     }
 
     /*!
-     * \brief Called by the Ewoms::Simulator in order to initialize the problem.
+     * \brief Called by the Opm::Simulator in order to initialize the problem.
      *
      * If you overload this method don't forget to call ParentType::finishInit()
      */
@@ -504,33 +508,39 @@ public:
     }
 
     /*!
-     * \brief Called by Ewoms::Simulator in order to do a time
+     * \brief Called by Opm::Simulator in order to do a time
      *        integration on the model.
      */
     void timeIntegration()
     {
-        unsigned maxFails = EWOMS_GET_PARAM(TypeTag, unsigned, MaxTimeStepDivisions);
-        Scalar minTimeStepSize = EWOMS_GET_PARAM(TypeTag, Scalar, MinTimeStepSize);
+        unsigned maxFails = asImp_().maxTimeIntegrationFailures();
+        Scalar minTimeStepSize = asImp_().minTimeStepSize();
 
-        // if the time step size of the simulator is smaller than
-        // the specified minimum size and we're not going to finish
-        // the simulation or an episode, try with the minimum size.
-        if (simulator().timeStepSize() < minTimeStepSize &&
-            !simulator().episodeWillBeOver() &&
-            !simulator().willBeFinished())
-        {
-            simulator().setTimeStepSize(minTimeStepSize);
-        }
-
+        std::string errorMessage;
         for (unsigned i = 0; i < maxFails; ++i) {
             bool converged = model().update();
             if (converged)
                 return;
 
             Scalar dt = simulator().timeStepSize();
-            Scalar nextDt = dt / 2;
-            if (nextDt < minTimeStepSize)
-                break; // give up: we can't make the time step smaller anymore!
+            Scalar nextDt = dt / 2.0;
+            if (dt < minTimeStepSize*(1 + 1e-9)) {
+                if (asImp_().continueOnConvergenceError()) {
+                    if (gridView().comm().rank() == 0)
+                        std::cout << "Newton solver did not converge with minimum time step of "
+                                  << dt << " seconds. Continuing with unconverged solution!\n"
+                                  << std::flush;
+                    return;
+                }
+                else {
+                    errorMessage =
+                        "Time integration did not succeed with the minumum time step size of "
+                        + std::to_string(double(minTimeStepSize)) + " seconds. Giving up!";
+                    break; // give up: we can't make the time step smaller anymore!
+                }
+            }
+            else if (nextDt < minTimeStepSize)
+                nextDt = minTimeStepSize;
             simulator().setTimeStepSize(nextDt);
 
             // update failed
@@ -540,10 +550,34 @@ public:
                           << nextDt << " seconds\n" << std::flush;
         }
 
-        throw std::runtime_error("Newton solver didn't converge after "
-                                 +std::to_string(maxFails)+" time-step divisions. dt="
-                                 +std::to_string(double(simulator().timeStepSize())));
+        if (errorMessage.empty())
+            errorMessage =
+                "Newton solver didn't converge after "
+                +std::to_string(maxFails)+" time-step divisions. dt="
+                +std::to_string(double(simulator().timeStepSize()));
+        throw std::runtime_error(errorMessage);
     }
+
+    /*!
+     * \brief Returns the minimum allowable size of a time step.
+     */
+    Scalar minTimeStepSize() const
+    { return EWOMS_GET_PARAM(TypeTag, Scalar, MinTimeStepSize); }
+
+    /*!
+     * \brief Returns the maximum number of subsequent failures for the time integration
+     *        before giving up.
+     */
+    unsigned maxTimeIntegrationFailures() const
+    { return EWOMS_GET_PARAM(TypeTag, unsigned, MaxTimeStepDivisions); }
+
+    /*!
+     * \brief Returns if we should continue with a non-converged solution instead of
+     *        giving up if we encounter a time step size smaller than the minimum time
+     *        step size.
+     */
+    bool continueOnConvergenceError() const
+    { return EWOMS_GET_PARAM(TypeTag, unsigned, ContinueOnConvergenceError); }
 
     /*!
      * \brief Impose the next time step size to be used externally.
@@ -552,7 +586,7 @@ public:
     { nextTimeStepSize_ = dt; }
 
     /*!
-     * \brief Called by Ewoms::Simulator whenever a solution for a
+     * \brief Called by Opm::Simulator whenever a solution for a
      *        time step has been computed and the simulation time has
      *        been updated.
      */
@@ -713,7 +747,7 @@ public:
      * The file will start with the prefix returned by the name()
      * method, has the current time of the simulation clock in it's
      * name and uses the extension <tt>.ers</tt>. (Ewoms ReStart
-     * file.)  See Ewoms::Restart for details.
+     * file.)  See Opm::Restart for details.
      *
      * \tparam Restarter The serializer type
      *
@@ -802,6 +836,6 @@ private:
     mutable VtkMultiWriter *defaultVtkWriter_;
 };
 
-} // namespace Ewoms
+} // namespace Opm
 
 #endif
