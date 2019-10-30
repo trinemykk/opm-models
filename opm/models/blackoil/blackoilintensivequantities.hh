@@ -77,7 +77,6 @@ class BlackOilIntensiveQuantities
     enum { enableFoam = GET_PROP_VALUE(TypeTag, EnableFoam) };
     enum { enableTemperature = GET_PROP_VALUE(TypeTag, EnableTemperature) };
     enum { enableEnergy = GET_PROP_VALUE(TypeTag, EnableEnergy) };
-    enum { enableExperiments = GET_PROP_VALUE(TypeTag, EnableExperiments) };
     enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
     enum { numComponents = GET_PROP_VALUE(TypeTag, NumComponents) };
     enum { waterCompIdx = FluidSystem::waterCompIdx };
@@ -128,16 +127,21 @@ public:
 
         // extract the water and the gas saturations for convenience
         Evaluation Sw = 0.0;
-        if (waterEnabled)
-            Sw = priVars.makeEvaluation(Indices::waterSaturationIdx, timeIdx);
-
+        if (waterEnabled) {
+            if (priVars.primaryVarsMeaning() == PrimaryVariables::OnePhase_p) {
+                Sw = 1.0;
+            } else {
+                Sw = priVars.makeEvaluation(Indices::waterSaturationIdx, timeIdx);
+            }
+        }
         Evaluation Sg = 0.0;
         if (compositionSwitchEnabled)
         {
-            if (priVars.primaryVarsMeaning() == PrimaryVariables::Sw_po_Sg)
+            if (priVars.primaryVarsMeaning() == PrimaryVariables::Sw_po_Sg) {
                 // -> threephase case
+                assert( priVars.primaryVarsMeaning() != PrimaryVariables::OnePhase_p );
                 Sg = priVars.makeEvaluation(Indices::compositionSwitchIdx, timeIdx);
-            else if (priVars.primaryVarsMeaning() == PrimaryVariables::Sw_pg_Rv) {
+            } else if (priVars.primaryVarsMeaning() == PrimaryVariables::Sw_pg_Rv) {
                 // -> gas-water case
                 Sg = 1.0 - Sw;
 
@@ -201,9 +205,11 @@ public:
         // update the Saturation functions for the blackoil solvent module.
         asImp_().solventPostSatFuncUpdate_(elemCtx, dofIdx, timeIdx);
 
-        const Evaluation& SoMax =
-            Opm::max(fluidState_.saturation(oilPhaseIdx),
-                     elemCtx.problem().maxOilSaturation(globalSpaceIdx));
+        Evaluation SoMax = 0.0;
+        if (FluidSystem::phaseIsActive(FluidSystem::oilPhaseIdx)) {
+            SoMax = Opm::max(fluidState_.saturation(oilPhaseIdx),
+                             elemCtx.problem().maxOilSaturation(globalSpaceIdx));
+        }
 
         // take the meaning of the switiching primary variable into account for the gas
         // and oil phase compositions
@@ -257,9 +263,7 @@ public:
             else
                 fluidState_.setRv(0.0);
         }
-        else {
-            assert(priVars.primaryVarsMeaning() == PrimaryVariables::Sw_pg_Rv);
-
+        else if (priVars.primaryVarsMeaning() == PrimaryVariables::Sw_pg_Rv) {
             const auto& Rv = priVars.makeEvaluation(Indices::compositionSwitchIdx, timeIdx);
             fluidState_.setRv(Rv);
 
@@ -274,14 +278,18 @@ public:
                                                             SoMax);
 
                 fluidState_.setRs(Opm::min(RsMax, RsSat));
-            }
-            else
+            } else {
                 fluidState_.setRs(0.0);
+            }
+        } else {
+            assert(priVars.primaryVarsMeaning() == PrimaryVariables::OnePhase_p);
         }
 
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;
         paramCache.setRegionIndex(pvtRegionIdx);
-        paramCache.setMaxOilSat(SoMax);
+        if(FluidSystem::phaseIsActive(FluidSystem::oilPhaseIdx)){
+            paramCache.setMaxOilSat(SoMax);
+        }
         paramCache.updateAll(fluidState_);
 
         // compute the phase densities and transform the phase permeabilities into mobilities
@@ -338,13 +346,19 @@ public:
         Scalar rockCompressibility = problem.rockCompressibility(elemCtx, dofIdx, timeIdx);
         if (rockCompressibility > 0.0) {
             Scalar rockRefPressure = problem.rockReferencePressure(elemCtx, dofIdx, timeIdx);
-            Evaluation x = rockCompressibility*(fluidState_.pressure(oilPhaseIdx) - rockRefPressure);
+            Evaluation x;
+            if (FluidSystem::phaseIsActive(oilPhaseIdx)) {
+                x = rockCompressibility*(fluidState_.pressure(oilPhaseIdx) - rockRefPressure);
+            } else if (FluidSystem::phaseIsActive(waterPhaseIdx)){
+                x = rockCompressibility*(fluidState_.pressure(waterPhaseIdx) - rockRefPressure);
+            } else {
+                x = rockCompressibility*(fluidState_.pressure(gasPhaseIdx) - rockRefPressure);
+            }
             porosity_ *= 1.0 + x + 0.5*x*x;
         }
 
-        if (enableExperiments)
-            // deal with water induced rock compaction
-            porosity_ *= problem.template rockCompPoroMultiplier<Evaluation>(*this, globalSpaceIdx);
+        // deal with water induced rock compaction
+        porosity_ *= problem.template rockCompPoroMultiplier<Evaluation>(*this, globalSpaceIdx);
 
         asImp_().solventPvtUpdate_(elemCtx, dofIdx, timeIdx);
         asImp_().polymerPropertiesUpdate_(elemCtx, dofIdx, timeIdx);
