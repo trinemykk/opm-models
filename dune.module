@@ -4,10 +4,14 @@
 ####################################################################
 Module: opm-models
 <<<<<<< HEAD
+<<<<<<< HEAD
 Version: 2020.04-pre
 =======
 Version: 2019.10-rc3
 >>>>>>> Bump version to 2019.10-rc3
+=======
+Version: 2019.10
+>>>>>>> Update release version to final 2019.10
 Codename: Honey Bunny
 Description: OPM's numerical framework for flow and transport in porous media
 Url: http://opm-project.org
