@@ -18,7 +18,7 @@ extern struct poly2d_t co2_h2o_dens;
 extern struct poly2d_t co2_h2o_visc;
 extern struct poly2d_t co2_h2o_enth;
 
-namespace Ewoms {
+namespace Opm {
 /*!
  * \ingroup Components
  *
@@ -116,6 +116,6 @@ struct EOS
         }
 };
 
-} // namespace ewoms
+} // namespace opm
 
 #endif // COMPONENTS_HH
