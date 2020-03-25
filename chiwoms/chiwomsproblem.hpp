@@ -17,18 +17,18 @@
 #include "threephasefluidsystem.hh"
 #include "ChiFlash.hpp"
 
-#include <ewoms/common/propertysystem.hh>
-#include <ewoms/common/start.hh>
+#include <opm/models/utils/propertysystem.hh>
+#include <opm/models/utils/start.hh>
 
-#include <ewoms/io/structuredgridvanguard.hh>
+#include <opm/models/io/structuredgridvanguard.hh>
 
 //#include <ewoms/models/ncp/ncpmodel.hh>
-#include <ewoms/models/flash/flashmodel.hh>
-#include <ewoms/models/immiscible/immisciblemodel.hh>
+#include <opm/models/flash/flashmodel.hh>
+#include <opm/models/immiscible/immisciblemodel.hh>
 
-#include <ewoms/disc/ecfv/ecfvdiscretization.hh>
+#include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
 
-#include <ewoms/linear/parallelamgbackend.hh>
+#include  <opm/simulators/linalg/parallelamgbackend.hh>
 
 #include <opm/common/Exceptions.hpp>
 
@@ -44,10 +44,10 @@
 #include <dune/common/fmatrix.hh>
 
 
-namespace Ewoms {
+namespace Opm {
 template <class TypeTag>
 class ChiwomsProblem;
-} // namespace Ewoms
+} // namespace Opm
 
 BEGIN_PROPERTIES
 
@@ -75,7 +75,7 @@ NEW_PROP_TAG(PoreSizeDist);
 
 // Set the problem property
 SET_TYPE_PROP(ChiwomsProblem, Problem,
-              Ewoms::ChiwomsProblem<TypeTag>);
+              Opm::ChiwomsProblem<TypeTag>);
 
 SET_PROP(ChiwomsProblem, FlashSolver)
 {
@@ -93,7 +93,7 @@ private:
     typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
 
 public:
-    typedef Ewoms::ThreePhaseCo2OctaneBrineFluidSystem<Scalar> type;
+    typedef Opm::ThreePhaseCo2OctaneBrineFluidSystem<Scalar> type;
 };
 
 // Set the material Law
@@ -159,7 +159,7 @@ SET_BOOL_PROP(ChiwomsProblem, VtkWriteFugacityCoeffs, true);
 SET_SCALAR_PROP(ChiwomsProblem, EpisodeLength, 60. * 60.);
 
 // mesh grid
-SET_TYPE_PROP(ChiwomsProblem, Vanguard, Ewoms::StructuredGridVanguard<TypeTag>);
+SET_TYPE_PROP(ChiwomsProblem, Vanguard, Opm::StructuredGridVanguard<TypeTag>);
 SET_SCALAR_PROP(ChiwomsProblem, DomainSizeX, (X_SIZE / 100.));
 SET_INT_PROP(ChiwomsProblem, CellsX, NX);
 SET_SCALAR_PROP(ChiwomsProblem, DomainSizeY, (Y_SIZE / 100.));
@@ -182,7 +182,7 @@ SET_SCALAR_PROP(ChiwomsProblem, PoreSizeDist, 2.0);
 
 END_PROPERTIES
 
-namespace Ewoms {
+namespace Opm {
 /*!
  * \ingroup TestProblems
  *
@@ -625,6 +625,6 @@ private:
     mutable std::normal_distribution<double> norm_dist{0., PERTUBATION / 3.};
 
 };
-} // namespace Ewoms
+} // namespace Opm
 
 #endif
