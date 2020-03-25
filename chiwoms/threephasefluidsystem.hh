@@ -48,7 +48,7 @@
 #include <opm/material/binarycoefficients/Brine_CO2.hpp>
 
 
-namespace Ewoms {
+namespace Opm {
 /*!
  * \ingroup Fluidsystems
  *
@@ -124,15 +124,15 @@ public:
     static const int BrineIdx = 2;
 
     //! The component for pure oil
-    typedef Ewoms::Octane<Scalar> Octane;
+    typedef Opm::Octane<Scalar> Octane;
 
     //! The component for pure solvent; since we have our own thermodynamic
     //! functions, we use the simple definition for the rest.
-    typedef Ewoms::ChiwomsCO2<Scalar> CO2;
+    typedef Opm::ChiwomsCO2<Scalar> CO2;
 
     //! The component for brine
     typedef Opm::H2O<Scalar> PureH2O;
-    typedef Ewoms::ChiwomsBrine<Scalar> Brine;
+    typedef Opm::ChiwomsBrine<Scalar> Brine;
 
     static void init(Scalar minT = 273.15,
                      Scalar maxT = 373.15,
@@ -435,6 +435,6 @@ public:
 
 };
 
-};//namespace ewoms
+};//namespace opm
 
 #endif // THREEPHASEFLUIDSYSTEM_HH
