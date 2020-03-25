@@ -48,7 +48,7 @@
 #include <opm/material/binarycoefficients/H2O_CO2.hpp>
 #include <opm/material/binarycoefficients/Brine_CO2.hpp>
 
-namespace Ewoms {
+namespace Opm {
 /*!
  * \ingroup Fluidsystems
  *
@@ -106,7 +106,7 @@ public:
     static const int CO2Idx = 1;
 
     //! The component for pure oil
-    typedef Ewoms::Octane<Scalar> Octane;
+    typedef Opm::Octane<Scalar> Octane;
 
     //! The component for pure solvent
     typedef Opm::CO2<Scalar, Scalar> CO2;

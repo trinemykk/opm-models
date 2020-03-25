@@ -1,7 +1,7 @@
 #include "config.h"
 #include "chiwomsproblem.hpp"
 
-#include <ewoms/common/start.hh>
+#include <opm/models/utils/start.hh>
 
 BEGIN_PROPERTIES
 
@@ -14,5 +14,5 @@ END_PROPERTIES
 int main(int argc, char **argv)
 {
     typedef TTAG(ChiwomsNcpEcfvProblem) EcfvProblemTypeTag;
-    return Ewoms::start<EcfvProblemTypeTag>(argc, argv);
+    return Opm::start<EcfvProblemTypeTag>(argc, argv);
 }
