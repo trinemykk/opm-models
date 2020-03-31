@@ -7,7 +7,6 @@
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 2 of the License, or
   (at your option) any later version.
-
   OPM is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -158,8 +157,27 @@ public:
         if (tolerance <= 0)
             tolerance = std::min<Scalar>(1e-3, 1e8*std::numeric_limits<Scalar>::epsilon());
 
-        // NOTE pseudocode for what the code does:
+        // PSEUDOCODE for what the code does:
         // for two-phase --> go directly to flash (TODO)
+        // TODO: if two-phase, go directly to flash -> IMPLEMENT ??
+        // "cells that are two-phase can be flashed directly"
+        // EDIT: cells that are two-phase (skip below)
+        // twoPhase = getTwoPhaseFlag(state)
+        // if single-phase
+            // check if it stays single phase (P, T, globalComp, K)
+            // --> x0, y0, updatedSingle
+            // K0(updatedSingle) = y0(updatedSingle)./x0(updatedSingle);
+            // solveRachfordRice (L0, Ko, z);
+            // --> new L0
+            // calculate Si_L, Si_V, A_L, A_V, B_L, B_B, Bi
+            // calculate ZO_L, ZO_V
+        // end if single-phase
+
+            // for "active" cells
+            // newtonCompositionUpdate(P, T, z, K, L);
+            // --> x, y, K, Z_L, Z_V, L
+
+
         // for single-phase : DO STABILITYTEST --> initial K0 (TODO)
         // solve Rachford Rice (using K0, L0, z) for stabilityTest showing that singlePhase --> twoPhase --> L0 (TODO)
         // newtonCompositionUpdate using p, T, z, K and L
@@ -181,16 +199,20 @@ public:
         L = 0.5;
         std::cout << "global composition:" << globalComposition << std::endl;
 
+        //Phase stability test, WHY NOT input K??
+        bool isStable;
+        ComponentVector x;
+        ComponentVector y;
+        phaseStabilityTest_(isStable, x, y, fluidState, globalComposition);
+
         //Rachford Rice equation
         std::cout << "lambda:" << L << std::endl;
         L = solveRachfordRice_g_(K, L, globalComposition);
         std::cout << "lambda ny:" << L << std::endl;
 
-        //Phase stability test
-        bool isStable;
-        ComponentVector x;
-        ComponentVector y;
-        phaseStabilityTest_(isStable, x, y, fluidState, globalComposition);
+        // WHY? the phase-stability test finds out which cells that stays singe-phase,
+        // and what cells that change to two-phase --> these cells needs new
+        // calculations, and why is Rachford Rice done before this ??
 
         //update the composition using newton
         newtonCompositionUpdate_(K, L, fluidState, globalComposition);
@@ -380,6 +402,8 @@ protected:
                 continue;
             K[compIdx] = wilsonK_(fluidState, compIdx);
         }
+
+
         for (int i = 0; i < 19000; ++i) {
             S_loc = 0.0;
             if (isGas) {
