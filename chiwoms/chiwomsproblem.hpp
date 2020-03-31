@@ -537,7 +537,7 @@ public:
         //values.assignMassConservative(fs, matParams, /*inEquilibrium=*/true);
         values.assignNaive(fs);
 
-	std::cout << "primary variables for cell " << context.globalSpaceIndex(spaceIdx, timeIdx) << ": " << values << "\n";
+    //std::cout << "primary variables for cell " << context.globalSpaceIndex(spaceIdx, timeIdx) << ": " << values << "\n";
     }
 
     // Constant temperature
