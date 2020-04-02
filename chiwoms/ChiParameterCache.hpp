@@ -66,6 +66,8 @@ public:
     {
             VmUpToDate_[oilPhaseIdx] = false;
             Valgrind::SetUndefined(Vm_[oilPhaseIdx]);
+            VmUpToDate_[gasPhaseIdx] = false;
+            Valgrind::SetUndefined(Vm_[gasPhaseIdx]);
     }
 
     //! \copydoc ParameterCacheBase::updatePhase
@@ -74,15 +76,15 @@ public:
                      unsigned phaseIdx,
                      int exceptQuantities = ParentType::None)
     {
-        if (phaseIdx != oilPhaseIdx)
-            return;
+        // if (phaseIdx != oilPhaseIdx)
+        //     return;
 
         updateEosParams(fluidState, phaseIdx, exceptQuantities);
 
         // if we don't need to recalculate the molar volume, we exit
         // here
-        if (VmUpToDate_[phaseIdx])
-            return;
+        // if (VmUpToDate_[phaseIdx])
+        //     return;
 
         // update the phase's molar volume
         updateMolarVolume_(fluidState, phaseIdx);
@@ -96,6 +98,8 @@ public:
     {
         if (phaseIdx == oilPhaseIdx)
             oilPhaseParams_.updateSingleMoleFraction(fluidState, compIdx);
+        if (phaseIdx == gasPhaseIdx)
+            gasPhaseParams_.updateSingleMoleFraction(fluidState, compIdx);
         else
             return;
 
@@ -113,6 +117,7 @@ public:
         switch (phaseIdx)
         {
         case oilPhaseIdx: return oilPhaseParams_.a();
+        case gasPhaseIdx: return gasPhaseParams_.a();
         default:
             throw std::logic_error("The a() parameter is only defined for "
                                    "oil phases");
@@ -129,6 +134,7 @@ public:
         switch (phaseIdx)
         {
         case oilPhaseIdx: return oilPhaseParams_.b();
+        case gasPhaseIdx: return gasPhaseParams_.b();
         default:
             throw std::logic_error("The b() parameter is only defined for "
                                    "oil phase");
@@ -148,6 +154,7 @@ public:
         switch (phaseIdx)
         {
         case oilPhaseIdx: return oilPhaseParams_.pureParams(compIdx).a();
+        case gasPhaseIdx: return gasPhaseParams_.pureParams(compIdx).a();
         default:
             throw std::logic_error("The a() parameter is only defined for "
                                    "oil phase");
@@ -166,6 +173,7 @@ public:
         switch (phaseIdx)
         {
         case oilPhaseIdx: return oilPhaseParams_.pureParams(compIdx).b();
+        case gasPhaseIdx: return gasPhaseParams_.pureParams(compIdx).b();
         default:
             throw std::logic_error("The b() parameter is only defined for "
                                    "oil phase");
@@ -193,7 +201,8 @@ public:
      *        phase.
      */
     const GasPhaseParams& gasPhaseParams() const
-    { throw std::invalid_argument("gas phase does not exist");}
+    // { throw std::invalid_argument("gas phase does not exist");}
+    { return gasPhaseParams_; }
 
     /*!
      * \brief Update all parameters required by the equation of state to
@@ -208,8 +217,8 @@ public:
                          unsigned phaseIdx,
                          int exceptQuantities = ParentType::None)
     {
-        if (phaseIdx != oilPhaseIdx)
-            return;
+        // if (phaseIdx != oilPhaseIdx)
+        //     return;
 
         if (!(exceptQuantities & ParentType::Temperature))
         {
