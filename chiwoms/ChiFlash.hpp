@@ -34,6 +34,7 @@
 #include <opm/material/common/MathToolbox.hpp>
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/material/Constants.hpp>
+#include <opm/material/eos/PengRobinsonMixture.hpp>
 
 #include <opm/material/common/Exceptions.hpp>
 
@@ -392,6 +393,8 @@ protected:
     static void checkStability_(const FlashFluidState& fluidState, bool& isTrivial, ComponentVector& K, ComponentVector& xy_loc, Scalar& S_loc, const ComponentVector& globalComposition, bool isGas)
     {
         typedef typename FlashFluidState::Scalar FlashEval;
+        typedef ThreePhaseCo2OctaneBrineFluidSystem<Scalar> ThisType;
+        typedef typename Opm::PengRobinsonMixture<Scalar, ThisType> PengRobinsonMixture;
         //this is "Michelsens stability test"
         //make two fake phases "inside" one phase and check for positive volume
         FlashFluidState fluidState_fake = fluidState;
@@ -450,21 +453,41 @@ protected:
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
                 if (compIdx == BrineIdx)
                     continue;
-                Scalar phiFake = FluidSystem::fugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
-                Scalar phiGlobal = FluidSystem::fugacityCoefficient(fluidState_global, paramCache_global, phaseIdx, compIdx);
+                // Scalar phiFake = FluidSystem::fugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx,
+                // compIdx);
+                Scalar phiFake = PengRobinsonMixture::computeFugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
+                // Scalar phiGlobal = FluidSystem::fugacityCoefficient(fluidState_global, paramCache_global, phaseIdx,
+                // compIdx);
+                Scalar phiGlobal = PengRobinsonMixture::computeFugacityCoefficient(fluidState_global, paramCache_global, phaseIdx, compIdx);
 
                 fluidState_fake.setFugacityCoefficient(phaseIdx, compIdx, phiFake);
                 fluidState_global.setFugacityCoefficient(phaseIdx, compIdx, phiGlobal);
             }
 
+           
             ComponentVector R;
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
                 if (compIdx == BrineIdx)
                     continue;
-                if (isGas)
-                    R[compIdx] = fluidState_global.fugacity(oilPhaseIdx, compIdx)/fluidState_fake.fugacity(oilPhaseIdx, compIdx)/S_loc;
-                else
-                    R[compIdx] = fluidState_fake.fugacity(gasPhaseIdx, compIdx)/fluidState_global.fugacity(gasPhaseIdx, compIdx)*S_loc;
+                if (isGas){
+                    std::cout << "Fug. fake : " << fluidState_fake.fugacity(gasPhaseIdx, compIdx) << std::endl;
+                    std::cout << "Fug. global : " << fluidState_global.fugacity(gasPhaseIdx, compIdx) << std::endl;
+                    Scalar fug_fake = fluidState_fake.fugacity(gasPhaseIdx, compIdx);
+                    Scalar fug_global = fluidState_global.fugacity(gasPhaseIdx, compIdx);
+                    Scalar fug_ratio = fug_global / fug_fake;
+                    R[compIdx] = fug_ratio / S_loc;
+                    // R[compIdx] = fluidState_global.fugacity(oilPhaseIdx,
+                    // compIdx)/fluidState_fake.fugacity(oilPhaseIdx, compIdx)/S_loc;
+                }
+                else{
+                    std::cout << "Fug. fake : " << fluidState_fake.fugacity(oilPhaseIdx, compIdx) << std::endl;
+                    std::cout << "Fug. global : " << fluidState_global.fugacity(oilPhaseIdx, compIdx) << std::endl;
+                    Scalar fug_fake = fluidState_fake.fugacity(oilPhaseIdx, compIdx);
+                    Scalar fug_global = fluidState_global.fugacity(oilPhaseIdx, compIdx);
+                    Scalar fug_ratio = fug_fake / fug_global;
+                    R[compIdx] = fug_ratio * S_loc;
+                    // R[compIdx] = fluidState_fake.fugacity(gasPhaseIdx, compIdx)/fluidState_global.fugacity(gasPhaseIdx, compIdx)*S_loc;
+                }
             }
 
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
