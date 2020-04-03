@@ -330,7 +330,8 @@ protected:
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == BrineIdx)
                 continue;
-            g += (globalComposition[compIdx]*(K[compIdx]-1))/(1+L*(K[compIdx]-1));
+            // g += (globalComposition[compIdx]*(K[compIdx]-1))/(1+L*(K[compIdx]-1));
+            g += (globalComposition[compIdx]*(K[compIdx]-1))/(K[compIdx]-L*(K[compIdx]-1));
         }
         return g;
     }
@@ -342,7 +343,9 @@ protected:
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == BrineIdx)
                 continue;
-            dg += -(globalComposition[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((1+L*(K[compIdx]-1))*(1+L*(K[compIdx]-1)));
+            // dg +=
+            // -(globalComposition[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((1+L*(K[compIdx]-1))*(1+L*(K[compIdx]-1)));
+            dg += (globalComposition[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((K[compIdx]-L*(K[compIdx]-1))*(K[compIdx]-L*(K[compIdx]-1)));
         }
         return dg;
     }
@@ -358,9 +361,9 @@ protected:
             //L=Lold+g/dg;
             Scalar g = rachfordRice_g_(K, L, globalComposition);
             Scalar dg_dL = rachfordRice_dg_dL_(K, L, globalComposition);
-            L -= g/dg_dL;
-            //check for convergence
             Scalar delta = g/dg_dL;
+            L -= delta;
+            //check for convergence
             if ( Opm::abs(delta) < 1e-10 )
                 return L;
         }
