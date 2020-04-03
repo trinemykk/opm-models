@@ -495,17 +495,17 @@ public:
         MaterialLaw::capillaryPressures(pC, matParams, fs);
 
         // pressure; oleic phase is the reference
-        fs.setPressure(oilPhaseIdx, 11250000);
-        fs.setPressure(waterPhaseIdx, 11250000);
-        fs.setPressure(gasPhaseIdx,11250000);
+        fs.setPressure(oilPhaseIdx, 27000000);
+        fs.setPressure(waterPhaseIdx, 27000000);
+        fs.setPressure(gasPhaseIdx,27000000);
 
         // composition
-        fs.setMoleFraction(oilPhaseIdx, CO2Idx, 1.0);
-        fs.setMoleFraction(oilPhaseIdx, OctaneIdx, 0.0);
+        fs.setMoleFraction(oilPhaseIdx, CO2Idx, 0.01);
+        fs.setMoleFraction(oilPhaseIdx, OctaneIdx, 0.99);
         fs.setMoleFraction(oilPhaseIdx, BrineIdx, 0.0);
 
-        fs.setMoleFraction(gasPhaseIdx, CO2Idx, 1.0);
-        fs.setMoleFraction(gasPhaseIdx, OctaneIdx, 0.0);
+        fs.setMoleFraction(gasPhaseIdx, CO2Idx, 0.0);
+        fs.setMoleFraction(gasPhaseIdx, OctaneIdx, 1.0);
         fs.setMoleFraction(gasPhaseIdx, BrineIdx, 0.0);
 
         fs.setMoleFraction(waterPhaseIdx, CO2Idx, 0.0);

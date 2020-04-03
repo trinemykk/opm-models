@@ -34,6 +34,7 @@
 #include <opm/material/common/MathToolbox.hpp>
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/material/Constants.hpp>
+#include <opm/material/eos/PengRobinsonMixture.hpp>
 
 #include <opm/material/common/Exceptions.hpp>
 
@@ -53,6 +54,7 @@ namespace Opm {
  */
 template <class Scalar, class FluidSystem>
 class ChiFlash
+         : public Opm::BaseFluidSystem<Scalar, ThreePhaseCo2OctaneBrineFluidSystem<Scalar> >
 {
     enum { numPhases = FluidSystem::numPhases };
     enum { numComponents = FluidSystem::numComponents };
@@ -76,6 +78,9 @@ class ChiFlash
         x00PvIdx = S0PvIdx + 1, // molefraction first phase first component primary variable index
         //numMiscibleComponennets*numMisciblePhases-1 molefractions/primvar follow
     };
+    typedef ThreePhaseCo2OctaneBrineFluidSystem<Scalar> ThisType;
+    typedef Opm::BaseFluidSystem<Scalar, ThisType> Base;
+    typedef typename Opm::PengRobinsonMixture<Scalar, ThisType> PengRobinsonMixture;
 
 public:
 //    /*!
@@ -451,9 +456,10 @@ protected:
                 if (compIdx == BrineIdx)
                     continue;
                 Scalar phiFake = FluidSystem::fugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
+                Scalar phiFakeTest = PengRobinsonMixture::computeFugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
                 Scalar phiGlobal = FluidSystem::fugacityCoefficient(fluidState_global, paramCache_global, phaseIdx, compIdx);
 
-                fluidState_fake.setFugacityCoefficient(phaseIdx, compIdx, phiFake);
+                fluidState_fake.setFugacityCoefficient(phaseIdx, compIdx, phiFakeTest);
                 fluidState_global.setFugacityCoefficient(phaseIdx, compIdx, phiGlobal);
             }
 
