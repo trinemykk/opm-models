@@ -68,8 +68,8 @@ template <class TypeTag>
 class Co2InjectionProblem;
 
 namespace Co2Injection {
-//#include <opm/material/components/co2tables.inc>
-#include <opm/material/components/fineCo2TablesPureWater.inc>
+#include <opm/material/components/co2tables.inc>
+//#include <opm/material/components/fineCo2TablesPureWater.inc>
 }
 //! \endcond
 }
