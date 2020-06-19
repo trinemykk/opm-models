@@ -54,7 +54,6 @@ namespace Opm {
  */
 template <class Scalar, class FluidSystem>
 class ChiFlash
-         : public Opm::BaseFluidSystem<Scalar, ThreePhaseCo2OctaneBrineFluidSystem<Scalar> >
 {
     enum { numPhases = FluidSystem::numPhases };
     enum { numComponents = FluidSystem::numComponents };
@@ -78,9 +77,6 @@ class ChiFlash
         x00PvIdx = S0PvIdx + 1, // molefraction first phase first component primary variable index
         //numMiscibleComponennets*numMisciblePhases-1 molefractions/primvar follow
     };
-    typedef ThreePhaseCo2OctaneBrineFluidSystem<Scalar> ThisType;
-    typedef Opm::BaseFluidSystem<Scalar, ThisType> Base;
-    typedef typename Opm::PengRobinsonMixture<Scalar, ThisType> PengRobinsonMixture;
 
 public:
 //    /*!
@@ -334,7 +330,8 @@ protected:
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == BrineIdx)
                 continue;
-            g += (globalComposition[compIdx]*(K[compIdx]-1))/(1+L*(K[compIdx]-1));
+            // g += (globalComposition[compIdx]*(K[compIdx]-1))/(1+L*(K[compIdx]-1));
+            g += (globalComposition[compIdx]*(K[compIdx]-1))/(K[compIdx]-L*(K[compIdx]-1));
         }
         return g;
     }
@@ -346,7 +343,9 @@ protected:
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == BrineIdx)
                 continue;
-            dg += -(globalComposition[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((1+L*(K[compIdx]-1))*(1+L*(K[compIdx]-1)));
+            // dg +=
+            // -(globalComposition[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((1+L*(K[compIdx]-1))*(1+L*(K[compIdx]-1)));
+            dg += (globalComposition[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((K[compIdx]-L*(K[compIdx]-1))*(K[compIdx]-L*(K[compIdx]-1)));
         }
         return dg;
     }
@@ -362,9 +361,9 @@ protected:
             //L=Lold+g/dg;
             Scalar g = rachfordRice_g_(K, L, globalComposition);
             Scalar dg_dL = rachfordRice_dg_dL_(K, L, globalComposition);
-            L -= g/dg_dL;
-            //check for convergence
             Scalar delta = g/dg_dL;
+            L -= delta;
+            //check for convergence
             if ( Opm::abs(delta) < 1e-10 )
                 return L;
         }
@@ -397,6 +396,8 @@ protected:
     static void checkStability_(const FlashFluidState& fluidState, bool& isTrivial, ComponentVector& K, ComponentVector& xy_loc, Scalar& S_loc, const ComponentVector& globalComposition, bool isGas)
     {
         typedef typename FlashFluidState::Scalar FlashEval;
+        typedef ThreePhaseCo2OctaneBrineFluidSystem<Scalar> ThisType;
+        typedef typename Opm::PengRobinsonMixture<Scalar, ThisType> PengRobinsonMixture;
         //this is "Michelsens stability test"
         //make two fake phases "inside" one phase and check for positive volume
         FlashFluidState fluidState_fake = fluidState;
@@ -455,22 +456,41 @@ protected:
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
                 if (compIdx == BrineIdx)
                     continue;
-                Scalar phiFake = FluidSystem::fugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
-                Scalar phiFakeTest = PengRobinsonMixture::computeFugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
-                Scalar phiGlobal = FluidSystem::fugacityCoefficient(fluidState_global, paramCache_global, phaseIdx, compIdx);
+                // Scalar phiFake = FluidSystem::fugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx,
+                // compIdx);
+                Scalar phiFake = PengRobinsonMixture::computeFugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
+                // Scalar phiGlobal = FluidSystem::fugacityCoefficient(fluidState_global, paramCache_global, phaseIdx,
+                // compIdx);
+                Scalar phiGlobal = PengRobinsonMixture::computeFugacityCoefficient(fluidState_global, paramCache_global, phaseIdx, compIdx);
 
-                fluidState_fake.setFugacityCoefficient(phaseIdx, compIdx, phiFakeTest);
+                fluidState_fake.setFugacityCoefficient(phaseIdx, compIdx, phiFake);
                 fluidState_global.setFugacityCoefficient(phaseIdx, compIdx, phiGlobal);
             }
 
+           
             ComponentVector R;
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
                 if (compIdx == BrineIdx)
                     continue;
-                if (isGas)
-                    R[compIdx] = fluidState_global.fugacity(oilPhaseIdx, compIdx)/fluidState_fake.fugacity(oilPhaseIdx, compIdx)/S_loc;
-                else
-                    R[compIdx] = fluidState_fake.fugacity(gasPhaseIdx, compIdx)/fluidState_global.fugacity(gasPhaseIdx, compIdx)*S_loc;
+                if (isGas){
+                    std::cout << "Fug. fake : " << fluidState_fake.fugacity(gasPhaseIdx, compIdx) << std::endl;
+                    std::cout << "Fug. global : " << fluidState_global.fugacity(gasPhaseIdx, compIdx) << std::endl;
+                    Scalar fug_fake = fluidState_fake.fugacity(gasPhaseIdx, compIdx);
+                    Scalar fug_global = fluidState_global.fugacity(gasPhaseIdx, compIdx);
+                    Scalar fug_ratio = fug_global / fug_fake;
+                    R[compIdx] = fug_ratio / S_loc;
+                    // R[compIdx] = fluidState_global.fugacity(oilPhaseIdx,
+                    // compIdx)/fluidState_fake.fugacity(oilPhaseIdx, compIdx)/S_loc;
+                }
+                else{
+                    std::cout << "Fug. fake : " << fluidState_fake.fugacity(oilPhaseIdx, compIdx) << std::endl;
+                    std::cout << "Fug. global : " << fluidState_global.fugacity(oilPhaseIdx, compIdx) << std::endl;
+                    Scalar fug_fake = fluidState_fake.fugacity(oilPhaseIdx, compIdx);
+                    Scalar fug_global = fluidState_global.fugacity(oilPhaseIdx, compIdx);
+                    Scalar fug_ratio = fug_fake / fug_global;
+                    R[compIdx] = fug_ratio * S_loc;
+                    // R[compIdx] = fluidState_fake.fugacity(gasPhaseIdx, compIdx)/fluidState_global.fugacity(gasPhaseIdx, compIdx)*S_loc;
+                }
             }
 
             for (int compIdx=0; compIdx<numComponents; ++compIdx){

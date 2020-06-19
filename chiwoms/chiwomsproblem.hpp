@@ -505,7 +505,7 @@ public:
         fs.setMoleFraction(oilPhaseIdx, BrineIdx, 0.0);
 
         fs.setMoleFraction(gasPhaseIdx, CO2Idx, 0.0);
-        fs.setMoleFraction(gasPhaseIdx, OctaneIdx, 1.0);
+        fs.setMoleFraction(gasPhaseIdx, OctaneIdx, 0.0);
         fs.setMoleFraction(gasPhaseIdx, BrineIdx, 0.0);
 
         fs.setMoleFraction(waterPhaseIdx, CO2Idx, 0.0);

@@ -388,8 +388,6 @@ public:
         }
         else if (phaseIdx == gasPhaseIdx) {
             return 1.0;
-            // want to return something proper also for the fake phase in stability tests
-
         }
         else {
             assert(phaseIdx == waterPhaseIdx);
