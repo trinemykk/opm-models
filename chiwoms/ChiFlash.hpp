@@ -330,7 +330,6 @@ protected:
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == BrineIdx)
                 continue;
-            // g += (globalComposition[compIdx]*(K[compIdx]-1))/(1+L*(K[compIdx]-1));
             g += (globalComposition[compIdx]*(K[compIdx]-1))/(K[compIdx]-L*(K[compIdx]-1));
         }
         return g;
@@ -343,8 +342,6 @@ protected:
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == BrineIdx)
                 continue;
-            // dg +=
-            // -(globalComposition[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((1+L*(K[compIdx]-1))*(1+L*(K[compIdx]-1)));
             dg += (globalComposition[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((K[compIdx]-L*(K[compIdx]-1))*(K[compIdx]-L*(K[compIdx]-1)));
         }
         return dg;
@@ -353,22 +350,83 @@ protected:
     template <class Vector>
     static typename Vector::field_type solveRachfordRice_g_(const Vector& K, Scalar L, const Vector& globalComposition)
     {
-        //L_min = Opm::min(L_min, 1/(1-K[compIdx]));
-        //L_max = Opm::max(L_max, 1/(1-K[compIdx]));
-        //L = (L_min + L_max)/2;
-        //TODO: reimplement with bisection of L if L not in Lmin, Lmax !!!
+        /*
+        // L_min = Opm::min(L_min, 1/(1-K[compIdx]));
+        // L_max = Opm::max(L_max, 1/(1-K[compIdx]));
+        // L = (L_min + L_max)/2;
+        // Scalar Kmin = Dune::min_value(K); --> Doesn't work since water K is 0 
+        // Scalar Kmax = Dune::max_value(K);
+        // TODO: reimplement with bisection of L if L not in Lmin, Lmax !!!
+        */
+        // Lower and upper bound for solution
+        Scalar Kmin = Opm::min(K[0], K[1]);
+        Scalar Kmax = Opm::max(K[0], K[1]);
+        Scalar Lmin = (Kmin / (Kmin - 1));
+        Scalar Lmax = Kmax / (Kmax - 1);
+
+        // Check if Lmin < Lmax, and switch if not
+        if (Lmin > Lmax)
+        {
+            Scalar Ltmp = Lmin;
+            Lmin = Lmax;
+            Lmax = Ltmp;
+        }
+
+        // Initial guess
+        L = (L_min + L_max)/2;
+
+        // Newton-Rahpson loop
         for (int iteration=0; iteration<200; ++iteration){
-            //L=Lold+g/dg;
+            // Calculate function and derivative values
             Scalar g = rachfordRice_g_(K, L, globalComposition);
             Scalar dg_dL = rachfordRice_dg_dL_(K, L, globalComposition);
+
+            // Lnew = Lold - g/dg;
             Scalar delta = g/dg_dL;
             L -= delta;
-            //check for convergence
+
+            // Check if L is within the bounds, and if not, we apply bisection method
+            if (L < Lmin || L > Lmax)
+                {
+                    L = bisection_g_(K, Lmin, Lmax, globalComposition);
+                    return L
+                }
+
+            // Check for convergence
             if ( Opm::abs(delta) < 1e-10 )
                 return L;
         }
-        throw std::runtime_error("Rachford Rice did not converge within maximum number of iterations" );
+        // Throw error if Rachford-Rice fails
+        throw std::runtime_error("Rachford-Rice did not converge within maximum number of iterations" );
+    }
 
+    template <class Vector>
+    static typename Vector::field_type bisection_g_(const Vector& K, Scalar Lmin, Scalar Lmax, const Vector& globalComposition)
+    {
+        // Check if g(Lmin) and g(Lmax) have opposite sign
+        Scalar gLmin = rachfordRice_g_(K, Lmin, globalComposition);
+        Scalar gLmax = rachfordRice_g_(K, Lmax, globalComposition);
+        if (Dune::sign(gLmin) == Dune::sign(gLmax))
+        {
+            throw std::runtime_error("Lmin and Lmax are incorrect for bisection");
+        }
+            
+        // Bisection loop
+        for (int iteration=0; iteration<200; ++iteration){
+            // New midpoint
+            Scalar L = (Lmin + Lmax) / 2;
+            Scalar gMid = rachfordRice_g_(K, L, globalComposition);
+
+            // Check if midpoint fulfills g=0 or L - Lmin is sufficiently small
+            if (Opm::abs(gMid) < 1e-10 || Opm::abs((Lmax - Lmin) / 2) < 1e-10)
+                return L;
+            
+            // Else we repeat with midpoint being either Lmin og Lmax (depending on the signs)
+            else if (Dune::sign(gMid) != Dune::sign(gLmin))
+                Lmax = L; 
+            else
+                Lmin = L;
+        }
     }
 
     template <class FlashFluidState, class ComponentVector>
