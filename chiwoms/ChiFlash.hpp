@@ -184,38 +184,35 @@ public:
         // newtonCompositionUpdate using p, T, z, K and L
 
 
-        //initial guess for the K value, L value in RachfordRice
+        // Initial guess for the K value using Wilson's formula
+        std::cout << " ======== WILSON ========" << std::endl;
         ComponentVector K;
-        Scalar L;
-        Scalar L_min = 1e10;
-        Scalar L_max = -1e10;
-        Scalar totalMoles = 0;
-
         for (int compIdx = 0; compIdx<numComponents; ++compIdx) {
             if (compIdx == BrineIdx)
                 continue;
             K[compIdx] = wilsonK_(fluidState, compIdx);
         }
 
-        L = 0.5;
         std::cout << "global composition:" << globalComposition << std::endl;
 
         //Phase stability test, WHY NOT input K??
+        std::cout << " ======== STABILITY ========" << std::endl;
         bool isStable;
         ComponentVector x;
         ComponentVector y;
         phaseStabilityTest_(isStable, x, y, fluidState, globalComposition);
 
         //Rachford Rice equation
-        std::cout << "lambda:" << L << std::endl;
-        L = solveRachfordRice_g_(K, L, globalComposition);
-        std::cout << "lambda ny:" << L << std::endl;
+        std::cout << " ======== RACHFORD-RICE ========" << std::endl;
+        Scalar L = solveRachfordRice_g_(K, globalComposition);
+        std::cout << "L :" << L << std::endl;
 
         // WHY? the phase-stability test finds out which cells that stays singe-phase,
         // and what cells that change to two-phase --> these cells needs new
         // calculations, and why is Rachford Rice done before this ??
 
         //update the composition using newton
+        std::cout << " ======== NEWTON ========" << std::endl;
         newtonCompositionUpdate_(K, L, fluidState, globalComposition);
 
         // compressibility
@@ -348,19 +345,21 @@ protected:
     }
 
     template <class Vector>
-    static typename Vector::field_type solveRachfordRice_g_(const Vector& K, Scalar L, const Vector& globalComposition)
+    static typename Vector::field_type solveRachfordRice_g_(const Vector& K, const Vector& globalComposition)
     {
-        /*
-        // L_min = Opm::min(L_min, 1/(1-K[compIdx]));
-        // L_max = Opm::max(L_max, 1/(1-K[compIdx]));
-        // L = (L_min + L_max)/2;
-        // Scalar Kmin = Dune::min_value(K); --> Doesn't work since water K is 0 
-        // Scalar Kmax = Dune::max_value(K);
-        // TODO: reimplement with bisection of L if L not in Lmin, Lmax !!!
-        */
+        // Find min and max K. Have to do a laborious for loop to avoid water component (where K=0)
+        // TODO: Replace loop with Dune::min_value() and Dune::max_value() when water component is properly handled
+        Scalar Kmin = K[0];
+        Scalar Kmax = K[0];
+        for (int compIdx=1; compIdx<numComponents; ++compIdx){
+            if (compIdx == BrineIdx)
+                continue;
+            if (K[compIdx] < Kmin)
+                Kmin = K[compIdx];
+            else if (K[compIdx] >= Kmax)
+                Kmax = K[compIdx];
+        }
         // Lower and upper bound for solution
-        Scalar Kmin = Opm::min(K[0], K[1]);
-        Scalar Kmax = Opm::max(K[0], K[1]);
         Scalar Lmin = (Kmin / (Kmin - 1));
         Scalar Lmax = Kmax / (Kmax - 1);
 
@@ -373,7 +372,7 @@ protected:
         }
 
         // Initial guess
-        L = (L_min + L_max)/2;
+        Scalar L = (Lmin + Lmax)/2;
 
         // Newton-Rahpson loop
         for (int iteration=0; iteration<200; ++iteration){
@@ -389,7 +388,7 @@ protected:
             if (L < Lmin || L > Lmax)
                 {
                     L = bisection_g_(K, Lmin, Lmax, globalComposition);
-                    return L
+                    return L;
                 }
 
             // Check for convergence
@@ -427,6 +426,7 @@ protected:
             else
                 Lmin = L;
         }
+        throw std::runtime_error("Rachford-Rice with bisection failed!");
     }
 
     template <class FlashFluidState, class ComponentVector>
@@ -514,11 +514,7 @@ protected:
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
                 if (compIdx == BrineIdx)
                     continue;
-                // Scalar phiFake = FluidSystem::fugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx,
-                // compIdx);
                 Scalar phiFake = PengRobinsonMixture::computeFugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
-                // Scalar phiGlobal = FluidSystem::fugacityCoefficient(fluidState_global, paramCache_global, phaseIdx,
-                // compIdx);
                 Scalar phiGlobal = PengRobinsonMixture::computeFugacityCoefficient(fluidState_global, paramCache_global, phaseIdx, compIdx);
 
                 fluidState_fake.setFugacityCoefficient(phaseIdx, compIdx, phiFake);
@@ -531,23 +527,20 @@ protected:
                 if (compIdx == BrineIdx)
                     continue;
                 if (isGas){
-                    std::cout << "Fug. fake : " << fluidState_fake.fugacity(gasPhaseIdx, compIdx) << std::endl;
-                    std::cout << "Fug. global : " << fluidState_global.fugacity(gasPhaseIdx, compIdx) << std::endl;
+                    // std::cout << "Fug. fake : " << fluidState_fake.fugacity(gasPhaseIdx, compIdx) << std::endl;
+                    // std::cout << "Fug. global : " << fluidState_global.fugacity(gasPhaseIdx, compIdx) << std::endl;
                     Scalar fug_fake = fluidState_fake.fugacity(gasPhaseIdx, compIdx);
                     Scalar fug_global = fluidState_global.fugacity(gasPhaseIdx, compIdx);
                     Scalar fug_ratio = fug_global / fug_fake;
                     R[compIdx] = fug_ratio / S_loc;
-                    // R[compIdx] = fluidState_global.fugacity(oilPhaseIdx,
-                    // compIdx)/fluidState_fake.fugacity(oilPhaseIdx, compIdx)/S_loc;
                 }
                 else{
-                    std::cout << "Fug. fake : " << fluidState_fake.fugacity(oilPhaseIdx, compIdx) << std::endl;
-                    std::cout << "Fug. global : " << fluidState_global.fugacity(oilPhaseIdx, compIdx) << std::endl;
+                    // std::cout << "Fug. fake : " << fluidState_fake.fugacity(oilPhaseIdx, compIdx) << std::endl;
+                    // std::cout << "Fug. global : " << fluidState_global.fugacity(oilPhaseIdx, compIdx) << std::endl;
                     Scalar fug_fake = fluidState_fake.fugacity(oilPhaseIdx, compIdx);
                     Scalar fug_global = fluidState_global.fugacity(oilPhaseIdx, compIdx);
                     Scalar fug_ratio = fug_fake / fug_global;
                     R[compIdx] = fug_ratio * S_loc;
-                    // R[compIdx] = fluidState_fake.fugacity(gasPhaseIdx, compIdx)/fluidState_global.fugacity(gasPhaseIdx, compIdx)*S_loc;
                 }
             }
 
