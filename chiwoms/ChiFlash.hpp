@@ -571,7 +571,7 @@ protected:
     template <class FlashFluidState, class ComponentVector>
     static void newtonCompositionUpdate_(ComponentVector& K, Scalar& L, FlashFluidState& fluidState, const ComponentVector& globalComposition)
     {
-        if(L == 0 || L == 1) {
+        if (L == 0 || L == 1) {
             //single-phase gas or single-phase oil
             for(int compIdx; compIdx<numComponents; ++compIdx){
                 if (compIdx == BrineIdx)
@@ -582,10 +582,9 @@ protected:
             return;
         }
 
-        //two-phase case
+        // Calculate x and y, and normalize
         ComponentVector x;
         ComponentVector y;
-        //normalization
         Scalar sumx=0;
         Scalar sumy=0;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
@@ -599,27 +598,31 @@ protected:
         x /= sumx;
         y /= sumy;
 
-        for(int compIdx; compIdx<numComponents; ++compIdx){
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == BrineIdx)
                 continue;
             fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
             fluidState.setMoleFraction(gasPhaseIdx, compIdx, y[compIdx]);
         }
 
-        //newton
-        typedef Dune::FieldVector<Scalar, numMiscibleComponents*2+1> NewtonVector;
-        typedef Dune::FieldMatrix<Scalar, numMiscibleComponents*2+1, numMiscibleComponents*2+1> NewtonMatrix;
+        // Newton
+        typedef Dune::FieldVector<Scalar, numMiscibleComponents*numMisciblePhases+1> NewtonVector;
+        typedef Dune::FieldMatrix<Scalar, numMiscibleComponents*numMisciblePhases+1, numMiscibleComponents*numMisciblePhases+1> NewtonMatrix;
         NewtonVector newtonX;
         NewtonVector newtonB;
         NewtonMatrix newtonA;
         NewtonVector newtonDelta;
 
-        newtonX[0] = fluidState.moleFraction(oilPhaseIdx, OctaneIdx);
-        newtonX[1] = fluidState.moleFraction(oilPhaseIdx, CO2Idx);
-        newtonX[2] = fluidState.moleFraction(gasPhaseIdx, OctaneIdx);
-        newtonX[3] = fluidState.moleFraction(gasPhaseIdx, CO2Idx);
-        newtonX[4] = L;
+        // Assign primary variables (mole fractions + L)
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            if (compIdx == BrineIdx)
+                continue;
+            newtonX[compIdx] = fluidState.moleFraction(oilPhaseIdx, compIdx);
+            newtonX[compIdx + numMiscibleComponents] = fluidState.moleFraction(gasPhaseIdx, compIdx);
+        }
+        newtonX[numMisciblePhases*numMiscibleComponents] = L;
 
+        // Main Newton loop
         for (int i = 0; i< 100; ++i){
             evalDefect_(newtonB, newtonX, fluidState, globalComposition);
             evalJacobian_(newtonA, newtonX, fluidState, globalComposition);
@@ -638,17 +641,19 @@ protected:
                             const ComponentVector& globalComposition)
     {
         FluidState fluidState(fluidStateIn);
-        //primary variables (numMisciblePhases*numMiscibleComponents +1 )
-        fluidState.setMoleFraction(oilPhaseIdx, OctaneIdx, x[0]);
-        fluidState.setMoleFraction(oilPhaseIdx, CO2Idx, x[1]);
-        fluidState.setMoleFraction(gasPhaseIdx, OctaneIdx, x[2]);
-        fluidState.setMoleFraction(gasPhaseIdx, CO2Idx, x[3]);
-        Scalar L = x[4];
-        // todo: remove this hardcode for water
-        fluidState.setMoleFraction(oilPhaseIdx, BrineIdx, 0);
-        fluidState.setMoleFraction(gasPhaseIdx, BrineIdx, 0);
+        // Set primary variables in FluidState for misc. calculations
+        // Primary variables = numMisciblePhases*numMiscibleComponents + 1
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            if (compIdx == BrineIdx)
+                continue;
+            fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
+            fluidState.setMoleFraction(gasPhaseIdx, compIdx, x[compIdx + numMiscibleComponents]);
+        }
+        Scalar L = x[numMiscibleComponents*numMisciblePhases];
+        fluidState.setMoleFraction(oilPhaseIdx, BrineIdx, 0); /* OBS */
+        fluidState.setMoleFraction(gasPhaseIdx, BrineIdx, 0); /* OBS */
 
-        //compute fugacities
+        // Compute fugacities
         typedef typename FluidSystem::template ParameterCache<typename FluidState::Scalar> ParamCache;
         ParamCache paramCache;
         for (int phaseIdx=0; phaseIdx<numPhases; ++phaseIdx){
@@ -663,22 +668,19 @@ protected:
             }
         }
 
-        //todo: make this AD (x, y and L)
-        // numMisciblePhases*numMiscible components +1 primary nknowns:L, x(comp1), x(comp2), y(comp1), y(comp2)
-        // numMisciblePhases**numMiscible components +1 equations:
-        // eq1: z-Lx-(1-L)y=0 (comp1)
-        b[0] = globalComposition[OctaneIdx] - L*fluidState.moleFraction(oilPhaseIdx, OctaneIdx)
-                - (1-L)*fluidState.moleFraction(gasPhaseIdx, OctaneIdx);
-        // eq1: z-Lx-(1-L)y=0 (comp2)
-        b[1] = globalComposition[CO2Idx] - L*fluidState.moleFraction(oilPhaseIdx, CO2Idx)
-                - (1-L)*fluidState.moleFraction(gasPhaseIdx, CO2Idx);
-        // eq3: f_Gas-f_Oil (comp1)
-        b[2] = fluidState.fugacity(oilPhaseIdx, OctaneIdx) - fluidState.fugacity(gasPhaseIdx, OctaneIdx);
-        // eq4: f_Gas-f_Oil (comp1)
-        b[3] = fluidState.fugacity(oilPhaseIdx, CO2Idx) - fluidState.fugacity(gasPhaseIdx, CO2Idx);
-        // eq4: sum(x)=sum(y)
-        b[4] = fluidState.moleFraction(oilPhaseIdx, OctaneIdx) - fluidState.moleFraction(gasPhaseIdx, OctaneIdx);
-        b[4] += fluidState.moleFraction(oilPhaseIdx, CO2Idx) - fluidState.moleFraction(gasPhaseIdx, CO2Idx);
+        // Compute residuals for Newton update:
+        // Primary variables are: x, y and L
+        // TODO: Make this AD
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            if (compIdx == BrineIdx)
+                continue;
+            // z - Lx - (1-L)y = 0
+            b[compIdx] = globalComposition[compIdx] - L*fluidState.moleFraction(oilPhaseIdx, compIdx) - (1-L)* fluidState.moleFraction(gasPhaseIdx,compIdx);
+            // f_vapor - f_liquid = 0
+            b[compIdx + numMiscibleComponents] = fluidState.fugacity(oilPhaseIdx, compIdx) - fluidState.fugacity(gasPhaseIdx, compIdx);
+            // sum(x) - sum(y) = 0
+            b[numMisciblePhases*numMiscibleComponents] += fluidState.moleFraction(oilPhaseIdx, compIdx) - fluidState.moleFraction(gasPhaseIdx,compIdx);
+        }
     }//end valDefect
 
     template <class FluidState, class DefectVector, class DefectMatrix, class ComponentVector>
@@ -687,21 +689,25 @@ protected:
                               const FluidState& fluidStateIn,
                               const ComponentVector& globalComposition)
     {
+        // TODO: Use AD instead
+        // Calculate response of current state x
         DefectVector x(xIn);
         DefectVector b0;
         evalDefect_(b0, x, fluidStateIn, globalComposition);
+
+        // Make the jacobian A in Newton system Ax=b
         Scalar epsilon = 1e-8;
-        //make the jacobian of Ax=b
         for(int i=0; i<b0.size(); ++i){
+            // Permutate x and calculate response
             x[i] += epsilon;
             DefectVector bEps;
             evalDefect_(bEps, x, fluidStateIn, globalComposition);
             x[i] -= epsilon;
-            //derivative of all eqs wrt primary variable i
+
+            // Forward difference of all eqs wrt primary variable i
             DefectVector derivI(bEps);
             derivI -= b0;
             derivI /= epsilon;
-
             for(int j=0; j<b0.size(); ++j){
                 A[j][i] = derivI[j];
             }
