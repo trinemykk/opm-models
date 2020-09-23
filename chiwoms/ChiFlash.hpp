@@ -183,7 +183,6 @@ public:
         // solve Rachford Rice (using K0, L0, z) for stabilityTest showing that singlePhase --> twoPhase --> L0 (TODO)
         // newtonCompositionUpdate using p, T, z, K and L
 
-
         // Initial guess for the K value using Wilson's formula
         std::cout << " ======== WILSON ========" << std::endl;
         ComponentVector K;
@@ -193,27 +192,41 @@ public:
             K[compIdx] = wilsonK_(fluidState, compIdx);
         }
 
-        std::cout << "global composition:" << globalComposition << std::endl;
+        std::cout << "global composition : " << globalComposition << std::endl;
 
-        //Phase stability test, WHY NOT input K??
-        std::cout << " ======== STABILITY ========" << std::endl;
-        bool isStable;
-        ComponentVector x;
-        ComponentVector y;
-        phaseStabilityTest_(isStable, x, y, fluidState, globalComposition);
+        std::cout << " +++++++++++++++++++++++++++++" << std::endl;
+        std::cout << " ++++++++ START FLASH ++++++++" << std::endl;
+        std::cout << " +++++++++++++++++++++++++++++" << std::endl;
+        // Flash loop start
+        bool isStable = false;
+        for (int i = 0; i< 100; ++i) {
+            
+            std::cout << "Iteration : " << i << std::endl;
 
-        //Rachford Rice equation
-        std::cout << " ======== RACHFORD-RICE ========" << std::endl;
-        Scalar L = solveRachfordRice_g_(K, globalComposition);
-        std::cout << "L :" << L << std::endl;
+            // In the first iteration we do stability test to check if cell is single-phase. If so, we do not need to 
+            // do Newton update
+            if (i == 0) {
+                // Phase stability test
+                std::cout << " ======== STABILITY ========" << std::endl;
+                ComponentVector x;
+                ComponentVector y;
+                phaseStabilityTest_(isStable, x, y, fluidState, globalComposition);
 
-        // WHY? the phase-stability test finds out which cells that stays singe-phase,
-        // and what cells that change to two-phase --> these cells needs new
-        // calculations, and why is Rachford Rice done before this ??
-
-        //update the composition using newton
-        std::cout << " ======== NEWTON ========" << std::endl;
-        newtonCompositionUpdate_(K, L, fluidState, globalComposition);
+                //Rachford Rice equation
+                std::cout << " ======== RACHFORD-RICE ========" << std::endl;
+                Scalar L = solveRachfordRice_g_(K, globalComposition);
+                std::cout << "L :" << L << std::endl;
+            } // end if i == 0
+            
+            // Update the composition using Newton's method if cell is two-phase
+            if (isStable == false) {
+                std::cout << " ======== NEWTON ========" << std::endl;
+                newtonCompositionUpdate_(K, L, fluidState, globalComposition);
+            }  // end if newtonComposition update
+        } // end flash loop
+        std::cout << " +++++++++++++++++++++++++++" << std::endl;
+        std::cout << " ++++++++ END FLASH ++++++++" << std::endl;
+        std::cout << " +++++++++++++++++++++++++++" << std::endl;
 
         // compressibility
         typename FluidSystem::template ParameterCache<Scalar> paramCache;
@@ -442,7 +455,7 @@ protected:
         checkStability_(fluidState, isTrivialL, K_l, x, S_l, globalComposition, /*isGas=*/false);
         bool L_stable = (S_l < (1.0 + 1e-5)) || isTrivialL;
 
-        isStable = L_stable && V_unstable; //L-stable means succes in making liquid, V-unstable means no success in making vapour
+        isStable = L_stable && V_unstable; //L-stable means success in making liquid, V-unstable means no success in making vapour
         if (isStable) {
             // single phase, i.e. phase composition is equivalent to the global composition
             x = globalComposition;
