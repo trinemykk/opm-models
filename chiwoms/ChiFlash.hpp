@@ -197,8 +197,11 @@ public:
         std::cout << " +++++++++++++++++++++++++++++" << std::endl;
         std::cout << " ++++++++ START FLASH ++++++++" << std::endl;
         std::cout << " +++++++++++++++++++++++++++++" << std::endl;
-        // Flash loop start
+        
+        // Some declarations
         bool isStable = false;
+        Scalar L;
+        // Flash loop start
         for (int i = 0; i< 100; ++i) {
             
             std::cout << "Iteration : " << i << std::endl;
@@ -208,13 +211,11 @@ public:
             if (i == 0) {
                 // Phase stability test
                 std::cout << " ======== STABILITY ========" << std::endl;
-                ComponentVector x;
-                ComponentVector y;
-                phaseStabilityTest_(isStable, x, y, fluidState, globalComposition);
+                phaseStabilityTest_(isStable, K, fluidState, globalComposition);
 
                 //Rachford Rice equation
                 std::cout << " ======== RACHFORD-RICE ========" << std::endl;
-                Scalar L = solveRachfordRice_g_(K, globalComposition);
+                L = solveRachfordRice_g_(K, globalComposition);
                 std::cout << "L :" << L << std::endl;
             } // end if i == 0
             
@@ -223,6 +224,7 @@ public:
                 std::cout << " ======== NEWTON ========" << std::endl;
                 newtonCompositionUpdate_(K, L, fluidState, globalComposition);
             }  // end if newtonComposition update
+            else break; // break out of flash loop
         } // end flash loop
         std::cout << " +++++++++++++++++++++++++++" << std::endl;
         std::cout << " ++++++++ END FLASH ++++++++" << std::endl;
@@ -443,23 +445,43 @@ protected:
     }
 
     template <class FlashFluidState, class ComponentVector>
-    static void phaseStabilityTest_(bool& isStable, ComponentVector& x, ComponentVector& y, const FlashFluidState& fluidState, const ComponentVector& globalComposition)
+    static void phaseStabilityTest_(bool& isStable, ComponentVector& K, FlashFluidState& fluidState, const ComponentVector& globalComposition)
     {
         bool isTrivialL, isTrivialV;
-        ComponentVector K_l, K_v;
+        ComponentVector K_l, K_v, x, y;
         Scalar S_l, S_v;
 
+        // Use equilibrium constants made with Wilson's formula (before flash loop)
+        K_l = K;
+        K_v = K;
+
+        // Check for vapour instable phase
         checkStability_(fluidState, isTrivialV, K_v, y, S_v, globalComposition, /*isGas=*/true);
         bool V_unstable = (S_v < (1.0 + 1e-5)) || isTrivialV;
 
+        // Check for liquids stable phase
         checkStability_(fluidState, isTrivialL, K_l, x, S_l, globalComposition, /*isGas=*/false);
         bool L_stable = (S_l < (1.0 + 1e-5)) || isTrivialL;
 
-        isStable = L_stable && V_unstable; //L-stable means success in making liquid, V-unstable means no success in making vapour
+        // L-stable means success in making liquid, V-unstable means no success in making vapour
+        isStable = L_stable && V_unstable; 
         if (isStable) {
-            // single phase, i.e. phase composition is equivalent to the global composition
-            x = globalComposition;
-            y = globalComposition;
+            // Single phase, i.e. phase composition is equivalent to the global composition
+            // Update fluidstate with mole fration
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                if (compIdx == BrineIdx)
+                    continue;
+                fluidState.setMoleFraction(gasPhaseIdx, compIdx, globalComposition[compIdx]);
+                fluidState.setMoleFraction(oilPhaseIdx, compIdx, globalComposition[compIdx]);
+            }
+        }
+        // If it is not stable, we use the mole fractions from the Michelsen test to calculate a new K
+        else {
+            for (int compIdx = 0; compIdx<numComponents; ++compIdx) {
+                if (compIdx == BrineIdx)
+                    continue;
+                K[compIdx] = y[compIdx] / x[compIdx];
+            }
         }
     }
 
@@ -469,22 +491,16 @@ protected:
         typedef typename FlashFluidState::Scalar FlashEval;
         typedef ThreePhaseCo2OctaneBrineFluidSystem<Scalar> ThisType;
         typedef typename Opm::PengRobinsonMixture<Scalar, ThisType> PengRobinsonMixture;
-        //this is "Michelsens stability test"
-        //make two fake phases "inside" one phase and check for positive volume
+
+        // Declarations 
         FlashFluidState fluidState_fake = fluidState;
         FlashFluidState fluidState_global = fluidState;
 
-        for (int compIdx = 0; compIdx < numComponents; ++compIdx){
-            if (compIdx == BrineIdx)
-                continue;
-            K[compIdx] = wilsonK_(fluidState, compIdx);
-        }
-
-
+        // Michelsens stability test.
+        // Make two fake phases "inside" one phase and check for positive volume
         for (int i = 0; i < 19000; ++i) {
             S_loc = 0.0;
             if (isGas) {
-                xy_loc;
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
                     xy_loc[compIdx] = K[compIdx] * globalComposition[compIdx];
                     S_loc += xy_loc[compIdx];
@@ -495,7 +511,6 @@ protected:
                 }
             }
             else {
-                ComponentVector xy_loc;
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
                     if (compIdx == BrineIdx)
                         continue;
@@ -540,16 +555,12 @@ protected:
                 if (compIdx == BrineIdx)
                     continue;
                 if (isGas){
-                    // std::cout << "Fug. fake : " << fluidState_fake.fugacity(gasPhaseIdx, compIdx) << std::endl;
-                    // std::cout << "Fug. global : " << fluidState_global.fugacity(gasPhaseIdx, compIdx) << std::endl;
                     Scalar fug_fake = fluidState_fake.fugacity(gasPhaseIdx, compIdx);
                     Scalar fug_global = fluidState_global.fugacity(gasPhaseIdx, compIdx);
                     Scalar fug_ratio = fug_global / fug_fake;
                     R[compIdx] = fug_ratio / S_loc;
                 }
                 else{
-                    // std::cout << "Fug. fake : " << fluidState_fake.fugacity(oilPhaseIdx, compIdx) << std::endl;
-                    // std::cout << "Fug. global : " << fluidState_global.fugacity(oilPhaseIdx, compIdx) << std::endl;
                     Scalar fug_fake = fluidState_fake.fugacity(oilPhaseIdx, compIdx);
                     Scalar fug_global = fluidState_global.fugacity(oilPhaseIdx, compIdx);
                     Scalar fug_ratio = fug_fake / fug_global;
