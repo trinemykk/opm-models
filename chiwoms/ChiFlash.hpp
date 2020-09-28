@@ -230,18 +230,19 @@ public:
         std::cout << " ++++++++ END FLASH ++++++++" << std::endl;
         std::cout << " +++++++++++++++++++++++++++" << std::endl;
 
-        // compressibility
+        // Update phases
         typename FluidSystem::template ParameterCache<Scalar> paramCache;
         paramCache.updatePhase(fluidState, oilPhaseIdx);
         paramCache.updatePhase(fluidState, gasPhaseIdx);
 
-        //compressibility
+        // Calculate compressibility factor
         const Scalar R = Opm::Constants<Scalar>::R;
         Scalar Z_L = (paramCache.molarVolume(oilPhaseIdx) * fluidState.pressure(oilPhaseIdx) )/
                 (R * fluidState.temperature(oilPhaseIdx));
         Scalar Z_V = (paramCache.molarVolume(gasPhaseIdx) * fluidState.pressure(gasPhaseIdx) )/
                 (R * fluidState.temperature(gasPhaseIdx));
 
+        // Update saturation
         Scalar Sw = 0.0; //todo: include water from conservation eq
         Scalar So = L*Z_L/(L*Z_L+(1-L)*Z_V);
         Scalar Sg = 1-So-Sw;
@@ -249,6 +250,14 @@ public:
         fluidState.setSaturation(waterPhaseIdx, Sw);
         fluidState.setSaturation(oilPhaseIdx, So);
         fluidState.setSaturation(gasPhaseIdx, Sg);
+
+        // Update densities
+        fluidState.setDensity(oilPhaseIdx, FluidSystem::density(fluidState, paramCache, oilPhaseIdx));
+        fluidState.setDensity(gasPhaseIdx, FluidSystem::density(fluidState, paramCache, gasPhaseIdx));
+        fluidState.setDensity(waterPhaseIdx, FluidSystem::density(fluidState, paramCache, waterPhaseIdx));
+
+        // Update water mole fraction
+        fluidState.setMoleFraction(waterPhaseIdx, BrineIdx, 1.0);
     }
 
     /*!
@@ -407,8 +416,10 @@ protected:
                 }
 
             // Check for convergence
-            if ( Opm::abs(delta) < 1e-10 )
+            if ( Opm::abs(delta) < 1e-10 ) {
+                L = Opm::min(Opm::max(L, 0), 1);
                 return L;
+            }
         }
         // Throw error if Rachford-Rice fails
         throw std::runtime_error("Rachford-Rice did not converge within maximum number of iterations" );
