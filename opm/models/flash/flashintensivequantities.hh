@@ -68,6 +68,7 @@ class FlashIntensiveQuantities
     // primary variable indices
     enum { z0Idx = Indices::z0Idx };
     enum { pressure0Idx = Indices::pressure0Idx };
+    enum { saturation0Idx = Indices::saturation0Idx };
     enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
     enum { numComponents = GET_PROP_VALUE(TypeTag, NumComponents) };
     enum { enableDiffusion = GET_PROP_VALUE(TypeTag, EnableDiffusion) };
@@ -78,6 +79,8 @@ class FlashIntensiveQuantities
     typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
     typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
     typedef typename GET_PROP_TYPE(TypeTag, FlashSolver) FlashSolver;
+
+    enum { waterPhaseIdx = FluidSystem::waterPhaseIdx};
 
     typedef Dune::FieldVector<Evaluation, numComponents> ComponentVector;
     typedef Dune::FieldMatrix<Scalar, dimWorld, dimWorld> DimMatrix;
@@ -112,15 +115,17 @@ public:
         // extract the global mole fractions
         ComponentVector z;
         Evaluation lastZ = 1.0;
-        for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
+        for (unsigned compIdx = 0; compIdx < numComponents - 2; ++compIdx) {
             z[compIdx] = priVars.makeEvaluation(z0Idx + compIdx, timeIdx);
             lastZ -= z[compIdx];
         }
-        z[numComponents - 1] = lastZ;
+        z[numComponents - 2] = lastZ;
 
         Evaluation p = priVars.makeEvaluation(pressure0Idx, timeIdx);
         for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
             fluidState_.setPressure(phaseIdx, p);
+        Evaluation swat = priVars.makeEvaluation(saturation0Idx, timeIdx);
+        fluidState_.setSaturation(waterPhaseIdx, swat);
 
 #if 0
         const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);

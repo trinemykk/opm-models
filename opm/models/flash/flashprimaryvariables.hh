@@ -68,6 +68,8 @@ class FlashPrimaryVariables : public FvBasePrimaryVariables<TypeTag>
     // primary variable indices
     enum { z0Idx = Indices::z0Idx };
     enum { pressure0Idx = Indices::pressure0Idx };
+    enum { saturation0Idx = Indices::saturation0Idx };
+    enum { waterPhaseIdx = FluidSystem::waterPhaseIdx};
 
     enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
     enum { numComponents = GET_PROP_VALUE(TypeTag, NumComponents) };
@@ -134,9 +136,10 @@ public:
         }
         z /= sumMoles;
 
-        for (int i = 0; i < numComponents - 1; ++i)
+        for (int i = 0; i < numComponents - 2; ++i)
             (*this)[z0Idx + i] = z[i];
         (*this)[pressure0Idx] = fluidState.pressure(0);
+        (*this)[saturation0Idx] = fluidState.saturation(waterPhaseIdx);
     }
 
     /*!
@@ -148,7 +151,7 @@ public:
     {
         os << "(p_" << FluidSystem::phaseName(0) << " = "
            << this->operator[](pressure0Idx);
-        for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
+        for (unsigned compIdx = 0; compIdx < numComponents - 2; ++compIdx) {
             os << ", z_" << FluidSystem::componentName(compIdx) << " = "
                << this->operator[](z0Idx + compIdx);
         }

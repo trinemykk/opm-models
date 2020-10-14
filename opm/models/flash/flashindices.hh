@@ -59,8 +59,9 @@ public:
     //! Index of the total concentration of the first component in the
     //! pore space.
     static const int pressure0Idx = PVOffset;
-    static const int z0Idx = PVOffset+1; // numcomponents-2 variables follow
-
+    static const int saturation0Idx = pressure0Idx+1;
+    static const int z0Idx = saturation0Idx+1; // numcomponents-2 variables follow
+    
     // equation indices
 
     //! Index of the mass conservation equation for the first
