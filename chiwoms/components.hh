@@ -50,16 +50,31 @@ template <class Scalar>
 class ChiwomsCO2 : public Opm::SimpleCO2<Scalar>
 {
 public:
-    /// Acentric factor
-    static Scalar acentricFactor() { return 0.225; }
+         /// Chemical name
+        static const char* name() { return "CO2"; }
+
+        /// Molar mass in \f$\mathrm{[kg/mol]}\f$
+        static Scalar molarMass() { return 0.0440095; }
+
+        /// Critical temperature in \f$\mathrm[K]}\f$
+        static Scalar criticalTemperature() { return 304.1; }
+
+        /// Critical pressure in \f$\mathrm[Pa]}\f$
+        static Scalar criticalPressure() { return 7.38e6; }
+
+        /// Acentric factor
+        static Scalar acentricFactor() { return 0.225; }
 };
 
 template <class Scalar>
 class ChiwomsBrine : public Opm::H2O<Scalar>
 {
 public:
-    /// Acentric factor
-    static Scalar acentricFactor() { return 0.344; }
+        /// Molar mass in \f$\mathrm{[kg/mol]}\f$
+        static Scalar molarMass() { return 0.0180158; }
+
+        /// Acentric factor
+        static Scalar acentricFactor() { return 0.344; }
 };
 
 struct EOS

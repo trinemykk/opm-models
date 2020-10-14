@@ -362,43 +362,49 @@ public:
         assert(0 <= phaseIdx && phaseIdx < numPhases);
         assert(0 <= compIdx && compIdx < numComponents);
 
-        if (phaseIdx == oilPhaseIdx) {
-#if 0
-#warning HACK
-            if (compIdx == BrineIdx) {
-                return 1e7/fluidState.pressure(oilPhaseIdx);
-
-            }else if (compIdx == OctaneIdx)
-                return 40e3/fluidState.pressure(oilPhaseIdx);
-            else
-                return 500e3/fluidState.pressure(oilPhaseIdx);
-#else
-            if (compIdx == BrineIdx) {
-                return 1e7/fluidState.pressure(oilPhaseIdx);
-
-            }else if (compIdx == CO2Idx)
-                return 500e3/fluidState.pressure(oilPhaseIdx);
-            else {
-                return PengRobinsonMixture::computeFugacityCoefficient(fluidState,
-                                                                       paramCache,
-                                                                       phaseIdx,
-                                                                       compIdx);
-            }
-#endif
-        }
-        else if (phaseIdx == gasPhaseIdx) {
+        if (phaseIdx == waterPhaseIdx || compIdx == BrineIdx)
             return 1.0;
-        }
         else {
-            assert(phaseIdx == waterPhaseIdx);
-            if (compIdx == OctaneIdx) {
-                return 10e6/fluidState.pressure(waterPhaseIdx);
-
-            }else if (compIdx == BrineIdx)
-                return 80e3/fluidState.pressure(waterPhaseIdx);
-            else
-                return 1e6/fluidState.pressure(waterPhaseIdx);
+            Scalar phi = Opm::getValue(PengRobinsonMixture::computeFugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx));
+            return phi;
         }
+//         if (phaseIdx == oilPhaseIdx) {
+// #if 0
+// #warning HACK
+//             if (compIdx == BrineIdx) {
+//                 return 1e7/fluidState.pressure(oilPhaseIdx);
+
+//             }else if (compIdx == OctaneIdx)
+//                 return 40e3/fluidState.pressure(oilPhaseIdx);
+//             else
+//                 return 500e3/fluidState.pressure(oilPhaseIdx);
+// #else
+//             if (compIdx == BrineIdx) {
+//                 return 1e7/fluidState.pressure(oilPhaseIdx);
+
+//             }else if (compIdx == CO2Idx)
+//                 return 500e3/fluidState.pressure(oilPhaseIdx);
+//             else {
+//                 return PengRobinsonMixture::computeFugacityCoefficient(fluidState,
+//                                                                        paramCache,
+//                                                                        phaseIdx,
+//                                                                        compIdx);
+//             }
+// #endif
+//         }
+//         else if (phaseIdx == gasPhaseIdx) {
+//             return 1.0;
+//         }
+//         else {
+//             assert(phaseIdx == waterPhaseIdx);
+//             if (compIdx == OctaneIdx) {
+//                 return 10e6/fluidState.pressure(waterPhaseIdx);
+
+//             }else if (compIdx == BrineIdx)
+//                 return 80e3/fluidState.pressure(waterPhaseIdx);
+//             else
+//                 return 1e6/fluidState.pressure(waterPhaseIdx);
+//         }
 
         throw std::invalid_argument("crap!");
     }
@@ -420,7 +426,7 @@ public:
      */
     static Scalar interactionCoefficient(unsigned comp1Idx, unsigned comp2Idx)
     {
-        return 0;
+        // return 0;
         unsigned i = std::min(comp1Idx, comp2Idx);
         unsigned j = std::max(comp1Idx, comp2Idx);
 #warning interactionCoefficients from Ivar
