@@ -116,6 +116,8 @@ public:
         Evaluation p = priVars.makeEvaluation(pressure0Idx, timeIdx);
         for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
             fluidState_.setPressure(phaseIdx, p);
+        Evaluation swat = priVars.makeEvaluation(saturation0Idx, timeIdx);
+        fluidState_.setSaturation(waterPhaseIdx, swat);
 
         const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
         if (hint) {
@@ -140,6 +142,9 @@ public:
                                                  flashTolerance);
 
         // calculate relative permeabilities
+        const MaterialLawParams& materialParams = problem.materialLawParams(elemCtx, dofIdx, timeIdx);
+
+        typename FluidSystem::template ParameterCache<Evaluation> paramCache;
         MaterialLaw::relativePermeabilities(relativePermeability_,
                                             materialParams, fluidState_);
         Opm::Valgrind::CheckDefined(relativePermeability_);
