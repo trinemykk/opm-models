@@ -246,8 +246,8 @@ protected:
     template <class FluidState>
     void updatePure_(const FluidState& fluidState, unsigned phaseIdx)
     {
-        Scalar T = fluidState.temperature(phaseIdx);
-        Scalar p = fluidState.pressure(phaseIdx);
+        Scalar T = Opm::getValue( fluidState.temperature(phaseIdx));
+        Scalar p = Opm::getValue( fluidState.pressure(phaseIdx));
 
         switch (phaseIdx)
         {
@@ -296,11 +296,11 @@ protected:
             // molar volume appears in basically every quantity the fluid
             // system can get queried, so it is okay to calculate it
             // here...
-            Vm_[gasPhaseIdx] =
+            Vm_[gasPhaseIdx] = Opm::getValue(
                 PengRobinson::computeMolarVolume(fluidState,
                                                  *this,
                                                  phaseIdx,
-                                                 /*isGasPhase=*/true);
+                                                 /*isGasPhase=*/true));
             break;
         }
         case oilPhaseIdx: {
@@ -309,11 +309,11 @@ protected:
             // molar volume appears in basically every quantity the fluid
             // system can get queried, so it is okay to calculate it
             // here...
-            Vm_[oilPhaseIdx] =
+            Vm_[oilPhaseIdx] = Opm::getValue(
                 PengRobinson::computeMolarVolume(fluidState,
                                                  *this,
                                                  phaseIdx,
-                                                 /*isGasPhase=*/false);
+                                                 /*isGasPhase=*/false));
 
             break;
         }
@@ -324,12 +324,12 @@ protected:
             const Scalar stockTankWaterDensity = 62.4 * 0.45359237 / 0.028316847;
             // Water compressibility is specified as 3.3e-6 per psi
             // overpressure, where 1 psi = 6894.7573 Pa
-            Scalar overPressure = fluidState.pressure(waterPhaseIdx) - 1.013e5; // [Pa]
+            Scalar overPressure = Opm::getValue(fluidState.pressure(waterPhaseIdx) - 1.013e5); // [Pa]
             Scalar waterDensity =
                 stockTankWaterDensity * (1 + 3.3e-6*overPressure/6894.7573);
 
             // convert water density [kg/m^3] to molar volume [m^3/mol]
-            Vm_[waterPhaseIdx] = fluidState.averageMolarMass(waterPhaseIdx)/waterDensity;
+            Vm_[waterPhaseIdx] = Opm::getValue(fluidState.averageMolarMass(waterPhaseIdx))/waterDensity;
             break;
         };
         };

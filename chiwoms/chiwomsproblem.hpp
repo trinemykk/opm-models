@@ -82,8 +82,10 @@ SET_PROP(ChiwomsProblem, FlashSolver)
 private:
     typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
     typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
+    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
+
 public:
-    typedef Opm::ChiFlash<Scalar, FluidSystem> type;
+    typedef Opm::ChiFlash<Scalar, Evaluation, FluidSystem> type;
 };
 
 // Set fluid configuration
@@ -129,7 +131,7 @@ public:
 SET_BOOL_PROP(ChiwomsProblem, NewtonWriteConvergence, false);
 
 // Enable gravity
-SET_BOOL_PROP(ChiwomsProblem, EnableGravity, true);
+SET_BOOL_PROP(ChiwomsProblem, EnableGravity, false);
 
 // set the defaults for the problem specific properties
 SET_SCALAR_PROP(ChiwomsProblem, TopResvPres, 200 * 1.e5);
@@ -487,54 +489,7 @@ public:
                  unsigned timeIdx) const
     {
         Opm::CompositionalFluidState<Scalar, FluidSystem> fs;
-        const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
-
-        // get capillary pressure
-        Scalar pC[numPhases];
-        const auto& matParams = this->materialLawParams(context, spaceIdx, timeIdx);
-        MaterialLaw::capillaryPressures(pC, matParams, fs);
-
-        // pressure; oleic phase is the reference
-        fs.setPressure(oilPhaseIdx, 27000000);
-        fs.setPressure(waterPhaseIdx, 27000000);
-        fs.setPressure(gasPhaseIdx,27000000);
-
-        // composition
-        fs.setMoleFraction(oilPhaseIdx, CO2Idx, 0.01);
-        fs.setMoleFraction(oilPhaseIdx, OctaneIdx, 0.99);
-        fs.setMoleFraction(oilPhaseIdx, BrineIdx, 0.0);
-
-        fs.setMoleFraction(gasPhaseIdx, CO2Idx, 0.0);
-        fs.setMoleFraction(gasPhaseIdx, OctaneIdx, 0.0);
-        fs.setMoleFraction(gasPhaseIdx, BrineIdx, 0.0);
-
-        fs.setMoleFraction(waterPhaseIdx, CO2Idx, 0.0);
-        fs.setMoleFraction(waterPhaseIdx, OctaneIdx, 0.0);
-        fs.setMoleFraction(waterPhaseIdx, BrineIdx, 1.0);
-
-        // temperature
-        fs.setTemperature(temperature_);
-
-        // saturation, oil-filled
-            fs.setSaturation(FluidSystem::oilPhaseIdx, 1.0);
-            fs.setSaturation(FluidSystem::waterPhaseIdx, 0.0);
-            fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
-
-
-        // fill in viscosity and enthalpy based on the state set above
-        // and the fluid system defined in this class
-        typename FluidSystem::template ParameterCache<Scalar> paramCache;
-        typedef Opm::ComputeFromReferencePhase<Scalar, FluidSystem> CFRP;
-
-          CFRP::solve(fs, paramCache,
-                      /*refPhaseIdx=*/ oilPhaseIdx,
-                      /*setViscosity=*/ true,
-                      /*setEnthalpy=*/ true);
-
-
-        // const auto& matParams = this->materialLawParams(context, spaceIdx,
-        // timeIdx);
-        //values.assignMassConservative(fs, matParams, /*inEquilibrium=*/true);
+        initialFs(fs, context, spaceIdx, timeIdx);
         values.assignNaive(fs);
 
     //std::cout << "primary variables for cell " << context.globalSpaceIndex(spaceIdx, timeIdx) << ": " << values << "\n";
@@ -588,16 +543,19 @@ public:
 	    const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
 
         // left side has a fixed inflow rate
-	    if((pos[XDIM] < this->boundingBoxMin()[XDIM] + eps) &&
-	       (pos[YDIM] < this->boundingBoxMin()[YDIM] +
-           (this->boundingBoxMax()[YDIM] - this->boundingBoxMin()[YDIM])))
+	    if((pos[XDIM] < this->boundingBoxMin()[XDIM] + eps) )
         {
 		    // assign rate to the CO2 component of the inflow
 		    RateVector massRate(0.);
-            massRate[contiCO2EqIdx] = 0.0;// -1e-7;
+            massRate[contiCO2EqIdx] = -1e-3;// -1e-7;
 		    values.setMassRate(massRate);
-	    }
-
+        } 
+        else if((pos[XDIM] > this->boundingBoxMax()[XDIM] - eps))
+        {
+            Opm::CompositionalFluidState<Scalar, FluidSystem> fs;
+            initialFs(fs, context, spaceIdx, timeIdx);
+            values.setFreeFlow(context, spaceIdx, timeIdx, fs);
+        } 
 	    else {
             values.setNoFlow();// closed on top and bottom
 	    }
@@ -623,7 +581,65 @@ private:
     // random sources can be mutable; we expect them to behave erratically!
     mutable std::mt19937 rand_gen;
     mutable std::normal_distribution<double> norm_dist{0., PERTUBATION / 3.};
+    /*!
+     * \copydoc FvBaseProblem::initial
+     */
+    template <class FluidState, class Context>
+    void initialFs(FluidState& fs, const Context& context, unsigned spaceIdx,
+                 unsigned timeIdx) const
+    {
+        const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
 
+        // get capillary pressure
+        Scalar pC[numPhases];
+        const auto& matParams = this->materialLawParams(context, spaceIdx, timeIdx);
+        MaterialLaw::capillaryPressures(pC, matParams, fs);
+
+        // pressure; oleic phase is the reference
+        fs.setPressure(oilPhaseIdx, 150*1e5);
+        fs.setPressure(waterPhaseIdx, 150*1e5);
+        fs.setPressure(gasPhaseIdx,150*1e5);
+
+        // composition
+        fs.setMoleFraction(oilPhaseIdx, CO2Idx, 0.01);
+        fs.setMoleFraction(oilPhaseIdx, OctaneIdx, 0.99);
+        fs.setMoleFraction(oilPhaseIdx, BrineIdx, 0.0);
+
+        fs.setMoleFraction(gasPhaseIdx, CO2Idx, 0.01);
+        fs.setMoleFraction(gasPhaseIdx, OctaneIdx, 0.99);
+        fs.setMoleFraction(gasPhaseIdx, BrineIdx, 0.0);
+
+        fs.setMoleFraction(waterPhaseIdx, CO2Idx, 0.0);
+        fs.setMoleFraction(waterPhaseIdx, OctaneIdx, 0.0);
+        fs.setMoleFraction(waterPhaseIdx, BrineIdx, 1.0);
+
+        // temperature
+        fs.setTemperature(temperature_);
+
+        // saturation, oil-filled
+        fs.setSaturation(FluidSystem::oilPhaseIdx, 1.0);
+        fs.setSaturation(FluidSystem::waterPhaseIdx, 0.0);
+        fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
+
+
+        // fill in viscosity and enthalpy based on the state set above
+        // and the fluid system defined in this class
+        typename FluidSystem::template ParameterCache<Scalar> paramCache;
+        typedef Opm::ComputeFromReferencePhase<Scalar, FluidSystem> CFRP;
+
+          CFRP::solve(fs, paramCache,
+                      /*refPhaseIdx=*/ oilPhaseIdx,
+                      /*setViscosity=*/ true,
+                      /*setEnthalpy=*/ true);
+
+
+        // const auto& matParams = this->materialLawParams(context, spaceIdx,
+        // timeIdx);
+        //values.assignMassConservative(fs, matParams, /*inEquilibrium=*/true);
+        // values.assignNaive(fs);
+
+    //std::cout << "primary variables for cell " << context.globalSpaceIndex(spaceIdx, timeIdx) << ": " << values << "\n";
+    }
 };
 } // namespace Opm
 
