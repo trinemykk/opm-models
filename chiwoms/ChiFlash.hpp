@@ -52,7 +52,7 @@ namespace Opm {
  *        given the total mass of all components for the chiwoms problem.
  *
  */
-template <class Scalar, class FluidSystem>
+template <class Scalar, class Evaluation, class FluidSystem>
 class ChiFlash
 {
     enum { numPhases = FluidSystem::numPhases };
@@ -200,32 +200,24 @@ public:
         
         // Some declarations
         bool isStable = false;
-        Scalar L;
-        // Flash loop start
-        for (int i = 0; i< 100; ++i) {
-            
-            std::cout << "Iteration : " << i << std::endl;
+        InputEval L;
+        // First we do stability test to check if cell is single-phase. If so, we do not need to 
+        // do Newton update
+        // Phase stability test
+        std::cout << " ======== STABILITY ========" << std::endl;
+        phaseStabilityTest_(isStable, K, fluidState, globalComposition);
 
-            // In the first iteration we do stability test to check if cell is single-phase. If so, we do not need to 
-            // do Newton update
-            if (i == 0) {
-                // Phase stability test
-                std::cout << " ======== STABILITY ========" << std::endl;
-                phaseStabilityTest_(isStable, K, fluidState, globalComposition);
+        //Rachford Rice equation
+        std::cout << " ======== RACHFORD-RICE ========" << std::endl;
+        L = solveRachfordRice_g_(K, globalComposition);
+        std::cout << "L :" << L << std::endl;
+        
+        // Update the composition using Newton's method if cell is two-phase
+        if (isStable == false) {
+            std::cout << " ======== NEWTON ========" << std::endl;
+            newtonCompositionUpdate_(K, L, fluidState, globalComposition);
+        }  // end if newtonComposition update
 
-                //Rachford Rice equation
-                std::cout << " ======== RACHFORD-RICE ========" << std::endl;
-                L = solveRachfordRice_g_(K, globalComposition);
-                std::cout << "L :" << L << std::endl;
-            } // end if i == 0
-            
-            // Update the composition using Newton's method if cell is two-phase
-            if (isStable == false) {
-                std::cout << " ======== NEWTON ========" << std::endl;
-                newtonCompositionUpdate_(K, L, fluidState, globalComposition);
-            }  // end if newtonComposition update
-            else break; // break out of flash loop
-        } // end flash loop
         std::cout << " +++++++++++++++++++++++++++" << std::endl;
         std::cout << " ++++++++ END FLASH ++++++++" << std::endl;
         std::cout << " +++++++++++++++++++++++++++" << std::endl;
@@ -237,17 +229,18 @@ public:
 
         // Calculate compressibility factor
         const Scalar R = Opm::Constants<Scalar>::R;
-        Scalar Z_L = (paramCache.molarVolume(oilPhaseIdx) * fluidState.pressure(oilPhaseIdx) )/
+        Evaluation Z_L = (paramCache.molarVolume(oilPhaseIdx) * fluidState.pressure(oilPhaseIdx) )/
                 (R * fluidState.temperature(oilPhaseIdx));
-        Scalar Z_V = (paramCache.molarVolume(gasPhaseIdx) * fluidState.pressure(gasPhaseIdx) )/
+        Evaluation Z_V = (paramCache.molarVolume(gasPhaseIdx) * fluidState.pressure(gasPhaseIdx) )/
                 (R * fluidState.temperature(gasPhaseIdx));
 
         // Update saturation
-        Scalar Sw = 0.0; //todo: include water from conservation eq
-        Scalar So = L*Z_L/(L*Z_L+(1-L)*Z_V);
-        Scalar Sg = 1-So-Sw;
+        // Evaluation Sw = 0.0; //todo: include water from conservation eq
+        Evaluation Sw = fluidState.saturation(waterPhaseIdx); //todo: include water from conservation eq
+        Evaluation So = L*Z_L/(L*Z_L+(1-L)*Z_V);
+        Evaluation Sg = 1-So-Sw;
 
-        fluidState.setSaturation(waterPhaseIdx, Sw);
+        // fluidState.setSaturation(waterPhaseIdx, Sw);
         fluidState.setSaturation(oilPhaseIdx, So);
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
@@ -345,7 +338,7 @@ protected:
     }
 
     template <class Vector>
-    static typename Vector::field_type rachfordRice_g_(const Vector& K, const Scalar L, const Vector& globalComposition)
+    static typename Vector::field_type rachfordRice_g_(const Vector& K, const Evaluation L, const Vector& globalComposition)
     {
         typename Vector::field_type g=0;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
@@ -357,7 +350,7 @@ protected:
     }
 
     template <class Vector>
-    static typename Vector::field_type rachfordRice_dg_dL_(const Vector& K, const Scalar L, const Vector& globalComposition)
+    static typename Vector::field_type rachfordRice_dg_dL_(const Vector& K, const Evaluation L, const Vector& globalComposition)
     {
         typename Vector::field_type dg=0;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
@@ -373,8 +366,8 @@ protected:
     {
         // Find min and max K. Have to do a laborious for loop to avoid water component (where K=0)
         // TODO: Replace loop with Dune::min_value() and Dune::max_value() when water component is properly handled
-        Scalar Kmin = K[0];
-        Scalar Kmax = K[0];
+        Evaluation Kmin = K[0];
+        Evaluation Kmax = K[0];
         for (int compIdx=1; compIdx<numComponents; ++compIdx){
             if (compIdx == BrineIdx)
                 continue;
@@ -384,28 +377,28 @@ protected:
                 Kmax = K[compIdx];
         }
         // Lower and upper bound for solution
-        Scalar Lmin = (Kmin / (Kmin - 1));
-        Scalar Lmax = Kmax / (Kmax - 1);
+        Evaluation Lmin = (Kmin / (Kmin - 1));
+        Evaluation Lmax = Kmax / (Kmax - 1);
 
         // Check if Lmin < Lmax, and switch if not
         if (Lmin > Lmax)
         {
-            Scalar Ltmp = Lmin;
+            Evaluation Ltmp = Lmin;
             Lmin = Lmax;
             Lmax = Ltmp;
         }
 
         // Initial guess
-        Scalar L = (Lmin + Lmax)/2;
+        Evaluation L = (Lmin + Lmax)/2;
 
         // Newton-Rahpson loop
         for (int iteration=0; iteration<200; ++iteration){
             // Calculate function and derivative values
-            Scalar g = rachfordRice_g_(K, L, globalComposition);
-            Scalar dg_dL = rachfordRice_dg_dL_(K, L, globalComposition);
+            Evaluation g = rachfordRice_g_(K, L, globalComposition);
+            Evaluation dg_dL = rachfordRice_dg_dL_(K, L, globalComposition);
 
             // Lnew = Lold - g/dg;
-            Scalar delta = g/dg_dL;
+            Evaluation delta = g/dg_dL;
             L -= delta;
 
             // Check if L is within the bounds, and if not, we apply bisection method
@@ -426,11 +419,11 @@ protected:
     }
 
     template <class Vector>
-    static typename Vector::field_type bisection_g_(const Vector& K, Scalar Lmin, Scalar Lmax, const Vector& globalComposition)
+    static typename Vector::field_type bisection_g_(const Vector& K, Evaluation Lmin, Evaluation Lmax, const Vector& globalComposition)
     {
         // Check if g(Lmin) and g(Lmax) have opposite sign
-        Scalar gLmin = rachfordRice_g_(K, Lmin, globalComposition);
-        Scalar gLmax = rachfordRice_g_(K, Lmax, globalComposition);
+        Evaluation gLmin = rachfordRice_g_(K, Lmin, globalComposition);
+        Evaluation gLmax = rachfordRice_g_(K, Lmax, globalComposition);
         if (Dune::sign(gLmin) == Dune::sign(gLmax))
         {
             throw std::runtime_error("Lmin and Lmax are incorrect for bisection");
@@ -439,8 +432,8 @@ protected:
         // Bisection loop
         for (int iteration=0; iteration<200; ++iteration){
             // New midpoint
-            Scalar L = (Lmin + Lmax) / 2;
-            Scalar gMid = rachfordRice_g_(K, L, globalComposition);
+            Evaluation L = (Lmin + Lmax) / 2;
+            Evaluation gMid = rachfordRice_g_(K, L, globalComposition);
 
             // Check if midpoint fulfills g=0 or L - Lmin is sufficiently small
             if (Opm::abs(gMid) < 1e-10 || Opm::abs((Lmax - Lmin) / 2) < 1e-10)
@@ -460,7 +453,7 @@ protected:
     {
         bool isTrivialL, isTrivialV;
         ComponentVector K_l, K_v, x, y;
-        Scalar S_l, S_v;
+        Evaluation S_l, S_v;
 
         // Use equilibrium constants made with Wilson's formula (before flash loop)
         K_l = K;
@@ -497,7 +490,7 @@ protected:
     }
 
     template <class FlashFluidState, class ComponentVector>
-    static void checkStability_(const FlashFluidState& fluidState, bool& isTrivial, ComponentVector& K, ComponentVector& xy_loc, Scalar& S_loc, const ComponentVector& globalComposition, bool isGas)
+    static void checkStability_(const FlashFluidState& fluidState, bool& isTrivial, ComponentVector& K, ComponentVector& xy_loc, Evaluation& S_loc, const ComponentVector& globalComposition, bool isGas)
     {
         typedef typename FlashFluidState::Scalar FlashEval;
         typedef ThreePhaseCo2OctaneBrineFluidSystem<Scalar> ThisType;
@@ -553,8 +546,8 @@ protected:
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
                 if (compIdx == BrineIdx)
                     continue;
-                Scalar phiFake = PengRobinsonMixture::computeFugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
-                Scalar phiGlobal = PengRobinsonMixture::computeFugacityCoefficient(fluidState_global, paramCache_global, phaseIdx, compIdx);
+                auto phiFake = PengRobinsonMixture::computeFugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
+                auto phiGlobal = PengRobinsonMixture::computeFugacityCoefficient(fluidState_global, paramCache_global, phaseIdx, compIdx);
 
                 fluidState_fake.setFugacityCoefficient(phaseIdx, compIdx, phiFake);
                 fluidState_global.setFugacityCoefficient(phaseIdx, compIdx, phiGlobal);
@@ -566,15 +559,15 @@ protected:
                 if (compIdx == BrineIdx)
                     continue;
                 if (isGas){
-                    Scalar fug_fake = fluidState_fake.fugacity(gasPhaseIdx, compIdx);
-                    Scalar fug_global = fluidState_global.fugacity(gasPhaseIdx, compIdx);
-                    Scalar fug_ratio = fug_global / fug_fake;
+                    auto fug_fake = fluidState_fake.fugacity(gasPhaseIdx, compIdx);
+                    auto fug_global = fluidState_global.fugacity(gasPhaseIdx, compIdx);
+                    auto fug_ratio = fug_global / fug_fake;
                     R[compIdx] = fug_ratio / S_loc;
                 }
                 else{
-                    Scalar fug_fake = fluidState_fake.fugacity(oilPhaseIdx, compIdx);
-                    Scalar fug_global = fluidState_global.fugacity(oilPhaseIdx, compIdx);
-                    Scalar fug_ratio = fug_fake / fug_global;
+                    auto fug_fake = fluidState_fake.fugacity(oilPhaseIdx, compIdx);
+                    auto fug_global = fluidState_global.fugacity(oilPhaseIdx, compIdx);
+                    auto fug_ratio = fug_fake / fug_global;
                     R[compIdx] = fug_ratio * S_loc;
                 }
             }
@@ -589,8 +582,8 @@ protected:
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
                 if (compIdx == BrineIdx)
                     continue;
-                auto a = R[compIdx] - 1.0;
-                auto b = Opm::log(K[compIdx]);
+                auto a = Opm::getValue(R[compIdx]) - 1.0;
+                auto b = Opm::log(Opm::getValue(K[compIdx]));
                 R_norm += a*a;
                 K_norm += b*b;
             }
@@ -604,24 +597,13 @@ protected:
     }//end checkStability
 
     template <class FlashFluidState, class ComponentVector>
-    static void newtonCompositionUpdate_(ComponentVector& K, Scalar& L, FlashFluidState& fluidState, const ComponentVector& globalComposition)
+    static void newtonCompositionUpdate_(ComponentVector& K, Evaluation& L, FlashFluidState& fluidState, const ComponentVector& globalComposition)
     {
-        if (L == 0 || L == 1) {
-            //single-phase gas or single-phase oil
-            for(int compIdx; compIdx<numComponents; ++compIdx){
-                if (compIdx == BrineIdx)
-                    continue;
-                fluidState.setMoleFraction(oilPhaseIdx, compIdx, globalComposition[compIdx]);
-                fluidState.setMoleFraction(gasPhaseIdx, compIdx, globalComposition[compIdx]);
-            }
-            return;
-        }
-
         // Calculate x and y, and normalize
         ComponentVector x;
         ComponentVector y;
-        Scalar sumx=0;
-        Scalar sumy=0;
+        Evaluation sumx=0;
+        Evaluation sumy=0;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == BrineIdx)
                 continue;
@@ -641,8 +623,8 @@ protected:
         }
 
         // Newton
-        typedef Dune::FieldVector<Scalar, numMiscibleComponents*numMisciblePhases+1> NewtonVector;
-        typedef Dune::FieldMatrix<Scalar, numMiscibleComponents*numMisciblePhases+1, numMiscibleComponents*numMisciblePhases+1> NewtonMatrix;
+        typedef Dune::FieldVector<Evaluation, numMiscibleComponents*numMisciblePhases+1> NewtonVector;
+        typedef Dune::FieldMatrix<Evaluation, numMiscibleComponents*numMisciblePhases+1, numMiscibleComponents*numMisciblePhases+1> NewtonMatrix;
         NewtonVector newtonX;
         NewtonVector newtonB;
         NewtonMatrix newtonA;
@@ -652,19 +634,29 @@ protected:
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == BrineIdx)
                 continue;
-            newtonX[compIdx] = fluidState.moleFraction(oilPhaseIdx, compIdx);
-            newtonX[compIdx + numMiscibleComponents] = fluidState.moleFraction(gasPhaseIdx, compIdx);
+            newtonX[compIdx] = Opm::getValue(fluidState.moleFraction(oilPhaseIdx, compIdx));
+            newtonX[compIdx + numMiscibleComponents] = Opm::getValue(fluidState.moleFraction(gasPhaseIdx, compIdx));
         }
-        newtonX[numMisciblePhases*numMiscibleComponents] = L;
+        newtonX[numMisciblePhases*numMiscibleComponents] = Opm::getValue(L);
 
         // Main Newton loop
         for (int i = 0; i< 100; ++i){
             evalDefect_(newtonB, newtonX, fluidState, globalComposition);
             evalJacobian_(newtonA, newtonX, fluidState, globalComposition);
             newtonA.solve(newtonDelta, newtonB);
-            newtonX -= newtonDelta;
-            if(std::abs(newtonDelta.one_norm())<1e-6)
+            for (int i=0; i < newtonX.size(); ++i){
+               newtonX[i] -= newtonDelta[i]; 
+            }
+            if(Opm::abs(newtonDelta.one_norm())<1e-6) {
+                // Set mole fractions in fluidstate
+                for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                    if (compIdx == BrineIdx)
+                        continue;
+                    fluidState.setMoleFraction(gasPhaseIdx, compIdx, newtonX[compIdx]);
+                    fluidState.setMoleFraction(oilPhaseIdx, compIdx, newtonX[compIdx + numMiscibleComponents]);
+                }
                 break;
+            }
         }
         throw std::runtime_error("Newton composition update did not converge within maxIterations");
     }
@@ -684,7 +676,7 @@ protected:
             fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
             fluidState.setMoleFraction(gasPhaseIdx, compIdx, x[compIdx + numMiscibleComponents]);
         }
-        Scalar L = x[numMiscibleComponents*numMisciblePhases];
+        Evaluation L = x[numMiscibleComponents*numMisciblePhases];
         fluidState.setMoleFraction(oilPhaseIdx, BrineIdx, 0); /* OBS */
         fluidState.setMoleFraction(gasPhaseIdx, BrineIdx, 0); /* OBS */
 
@@ -698,7 +690,7 @@ protected:
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
                 if (compIdx == BrineIdx)
                     continue;
-                Scalar phi = FluidSystem::fugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx);
+                Evaluation phi = FluidSystem::fugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx);
                 fluidState.setFugacityCoefficient(phaseIdx, compIdx, phi);
             }
         }
@@ -726,8 +718,12 @@ protected:
     {
         // TODO: Use AD instead
         // Calculate response of current state x
-        DefectVector x(xIn);
+        DefectVector x;
         DefectVector b0;
+        for(int j=0; j<xIn.size(); ++j){
+            x[j] = xIn[j];
+        }
+        
         evalDefect_(b0, x, fluidStateIn, globalComposition);
 
         // Make the jacobian A in Newton system Ax=b
@@ -740,10 +736,11 @@ protected:
             x[i] -= epsilon;
 
             // Forward difference of all eqs wrt primary variable i
-            DefectVector derivI(bEps);
-            derivI -= b0;
-            derivI /= epsilon;
+            DefectVector derivI;
             for(int j=0; j<b0.size(); ++j){
+                derivI[j] = bEps[j];
+                derivI[j] -= b0[j];
+                derivI[j] /= epsilon;
                 A[j][i] = derivI[j];
             }
         }
