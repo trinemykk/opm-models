@@ -336,4 +336,3 @@ public:
 } // namespace Opm
 
 #endif
-
