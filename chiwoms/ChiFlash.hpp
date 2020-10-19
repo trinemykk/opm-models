@@ -598,7 +598,7 @@ protected:
     }//end checkStability
 
     template <class FlashFluidState, class ComponentVector>
-    static void newtonCompositionUpdate_(ComponentVector& K, Evaluation& L, FlashFluidState& fluidState, const ComponentVector& globalComposition)
+    static void computeLiquidVapor_(FlashFluidState& fluidState, Evaluation& L, ComponentVector& K, const ComponentVector& globalComposition)
     {
         // Calculate x and y, and normalize
         ComponentVector x;
@@ -622,6 +622,13 @@ protected:
             fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
             fluidState.setMoleFraction(gasPhaseIdx, compIdx, y[compIdx]);
         }
+    }
+
+    template <class FlashFluidState, class ComponentVector>
+    static void newtonCompositionUpdate_(ComponentVector& K, Evaluation& L, FlashFluidState& fluidState, const ComponentVector& globalComposition)
+    {
+        // Calculate normalized x and y (set in fluidState)
+        computeLiquidVapor_(fluidState, L, K, globalComposition);
 
         // Newton
         typedef Dune::FieldVector<Evaluation, numMiscibleComponents*numMisciblePhases+1> NewtonVector;
