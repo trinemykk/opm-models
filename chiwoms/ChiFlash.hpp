@@ -192,6 +192,7 @@ public:
             K[compIdx] = wilsonK_(fluidState, compIdx);
         }
 
+        std::cout << "K : " << K << std::endl;
         std::cout << "global composition : " << globalComposition << std::endl;
 
         std::cout << " +++++++++++++++++++++++++++++" << std::endl;
@@ -639,15 +640,19 @@ protected:
         }
         newtonX[numMisciblePhases*numMiscibleComponents] = Opm::getValue(L);
 
+        // 
         // Main Newton loop
+        // 
+        bool convFug = false; /* for convergence check */
         for (int i = 0; i< 100; ++i){
+            // Evaluate residuals (newtonB)
             evalDefect_(newtonB, newtonX, fluidState, globalComposition);
-            evalJacobian_(newtonA, newtonX, fluidState, globalComposition);
-            newtonA.solve(newtonDelta, newtonB);
-            for (int i=0; i < newtonX.size(); ++i){
-               newtonX[i] -= newtonDelta[i]; 
-            }
-            if(Opm::abs(newtonDelta.one_norm())<1e-6) {
+
+            // Check fugacity equilibrium for convergence
+            convFug = checkFugacityEquil_(newtonB);
+
+            // If convergence have been met, we abort; else we update step and loop once more
+            if (convFug == true) {
                 // Set mole fractions in fluidstate
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
                     if (compIdx == BrineIdx)
@@ -655,10 +660,65 @@ protected:
                     fluidState.setMoleFraction(gasPhaseIdx, compIdx, newtonX[compIdx]);
                     fluidState.setMoleFraction(oilPhaseIdx, compIdx, newtonX[compIdx + numMiscibleComponents]);
                 }
-                break;
+                return;
+            }
+            else {
+                // Calculate Jacobian (newtonA)
+                evalJacobian_(newtonA, newtonX, fluidState, globalComposition);
+                
+                // Solve system newtonA*newtonX = newtonB to get next step (newtonDelta) 
+                newtonA.solve(newtonDelta, newtonB);
+
+                // Update current solution (newtonX) with simple relaxation method (percentage of step applied)
+                updateCurrentSol_(newtonX, newtonDelta);
             }
         }
         throw std::runtime_error("Newton composition update did not converge within maxIterations");
+    }
+
+    template <class DefectVector>
+    static void updateCurrentSol_(DefectVector& x, DefectVector& d)
+    {
+        // Loop over the solution vector and apply the new step, BUT make sure the to keep the update in the range [0, 1]
+        for (int i=0; i<x.size(); ++i){
+            // Declare percentage update factor
+            Scalar w;
+
+            // Percentage of update step
+            if (Opm::getValue(x[i] - d[i]) > 1.){
+                w = (1 - Opm::getValue(x[i])) / Opm::getValue(d[i]);
+            }
+            else if (Opm::getValue(x[i] - d[i]) < 0.){
+                w = -Opm::getValue(x[i] / d[i]);
+            }
+            else {
+                w = 1.0;
+            }
+
+            // Update x with (possibly) reduced step
+            x[i] -= w*d[i];
+        }
+    }
+
+    template <class DefectVector>
+    static bool checkFugacityEquil_(DefectVector& b)
+    {
+        // Init. fugacity vector
+        DefectVector fugVec;
+
+        // Loop over b and find the fugacity equilibrium
+        // OBS: If the equations in b changes in evalDefect_ then you have to change here as well!
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            if (compIdx == BrineIdx)
+                continue;
+            fugVec[compIdx] = 0.0;
+            fugVec[compIdx + numMiscibleComponents] = b[compIdx + numMiscibleComponents]; /* See OBS above*/
+        }
+        fugVec[numMiscibleComponents*numMisciblePhases] = 0.0;
+        
+        // Check if norm(fugVec) is less than tolerance
+        bool conv = fugVec.two_norm() < 1e-6;
+        return conv;
     }
 
     template <class FluidState, class DefectVector, class ComponentVector>
