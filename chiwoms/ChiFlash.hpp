@@ -214,10 +214,17 @@ public:
         std::cout << "L :" << L << std::endl;
         
         // Update the composition using Newton's method if cell is two-phase
+        bool useNewton = false;
         if (isStable == false) {
-            std::cout << " ======== NEWTON ========" << std::endl;
-            newtonCompositionUpdate_(K, L, fluidState, globalComposition);
-        }  // end if newtonComposition update
+            if (useNewton == true){
+                std::cout << " ======== NEWTON ========" << std::endl;
+                newtonCompositionUpdate_(K, L, fluidState, globalComposition);
+            }
+            else{
+                std::cout << " ======== SUCCESSIVE SUBSTITUTION ========" << std::endl;
+                successiveSubstitutionComposition_(K, L, fluidState, globalComposition, /*standAlone=*/true);
+            }
+        }
 
         std::cout << " +++++++++++++++++++++++++++" << std::endl;
         std::cout << " ++++++++ END FLASH ++++++++" << std::endl;
@@ -630,7 +637,7 @@ protected:
         // Calculate normalized x and y (set in fluidState)
         computeLiquidVapor_(fluidState, L, K, globalComposition);
 
-        // Newton
+        // Newton declarations
         typedef Dune::FieldVector<Evaluation, numMiscibleComponents*numMisciblePhases+1> NewtonVector;
         typedef Dune::FieldMatrix<Evaluation, numMiscibleComponents*numMisciblePhases+1, numMiscibleComponents*numMisciblePhases+1> NewtonMatrix;
         NewtonVector newtonX;
@@ -812,6 +819,68 @@ protected:
             }
         }
     }//end evalJacobian
+    
+    template <class FlashFluidState, class ComponentVector>
+    static void successiveSubstitutionComposition_(ComponentVector& K, Evaluation& L, FlashFluidState& fluidState, const ComponentVector& globalComposition, bool standAlone)
+    {
+        // Determine max. iterations based on if it will be used as a standalone flash or as a pre-process to Newton (or other) method.
+        int maxIterations;
+        if (standAlone == true)
+            maxIterations = 100;
+        else
+            maxIterations = 10;
+
+        // 
+        // Successive substitution loop
+        // 
+        for (int i=0; i < maxIterations; ++i){
+            // Compute (normalized) liquid and vapor mole fractions
+            computeLiquidVapor_(fluidState, L, K, globalComposition);
+
+            // Calculate fugacity coefficient
+            typedef typename FluidSystem::template ParameterCache<typename FlashFluidState::Scalar> ParamCache;
+            ParamCache paramCache;
+            for (int phaseIdx=0; phaseIdx<numPhases; ++phaseIdx){
+                if (phaseIdx==waterPhaseIdx)
+                    continue;
+                paramCache.updatePhase(fluidState, phaseIdx);
+                for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                    if (compIdx == BrineIdx)
+                        continue;
+                    Evaluation phi = FluidSystem::fugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx);
+                    fluidState.setFugacityCoefficient(phaseIdx, compIdx, phi);
+                }
+            }
+            
+            // Calculate fugacity ratio
+            ComponentVector fugRatio;
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                if (compIdx == BrineIdx){
+                    fugRatio[compIdx] = 0.0;
+                    continue;
+                    }
+                fugRatio[compIdx] = (fluidState.fugacity(oilPhaseIdx, compIdx)/fluidState.fugacity(gasPhaseIdx, compIdx)) - 1.0;
+            }
+
+            // Check convergence
+            if (fugRatio.two_norm() < 1e-6)
+                return;
+            
+            //  If convergence is not met, K is updated in a successive substitution manner
+            else{
+                // Update K
+                for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                    K[compIdx] *= (fugRatio[compIdx] + 1.0);
+                }
+
+                // Solve Rachford-Rice to get liquid fraction for new K
+                L = solveRachfordRice_g_(K, globalComposition);
+            }
+
+        }
+        throw std::runtime_error("Successive substitution composition update did not converge within maxIterations");
+    }
+    
 };//end ChiFlash
 
 } // namespace Opm
