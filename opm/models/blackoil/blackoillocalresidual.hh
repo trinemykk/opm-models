@@ -30,11 +30,12 @@
 
 #include "blackoilproperties.hh"
 #include "blackoilsolventmodules.hh"
+#include "blackoilextbomodules.hh"
 #include "blackoilpolymermodules.hh"
 #include "blackoilenergymodules.hh"
 #include "blackoilfoammodules.hh"
 #include "blackoilbrinemodules.hh"
-
+#include "blackoildiffusionmodule.hh"
 #include <opm/material/fluidstates/BlackOilFluidState.hpp>
 
 namespace Opm {
@@ -44,22 +45,22 @@ namespace Opm {
  * \brief Calculates the local residual of the black oil model.
  */
 template <class TypeTag>
-class BlackOilLocalResidual : public GET_PROP_TYPE(TypeTag, DiscLocalResidual)
+class BlackOilLocalResidual : public GetPropType<TypeTag, Properties::DiscLocalResidual>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) ExtensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, EqVector) EqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, RateVector) RateVector;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
+    using ExtensiveQuantities = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using EqVector = GetPropType<TypeTag, Properties::EqVector>;
+    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
 
     enum { conti0EqIdx = Indices::conti0EqIdx };
-    enum { numEq = GET_PROP_VALUE(TypeTag, NumEq) };
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
-    enum { numComponents = GET_PROP_VALUE(TypeTag, NumComponents) };
+    enum { numEq = getPropValue<TypeTag, Properties::NumEq>() };
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
+    enum { numComponents = getPropValue<TypeTag, Properties::NumComponents>() };
 
     enum { gasPhaseIdx = FluidSystem::gasPhaseIdx };
     enum { oilPhaseIdx = FluidSystem::oilPhaseIdx };
@@ -75,15 +76,18 @@ class BlackOilLocalResidual : public GET_PROP_TYPE(TypeTag, DiscLocalResidual)
     static const bool oilEnabled = Indices::oilEnabled;
     static const bool compositionSwitchEnabled = (compositionSwitchIdx >= 0);
 
-    static constexpr bool blackoilConserveSurfaceVolume = GET_PROP_VALUE(TypeTag, BlackoilConserveSurfaceVolume);
-    static constexpr bool enableEnergy = GET_PROP_VALUE(TypeTag, EnableEnergy);
+    static constexpr bool blackoilConserveSurfaceVolume = getPropValue<TypeTag, Properties::BlackoilConserveSurfaceVolume>();
+    static constexpr bool enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>();
+    static constexpr bool enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>();
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
-    typedef BlackOilSolventModule<TypeTag> SolventModule;
-    typedef BlackOilPolymerModule<TypeTag> PolymerModule;
-    typedef BlackOilEnergyModule<TypeTag> EnergyModule;
-    typedef BlackOilFoamModule<TypeTag> FoamModule;
-    typedef BlackOilBrineModule<TypeTag> BrineModule;
+    using Toolbox = MathToolbox<Evaluation>;
+    using SolventModule = BlackOilSolventModule<TypeTag>;
+    using ExtboModule = BlackOilExtboModule<TypeTag>;
+    using PolymerModule = BlackOilPolymerModule<TypeTag>;
+    using EnergyModule = BlackOilEnergyModule<TypeTag>;
+    using FoamModule = BlackOilFoamModule<TypeTag>;
+    using BrineModule = BlackOilBrineModule<TypeTag>;
+    using DiffusionModule = BlackOilDiffusionModule<TypeTag, enableDiffusion>;
 
 public:
     /*!
@@ -106,7 +110,7 @@ public:
                 if (Indices::numPhases == 3) { // add trivial equation for the pseudo phase
                     unsigned activeCompIdx = Indices::canonicalToActiveComponentIndex(FluidSystem::solventComponentIndex(phaseIdx));
                     if (timeIdx == 0)
-                        storage[conti0EqIdx + activeCompIdx] = Opm::variable<LhsEval>(0.0, conti0EqIdx + activeCompIdx);
+                        storage[conti0EqIdx + activeCompIdx] = variable<LhsEval>(0.0, conti0EqIdx + activeCompIdx);
                     else
                         storage[conti0EqIdx + activeCompIdx] = 0.0;
                 }
@@ -142,6 +146,9 @@ public:
 
         // deal with solvents (if present)
         SolventModule::addStorage(storage, intQuants);
+
+        // deal with zFracton (if present)
+        ExtboModule::addStorage(storage, intQuants);
 
         // deal with polymer (if present)
         PolymerModule::addStorage(storage, intQuants);
@@ -186,6 +193,9 @@ public:
         // deal with solvents (if present)
         SolventModule::computeFlux(flux, elemCtx, scvfIdx, timeIdx);
 
+        // deal with zFracton (if present)
+        ExtboModule::computeFlux(flux, elemCtx, scvfIdx, timeIdx);
+
         // deal with polymer (if present)
         PolymerModule::computeFlux(flux, elemCtx, scvfIdx, timeIdx);
 
@@ -197,6 +207,8 @@ public:
 
         // deal with salt (if present)
         BrineModule::computeFlux(flux, elemCtx, scvfIdx, timeIdx);
+
+        DiffusionModule::addDiffusiveFlux(flux, elemCtx, scvfIdx, timeIdx);
     }
 
     /*!
@@ -212,7 +224,7 @@ public:
 
         // scale the source term of the energy equation
         if (enableEnergy)
-            source[Indices::contiEnergyEqIdx] *= GET_PROP_VALUE(TypeTag, BlackOilEnergyScalingFactor);
+            source[Indices::contiEnergyEqIdx] *= getPropValue<TypeTag, Properties::BlackOilEnergyScalingFactor>();
     }
 
     /*!
@@ -226,7 +238,7 @@ public:
                                  const ExtensiveQuantities& extQuants,
                                  const FluidState& upFs)
     {
-        const auto& invB = Opm::getInvB_<FluidSystem, FluidState, UpEval>(upFs, phaseIdx, pvtRegionIdx);
+        const auto& invB = getInvB_<FluidSystem, FluidState, UpEval>(upFs, phaseIdx, pvtRegionIdx);
         const auto& surfaceVolumeFlux = invB*extQuants.volumeFlux(phaseIdx);
         unsigned activeCompIdx = Indices::canonicalToActiveComponentIndex(FluidSystem::solventComponentIndex(phaseIdx));
 
@@ -238,7 +250,7 @@ public:
         if (phaseIdx == oilPhaseIdx) {
             // dissolved gas (in the oil phase).
             if (FluidSystem::enableDissolvedGas()) {
-                const auto& Rs = Opm::BlackOil::getRs_<FluidSystem, FluidState, UpEval>(upFs, pvtRegionIdx);
+                const auto& Rs = BlackOil::getRs_<FluidSystem, FluidState, UpEval>(upFs, pvtRegionIdx);
 
                 unsigned activeGasCompIdx = Indices::canonicalToActiveComponentIndex(gasCompIdx);
                 if (blackoilConserveSurfaceVolume)
@@ -250,7 +262,7 @@ public:
         else if (phaseIdx == gasPhaseIdx) {
             // vaporized oil (in the gas phase).
             if (FluidSystem::enableVaporizedOil()) {
-                const auto& Rv = Opm::BlackOil::getRv_<FluidSystem, FluidState, UpEval>(upFs, pvtRegionIdx);
+                const auto& Rv = BlackOil::getRv_<FluidSystem, FluidState, UpEval>(upFs, pvtRegionIdx);
 
                 unsigned activeOilCompIdx = Indices::canonicalToActiveComponentIndex(oilCompIdx);
                 if (blackoilConserveSurfaceVolume)

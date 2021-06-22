@@ -44,26 +44,26 @@ namespace Opm {
 template<class TypeTag>
 class FvBaseBoundaryContext
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Problem) Problem;
-    typedef typename GET_PROP_TYPE(TypeTag, Model) Model;
-    typedef typename GET_PROP_TYPE(TypeTag, Stencil) Stencil;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) ExtensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, GradientCalculator) GradientCalculator;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Problem = GetPropType<TypeTag, Properties::Problem>;
+    using Model = GetPropType<TypeTag, Properties::Model>;
+    using Stencil = GetPropType<TypeTag, Properties::Stencil>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
+    using ExtensiveQuantities = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
+    using GradientCalculator = GetPropType<TypeTag, Properties::GradientCalculator>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
-    typedef typename GridView::template Codim<0>::Entity Element;
-    typedef typename GridView::IntersectionIterator IntersectionIterator;
-    typedef typename GridView::Intersection Intersection;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
+    using Element = typename GridView::template Codim<0>::Entity;
+    using IntersectionIterator = typename GridView::IntersectionIterator;
+    using Intersection = typename GridView::Intersection;
 
     enum { dim = GridView::dimension };
     enum { dimWorld = GridView::dimensionworld };
 
-    typedef typename GridView::ctype CoordScalar;
-    typedef Dune::FieldVector<CoordScalar, dimWorld> GlobalPosition;
-    typedef Dune::FieldVector<Scalar, dimWorld> Vector;
+    using CoordScalar = typename GridView::ctype;
+    using GlobalPosition = Dune::FieldVector<CoordScalar, dimWorld>;
+    using Vector = Dune::FieldVector<Scalar, dimWorld>;
 
 public:
     /*!
@@ -77,8 +77,15 @@ public:
     void increment()
     {
         const auto& iend = gridView().iend(element());
-        while (intersectionIt_ != iend && !intersectionIt_->boundary())
-            ++ intersectionIt_;
+
+        if(intersectionIt_ == iend)
+          return;
+
+        ++intersectionIt_;
+        // iterate to the next boundary intersection
+        while (intersectionIt_ != iend && intersectionIt_->neighbor()) {
+            ++intersectionIt_;
+        }
     }
 
     /*!
@@ -245,7 +252,7 @@ public:
      *
      * \param boundaryFaceIdx The local index of the boundary segment
      */
-    const Intersection& intersection(unsigned boundaryFaceIdx OPM_UNUSED) const
+    const Intersection intersection(unsigned boundaryFaceIdx OPM_UNUSED) const
     { return *intersectionIt_; }
 
     /*!

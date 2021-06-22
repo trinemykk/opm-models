@@ -43,12 +43,6 @@
 
 #include <cmath>
 
-BEGIN_PROPERTIES
-
-NEW_PROP_TAG(MaterialLaw);
-
-END_PROPERTIES
-
 namespace Opm {
 template <class TypeTag>
 class ForchheimerIntensiveQuantities;
@@ -66,9 +60,9 @@ class ForchheimerBaseProblem;
 template <class TypeTag>
 struct ForchheimerFluxModule
 {
-    typedef ForchheimerIntensiveQuantities<TypeTag> FluxIntensiveQuantities;
-    typedef ForchheimerExtensiveQuantities<TypeTag> FluxExtensiveQuantities;
-    typedef ForchheimerBaseProblem<TypeTag> FluxBaseProblem;
+    using FluxIntensiveQuantities = ForchheimerIntensiveQuantities<TypeTag>;
+    using FluxExtensiveQuantities = ForchheimerExtensiveQuantities<TypeTag>;
+    using FluxBaseProblem = ForchheimerBaseProblem<TypeTag>;
 
     /*!
      * \brief Register all run-time parameters for the flux module.
@@ -85,8 +79,8 @@ struct ForchheimerFluxModule
 template <class TypeTag>
 class ForchheimerBaseProblem
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
 
 public:
     /*!
@@ -134,11 +128,11 @@ public:
 template <class TypeTag>
 class ForchheimerIntensiveQuantities
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
 
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
 
 public:
     /*!
@@ -219,24 +213,24 @@ template <class TypeTag>
 class ForchheimerExtensiveQuantities
     : public DarcyExtensiveQuantities<TypeTag>
 {
-    typedef DarcyExtensiveQuantities<TypeTag> DarcyExtQuants;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, MaterialLaw) MaterialLaw;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) Implementation;
+    using DarcyExtQuants = DarcyExtensiveQuantities<TypeTag>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
+    using Implementation = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
 
     enum { dimWorld = GridView::dimensionworld };
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
+    using Toolbox = MathToolbox<Evaluation>;
 
-    typedef Dune::FieldVector<Scalar, dimWorld> DimVector;
-    typedef Dune::FieldVector<Evaluation, dimWorld> DimEvalVector;
-    typedef Dune::FieldMatrix<Scalar, dimWorld, dimWorld> DimMatrix;
-    typedef Dune::FieldMatrix<Evaluation, dimWorld, dimWorld> DimEvalMatrix;
+    using DimVector = Dune::FieldVector<Scalar, dimWorld>;
+    using DimEvalVector = Dune::FieldVector<Evaluation, dimWorld>;
+    using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
+    using DimEvalMatrix = Dune::FieldMatrix<Evaluation, dimWorld, dimWorld>;
 
 public:
     /*!
@@ -277,16 +271,16 @@ protected:
         if (focusDofIdx == i) {
             ergunCoefficient_ =
                 (intQuantsIn.ergunCoefficient() +
-                 Opm::getValue(intQuantsEx.ergunCoefficient()))/2;
+                 getValue(intQuantsEx.ergunCoefficient()))/2;
         }
         else if (focusDofIdx == j)
             ergunCoefficient_ =
-                (Opm::getValue(intQuantsIn.ergunCoefficient()) +
+                (getValue(intQuantsIn.ergunCoefficient()) +
                  intQuantsEx.ergunCoefficient())/2;
         else
             ergunCoefficient_ =
-                (Opm::getValue(intQuantsIn.ergunCoefficient()) +
-                 Opm::getValue(intQuantsEx.ergunCoefficient()))/2;
+                (getValue(intQuantsIn.ergunCoefficient()) +
+                 getValue(intQuantsEx.ergunCoefficient()))/2;
 
         // obtain the mobility to passability ratio for each phase.
         for (unsigned phaseIdx=0; phaseIdx < numPhases; phaseIdx++) {
@@ -304,9 +298,9 @@ protected:
             }
             else {
                 density_[phaseIdx] =
-                    Opm::getValue(up.fluidState().density(phaseIdx));
+                    getValue(up.fluidState().density(phaseIdx));
                 mobilityPassabilityRatio_[phaseIdx] =
-                    Opm::getValue(up.mobilityPassabilityRatio(phaseIdx));
+                    getValue(up.mobilityPassabilityRatio(phaseIdx));
             }
         }
     }
@@ -331,7 +325,7 @@ protected:
         if (focusDofIdx == i)
             ergunCoefficient_ = intQuantsIn.ergunCoefficient();
         else
-            ergunCoefficient_ = Opm::getValue(intQuantsIn.ergunCoefficient());
+            ergunCoefficient_ = getValue(intQuantsIn.ergunCoefficient());
 
         // calculate the square root of the intrinsic permeability
         assert(isDiagonal_(this->K_));
@@ -349,9 +343,9 @@ protected:
             }
             else {
                 density_[phaseIdx] =
-                    Opm::getValue(intQuantsIn.fluidState().density(phaseIdx));
+                    getValue(intQuantsIn.fluidState().density(phaseIdx));
                 mobilityPassabilityRatio_[phaseIdx] =
-                    Opm::getValue(intQuantsIn.mobilityPassabilityRatio(phaseIdx));
+                    getValue(intQuantsIn.mobilityPassabilityRatio(phaseIdx));
             }
         }
     }
@@ -372,22 +366,22 @@ protected:
 
         const auto& scvf = elemCtx.stencil(timeIdx).interiorFace(scvfIdx);
         const auto& normal = scvf.normal();
-        Opm::Valgrind::CheckDefined(normal);
+        Valgrind::CheckDefined(normal);
 
         // obtain the Ergun coefficient from the intensive quantity object. Until a
         // better method comes along, we use arithmetic averaging.
         if (focusDofIdx == i)
             ergunCoefficient_ =
                 (intQuantsI.ergunCoefficient() +
-                 Opm::getValue(intQuantsJ.ergunCoefficient())) / 2;
+                 getValue(intQuantsJ.ergunCoefficient())) / 2;
         else if (focusDofIdx == j)
             ergunCoefficient_ =
-                (Opm::getValue(intQuantsI.ergunCoefficient()) +
+                (getValue(intQuantsI.ergunCoefficient()) +
                  intQuantsJ.ergunCoefficient()) / 2;
         else
             ergunCoefficient_ =
-                (Opm::getValue(intQuantsI.ergunCoefficient()) +
-                 Opm::getValue(intQuantsJ.ergunCoefficient())) / 2;
+                (getValue(intQuantsI.ergunCoefficient()) +
+                 getValue(intQuantsJ.ergunCoefficient())) / 2;
 
         ///////////////
         // calculate the weights of the upstream and the downstream control volumes
@@ -455,8 +449,8 @@ protected:
         unsigned newtonIter = 0;
         while (deltaV.one_norm() > 1e-11) {
             if (newtonIter >= 50)
-                throw Opm::NumericalIssue("Could not determine Forchheimer velocity within "
-                                            +std::to_string(newtonIter)+" iterations");
+                throw NumericalIssue("Could not determine Forchheimer velocity within "
+                                     +std::to_string(newtonIter)+" iterations");
             ++newtonIter;
 
             // calculate the residual and its Jacobian matrix
@@ -512,7 +506,7 @@ protected:
         const auto& alpha = density*mobilityPassabilityRatio*ergunCoefficient_*absVel;
         for (unsigned dimIdx = 0; dimIdx < dimWorld; ++dimIdx)
             residual[dimIdx] += sqrtK_[dimIdx]*alpha*velocity[dimIdx];
-        Opm::Valgrind::CheckDefined(residual);
+        Valgrind::CheckDefined(residual);
     }
 
     void gradForchheimerResid_(DimEvalVector& residual,

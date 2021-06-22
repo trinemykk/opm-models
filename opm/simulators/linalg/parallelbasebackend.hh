@@ -40,6 +40,7 @@
 #include <opm/models/utils/propertysystem.hh>
 #include <opm/models/utils/parametersystem.hh>
 #include <opm/simulators/linalg/matrixblock.hh>
+#include <opm/simulators/linalg/linalgproperties.hh>
 
 #include <dune/grid/io/file/vtk/vtkwriter.hh>
 
@@ -50,86 +51,27 @@
 #include <memory>
 #include <iostream>
 
-BEGIN_PROPERTIES
-NEW_TYPE_TAG(ParallelBaseLinearSolver);
+namespace Opm::Properties {
 
-// forward declaration of the required property tags
-NEW_PROP_TAG(Simulator);
-NEW_PROP_TAG(Scalar);
-NEW_PROP_TAG(NumEq);
-NEW_PROP_TAG(SparseMatrixAdapter);
-NEW_PROP_TAG(GlobalEqVector);
-NEW_PROP_TAG(VertexMapper);
-NEW_PROP_TAG(GridView);
-
-NEW_PROP_TAG(BorderListCreator);
-NEW_PROP_TAG(Overlap);
-NEW_PROP_TAG(OverlappingVector);
-NEW_PROP_TAG(OverlappingMatrix);
-NEW_PROP_TAG(OverlappingScalarProduct);
-NEW_PROP_TAG(OverlappingLinearOperator);
-
-//! The type of the linear solver to be used
-NEW_PROP_TAG(LinearSolverBackend);
-
-//! the preconditioner used by the linear solver
-NEW_PROP_TAG(PreconditionerWrapper);
-
-
-//! The floating point type used internally by the linear solver
-NEW_PROP_TAG(LinearSolverScalar);
-
-/*!
- * \brief The size of the algebraic overlap of the linear solver.
- *
- * Algebraic overlaps can be thought as being the same as the overlap
- * of a grid, but it is only existant for the linear system of
- * equations.
- */
-NEW_PROP_TAG(LinearSolverOverlapSize);
-
-/*!
- * \brief Maximum accepted error of the solution of the linear solver.
- */
-NEW_PROP_TAG(LinearSolverTolerance);
-
-/*!
- * \brief Maximum accepted error of the norm of the residual.
- */
-NEW_PROP_TAG(LinearSolverAbsTolerance);
-
-/*!
- * \brief Specifies the verbosity of the linear solver
- *
- * By default it is 0, i.e. it doesn't print anything. Setting this
- * property to 1 prints aggregated convergence rates, 2 prints the
- * convergence rate of every iteration of the scheme.
- */
-NEW_PROP_TAG(LinearSolverVerbosity);
-
-//! Maximum number of iterations eyecuted by the linear solver
-NEW_PROP_TAG(LinearSolverMaxIterations);
-
-//! The order of the sequential preconditioner
-NEW_PROP_TAG(PreconditionerOrder);
-
-//! The relaxation factor of the preconditioner
-NEW_PROP_TAG(PreconditionerRelaxation);
+namespace TTag {
+struct ParallelBaseLinearSolver {};
+}
 
 //! Set the type of a global jacobian matrix for linear solvers that are based on
 //! dune-istl.
-SET_PROP(ParallelBaseLinearSolver, SparseMatrixAdapter)
+template<class TypeTag>
+struct SparseMatrixAdapter<TypeTag, TTag::ParallelBaseLinearSolver>
 {
 private:
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    enum { numEq = GET_PROP_VALUE(TypeTag, NumEq) };
-    typedef Opm::MatrixBlock<Scalar, numEq, numEq> Block;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    enum { numEq = getPropValue<TypeTag, Properties::NumEq>() };
+    using Block = Opm::MatrixBlock<Scalar, numEq, numEq>;
 
 public:
-    typedef typename Opm::Linear::IstlSparseMatrixAdapter<Block> type;
+    using type = typename Opm::Linear::IstlSparseMatrixAdapter<Block>;
 };
 
-END_PROPERTIES
+} // namespace Opm::Properties
 
 namespace Opm {
 namespace Linear {
@@ -141,8 +83,9 @@ namespace Linear {
  * This class provides access to all preconditioners offered by dune-istl using the
  * PreconditionerWrapper property:
  * \code
- * SET_TYPE_PROP(YourTypeTag, PreconditionerWrapper,
- *               Opm::Linear::PreconditionerWrapper$PRECONDITIONER<TypeTag>);
+ * template<class TypeTag>
+ * struct PreconditionerWrapper<TypeTag, TTag::YourTypeTag>
+ * { using type = Opm::Linear::PreconditionerWrapper$PRECONDITIONER<TypeTag>; };
  * \endcode
  *
  * Where the choices possible for '\c $PRECONDITIONER' are:
@@ -163,28 +106,28 @@ template <class TypeTag>
 class ParallelBaseBackend
 {
 protected:
-    typedef typename GET_PROP_TYPE(TypeTag, LinearSolverBackend) Implementation;
+    using Implementation = GetPropType<TypeTag, Properties::LinearSolverBackend>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, LinearSolverScalar) LinearSolverScalar;
-    typedef typename GET_PROP_TYPE(TypeTag, SparseMatrixAdapter) SparseMatrixAdapter;
-    typedef typename GET_PROP_TYPE(TypeTag, GlobalEqVector) Vector;
-    typedef typename GET_PROP_TYPE(TypeTag, BorderListCreator) BorderListCreator;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using LinearSolverScalar = GetPropType<TypeTag, Properties::LinearSolverScalar>;
+    using SparseMatrixAdapter = GetPropType<TypeTag, Properties::SparseMatrixAdapter>;
+    using Vector = GetPropType<TypeTag, Properties::GlobalEqVector>;
+    using BorderListCreator = GetPropType<TypeTag, Properties::BorderListCreator>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Overlap) Overlap;
-    typedef typename GET_PROP_TYPE(TypeTag, OverlappingVector) OverlappingVector;
-    typedef typename GET_PROP_TYPE(TypeTag, OverlappingMatrix) OverlappingMatrix;
+    using Overlap = GetPropType<TypeTag, Properties::Overlap>;
+    using OverlappingVector = GetPropType<TypeTag, Properties::OverlappingVector>;
+    using OverlappingMatrix = GetPropType<TypeTag, Properties::OverlappingMatrix>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, PreconditionerWrapper) PreconditionerWrapper;
-    typedef typename PreconditionerWrapper::SequentialPreconditioner SequentialPreconditioner;
+    using PreconditionerWrapper = GetPropType<TypeTag, Properties::PreconditionerWrapper>;
+    using SequentialPreconditioner = typename PreconditionerWrapper::SequentialPreconditioner;
 
-    typedef Opm::Linear::OverlappingPreconditioner<SequentialPreconditioner, Overlap> ParallelPreconditioner;
-    typedef Opm::Linear::OverlappingScalarProduct<OverlappingVector, Overlap> ParallelScalarProduct;
-    typedef Opm::Linear::OverlappingOperator<OverlappingMatrix,
-                                             OverlappingVector,
-                                             OverlappingVector> ParallelOperator;
+    using ParallelPreconditioner = Opm::Linear::OverlappingPreconditioner<SequentialPreconditioner, Overlap>;
+    using ParallelScalarProduct = Opm::Linear::OverlappingScalarProduct<OverlappingVector, Overlap>;
+    using ParallelOperator = Opm::Linear::OverlappingOperator<OverlappingMatrix,
+                                                              OverlappingVector,
+                                                              OverlappingVector>;
 
     enum { dimWorld = GridView::dimensionworld };
 
@@ -402,7 +345,7 @@ protected:
         for (int lookedAtRank = 0;
              lookedAtRank < simulator_.gridView().comm().size(); ++lookedAtRank) {
             std::cout << "writing overlap for rank " << lookedAtRank << "\n"  << std::flush;
-            typedef Dune::BlockVector<Dune::FieldVector<Scalar, 1> > VtkField;
+            using VtkField = Dune::BlockVector<Dune::FieldVector<Scalar, 1> >;
             int n = simulator_.gridView().size(/*codim=*/dimWorld);
             VtkField isInOverlap(n);
             VtkField rankField(n);
@@ -423,7 +366,7 @@ protected:
                     isInOverlap[nativeIdx] = 1.0;
             }
 
-            typedef Dune::VTKWriter<GridView> VtkWriter;
+            using VtkWriter = Dune::VTKWriter<GridView>;
             VtkWriter writer(simulator_.gridView(), Dune::VTK::conforming);
             writer.addVertexData(isInOverlap, "overlap");
             writer.addVertexData(rankField, "rank");
@@ -446,79 +389,92 @@ protected:
 };
 }} // namespace Linear, Opm
 
-BEGIN_PROPERTIES
+namespace Opm::Properties {
 
 //! make the linear solver shut up by default
-SET_INT_PROP(ParallelBaseLinearSolver, LinearSolverVerbosity, 0);
+template<class TypeTag>
+struct LinearSolverVerbosity<TypeTag, TTag::ParallelBaseLinearSolver> { static constexpr int value = 0; };
 
 //! set the preconditioner relaxation parameter to 1.0 by default
-SET_SCALAR_PROP(ParallelBaseLinearSolver, PreconditionerRelaxation, 1.0);
+template<class TypeTag>
+struct PreconditionerRelaxation<TypeTag, TTag::ParallelBaseLinearSolver>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 1.0;
+};
 
 //! set the preconditioner order to 0 by default
-SET_INT_PROP(ParallelBaseLinearSolver, PreconditionerOrder, 0);
+template<class TypeTag>
+struct PreconditionerOrder<TypeTag, TTag::ParallelBaseLinearSolver> { static constexpr int value = 0; };
 
 //! by default use the same kind of floating point values for the linearization and for
 //! the linear solve
-SET_TYPE_PROP(ParallelBaseLinearSolver,
-              LinearSolverScalar,
-              typename GET_PROP_TYPE(TypeTag, Scalar));
+template<class TypeTag>
+struct LinearSolverScalar<TypeTag, TTag::ParallelBaseLinearSolver>
+{ using type = GetPropType<TypeTag, Properties::Scalar>; };
 
-SET_PROP(ParallelBaseLinearSolver, OverlappingMatrix)
+template<class TypeTag>
+struct OverlappingMatrix<TypeTag, TTag::ParallelBaseLinearSolver>
 {
 private:
-    static constexpr int numEq = GET_PROP_VALUE(TypeTag, NumEq);
-    typedef typename GET_PROP_TYPE(TypeTag, LinearSolverScalar) LinearSolverScalar;
-    typedef Opm::MatrixBlock<LinearSolverScalar, numEq, numEq> MatrixBlock;
-    typedef Dune::BCRSMatrix<MatrixBlock> NonOverlappingMatrix;
+    static constexpr int numEq = getPropValue<TypeTag, Properties::NumEq>();
+    using LinearSolverScalar = GetPropType<TypeTag, Properties::LinearSolverScalar>;
+    using MatrixBlock = Opm::MatrixBlock<LinearSolverScalar, numEq, numEq>;
+    using NonOverlappingMatrix = Dune::BCRSMatrix<MatrixBlock>;
 
 public:
-    typedef Opm::Linear::OverlappingBCRSMatrix<NonOverlappingMatrix> type;
+    using type = Opm::Linear::OverlappingBCRSMatrix<NonOverlappingMatrix>;
 };
 
-SET_TYPE_PROP(ParallelBaseLinearSolver,
-              Overlap,
-              typename GET_PROP_TYPE(TypeTag, OverlappingMatrix)::Overlap);
+template<class TypeTag>
+struct Overlap<TypeTag, TTag::ParallelBaseLinearSolver>
+{ using type = typename GetPropType<TypeTag, Properties::OverlappingMatrix>::Overlap; };
 
-SET_PROP(ParallelBaseLinearSolver, OverlappingVector)
+template<class TypeTag>
+struct OverlappingVector<TypeTag, TTag::ParallelBaseLinearSolver>
 {
-    static constexpr int numEq = GET_PROP_VALUE(TypeTag, NumEq);
-    typedef typename GET_PROP_TYPE(TypeTag, LinearSolverScalar) LinearSolverScalar;
-    typedef Dune::FieldVector<LinearSolverScalar, numEq> VectorBlock;
-    typedef typename GET_PROP_TYPE(TypeTag, Overlap) Overlap;
-    typedef Opm::Linear::OverlappingBlockVector<VectorBlock, Overlap> type;
+    static constexpr int numEq = getPropValue<TypeTag, Properties::NumEq>();
+    using LinearSolverScalar = GetPropType<TypeTag, Properties::LinearSolverScalar>;
+    using VectorBlock = Dune::FieldVector<LinearSolverScalar, numEq>;
+    using Overlap = GetPropType<TypeTag, Properties::Overlap>;
+    using type = Opm::Linear::OverlappingBlockVector<VectorBlock, Overlap>;
 };
 
-SET_PROP(ParallelBaseLinearSolver, OverlappingScalarProduct)
+template<class TypeTag>
+struct OverlappingScalarProduct<TypeTag, TTag::ParallelBaseLinearSolver>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, OverlappingVector) OverlappingVector;
-    typedef typename GET_PROP_TYPE(TypeTag, Overlap) Overlap;
-    typedef Opm::Linear::OverlappingScalarProduct<OverlappingVector, Overlap> type;
+    using OverlappingVector = GetPropType<TypeTag, Properties::OverlappingVector>;
+    using Overlap = GetPropType<TypeTag, Properties::Overlap>;
+    using type = Opm::Linear::OverlappingScalarProduct<OverlappingVector, Overlap>;
 };
 
-SET_PROP(ParallelBaseLinearSolver, OverlappingLinearOperator)
+template<class TypeTag>
+struct OverlappingLinearOperator<TypeTag, TTag::ParallelBaseLinearSolver>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, OverlappingMatrix) OverlappingMatrix;
-    typedef typename GET_PROP_TYPE(TypeTag, OverlappingVector) OverlappingVector;
-    typedef Opm::Linear::OverlappingOperator<OverlappingMatrix, OverlappingVector,
-                                             OverlappingVector> type;
+    using OverlappingMatrix = GetPropType<TypeTag, Properties::OverlappingMatrix>;
+    using OverlappingVector = GetPropType<TypeTag, Properties::OverlappingVector>;
+    using type = Opm::Linear::OverlappingOperator<OverlappingMatrix, OverlappingVector,
+                                                  OverlappingVector>;
 };
 
 #if DUNE_VERSION_NEWER(DUNE_ISTL, 2,7)
-SET_TYPE_PROP(ParallelBaseLinearSolver,
-              PreconditionerWrapper,
-              Opm::Linear::PreconditionerWrapperILU<TypeTag>);
+template<class TypeTag>
+struct PreconditionerWrapper<TypeTag, TTag::ParallelBaseLinearSolver>
+{ using type = Opm::Linear::PreconditionerWrapperILU<TypeTag>; };
 #else
-SET_TYPE_PROP(ParallelBaseLinearSolver,
-              PreconditionerWrapper,
-              Opm::Linear::PreconditionerWrapperILU0<TypeTag>);
+template<class TypeTag>
+struct PreconditionerWrapper<TypeTag, TTag::ParallelBaseLinearSolver>
+{ using type = Opm::Linear::PreconditionerWrapperILU0<TypeTag>; };
 #endif
 
 //! set the default overlap size to 2
-SET_INT_PROP(ParallelBaseLinearSolver, LinearSolverOverlapSize, 2);
+template<class TypeTag>
+struct LinearSolverOverlapSize<TypeTag, TTag::ParallelBaseLinearSolver> { static constexpr int value = 2; };
 
 //! set the default number of maximum iterations for the linear solver
-SET_INT_PROP(ParallelBaseLinearSolver, LinearSolverMaxIterations, 1000);
+template<class TypeTag>
+struct LinearSolverMaxIterations<TypeTag, TTag::ParallelBaseLinearSolver> { static constexpr int value = 1000; };
 
-END_PROPERTIES
+} // namespace Opm::Properties
 
 #endif

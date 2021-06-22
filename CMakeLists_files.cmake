@@ -62,6 +62,7 @@ list (APPEND PROGRAM_SOURCE_FILES
 
 list (APPEND PUBLIC_HEADER_FILES
              opm/models/blackoil/blackoilmodel.hh
+             opm/models/blackoil/blackoildiffusionmodule.hh
              opm/models/blackoil/blackoilextensivequantities.hh
              opm/models/blackoil/blackoilintensivequantities.hh
              opm/models/blackoil/blackoildarcyfluxmodule.hh
@@ -73,6 +74,7 @@ list (APPEND PUBLIC_HEADER_FILES
              opm/models/blackoil/blackoilnewtonmethod.hh
              opm/models/blackoil/blackoilonephaseindices.hh
              opm/models/blackoil/blackoilsolventmodules.hh
+             opm/models/blackoil/blackoilextbomodules.hh
              opm/models/blackoil/blackoilproperties.hh
              opm/models/blackoil/blackoilprimaryvariables.hh
              opm/models/blackoil/blackoilproblem.hh
@@ -123,6 +125,7 @@ list (APPEND PUBLIC_HEADER_FILES
              opm/models/discretization/common/fvbasegradientcalculator.hh
              opm/models/discretization/common/fvbaseproblem.hh
              opm/models/discretization/common/fvbaseprimaryvariables.hh
+             opm/models/discretization/common/linearizationtype.hh
              opm/models/discretization/ecfv/ecfvgridcommhandlefactory.hh
              opm/models/discretization/ecfv/ecfvstencil.hh
              opm/models/discretization/ecfv/ecfvbaseoutputmodule.hh
@@ -211,6 +214,7 @@ list (APPEND PUBLIC_HEADER_FILES
              opm/models/utils/start.hh
              opm/models/utils/timerguard.hh
              opm/models/utils/propertysystem.hh
+             opm/models/utils/propertysystemmacros.hh
              opm/models/utils/pffgridvector.hh
              opm/models/utils/prefetch.hh
              opm/models/utils/parametersystem.hh
@@ -224,6 +228,7 @@ list (APPEND PUBLIC_HEADER_FILES
              opm/simulators/linalg/parallelistlbackend.hh
              opm/simulators/linalg/weightedresidreductioncriterion.hh
              opm/simulators/linalg/vertexborderlistfromgrid.hh
+             opm/simulators/linalg/linalgproperties.hh
              opm/simulators/linalg/linearsolverreport.hh
              opm/simulators/linalg/istlsparsematrixadapter.hh
              opm/simulators/linalg/istlpreconditionerwrappers.hh

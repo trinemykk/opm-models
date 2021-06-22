@@ -29,6 +29,7 @@
 #define EWOMS_FV_BASE_LINEARIZER_HH
 
 #include "fvbaseproperties.hh"
+#include "linearizationtype.hh"
 
 #include <opm/models/parallel/gridcommhandles.hh>
 #include <opm/models/parallel/threadmanager.hh>
@@ -67,43 +68,43 @@ template<class TypeTag>
 class FvBaseLinearizer
 {
 //! \cond SKIP_THIS
-    typedef typename GET_PROP_TYPE(TypeTag, Model) Model;
-    typedef typename GET_PROP_TYPE(TypeTag, Discretization) Discretization;
-    typedef typename GET_PROP_TYPE(TypeTag, Problem) Problem;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, DofMapper) DofMapper;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementMapper) ElementMapper;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
+    using Model = GetPropType<TypeTag, Properties::Model>;
+    using Discretization = GetPropType<TypeTag, Properties::Discretization>;
+    using Problem = GetPropType<TypeTag, Properties::Problem>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using DofMapper = GetPropType<TypeTag, Properties::DofMapper>;
+    using ElementMapper = GetPropType<TypeTag, Properties::ElementMapper>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, SolutionVector) SolutionVector;
-    typedef typename GET_PROP_TYPE(TypeTag, GlobalEqVector) GlobalEqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, SparseMatrixAdapter) SparseMatrixAdapter;
-    typedef typename GET_PROP_TYPE(TypeTag, EqVector) EqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, Constraints) Constraints;
-    typedef typename GET_PROP_TYPE(TypeTag, Stencil) Stencil;
-    typedef typename GET_PROP_TYPE(TypeTag, ThreadManager) ThreadManager;
+    using SolutionVector = GetPropType<TypeTag, Properties::SolutionVector>;
+    using GlobalEqVector = GetPropType<TypeTag, Properties::GlobalEqVector>;
+    using SparseMatrixAdapter = GetPropType<TypeTag, Properties::SparseMatrixAdapter>;
+    using EqVector = GetPropType<TypeTag, Properties::EqVector>;
+    using Constraints = GetPropType<TypeTag, Properties::Constraints>;
+    using Stencil = GetPropType<TypeTag, Properties::Stencil>;
+    using ThreadManager = GetPropType<TypeTag, Properties::ThreadManager>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, GridCommHandleFactory) GridCommHandleFactory;
+    using GridCommHandleFactory = GetPropType<TypeTag, Properties::GridCommHandleFactory>;
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
+    using Toolbox = MathToolbox<Evaluation>;
 
-    typedef typename GridView::template Codim<0>::Entity Element;
-    typedef typename GridView::template Codim<0>::Iterator ElementIterator;
+    using Element = typename GridView::template Codim<0>::Entity;
+    using ElementIterator = typename GridView::template Codim<0>::Iterator;
 
-    typedef GlobalEqVector Vector;
+    using Vector = GlobalEqVector;
 
-    typedef typename SparseMatrixAdapter::IstlMatrix IstlMatrix;
+    using IstlMatrix = typename SparseMatrixAdapter::IstlMatrix;
 
-    enum { numEq = GET_PROP_VALUE(TypeTag, NumEq) };
-    enum { historySize = GET_PROP_VALUE(TypeTag, TimeDiscHistorySize) };
+    enum { numEq = getPropValue<TypeTag, Properties::NumEq>() };
+    enum { historySize = getPropValue<TypeTag, Properties::TimeDiscHistorySize>() };
 
-    typedef typename SparseMatrixAdapter::MatrixBlock MatrixBlock;
-    typedef Dune::FieldVector<Scalar, numEq> VectorBlock;
+    using MatrixBlock = typename SparseMatrixAdapter::MatrixBlock;
+    using VectorBlock = Dune::FieldVector<Scalar, numEq>;
 
-    static const bool linearizeNonLocalElements = GET_PROP_VALUE(TypeTag, LinearizeNonLocalElements);
+    static const bool linearizeNonLocalElements = getPropValue<TypeTag, Properties::LinearizeNonLocalElements>();
 
     // copying the linearizer is not a good idea
     FvBaseLinearizer(const FvBaseLinearizer&);
@@ -143,6 +144,12 @@ public:
     {
         simulatorPtr_ = &simulator;
         eraseMatrix();
+        auto it = elementCtx_.begin();
+        const auto& endIt = elementCtx_.end();
+        for (; it != endIt; ++it){
+            delete *it;
+        }
+        elementCtx_.resize(0);
     }
 
     /*!
@@ -160,7 +167,11 @@ public:
     /*!
      * \brief Linearize the full system of non-linear equations.
      *
-     * This means the spatial domain plus all auxiliary equations.
+     * The linearizationType() controls the scheme used and the focus
+     * time index. The default is fully implicit scheme, and focus index
+     * equal to 0, i.e. current time (end of step).
+     *
+     * This linearizes the spatial domain and all auxiliary equations.
      */
     void linearize()
     {
@@ -208,7 +219,7 @@ public:
         succeeded = gridView_().comm().min(succeeded);
 
         if (!succeeded)
-            throw Opm::NumericalIssue("A process did not succeed in linearizing the system");
+            throw NumericalIssue("A process did not succeed in linearizing the system");
     }
 
     void finalize()
@@ -241,7 +252,7 @@ public:
             succeeded = comm.min(succeeded);
 
             if (!succeeded)
-                throw Opm::NumericalIssue("linearization of an auxilary equation failed");
+                throw NumericalIssue("linearization of an auxilary equation failed");
         }
     }
 
@@ -262,6 +273,14 @@ public:
 
     GlobalEqVector& residual()
     { return residual_; }
+
+    void setLinearizationType(LinearizationType linearizationType){
+        linearizationType_ = linearizationType;
+    };
+
+    const LinearizationType& getLinearizationType() const{
+        return linearizationType_;
+    };
 
     /*!
      * \brief Returns the map of constraint degrees of freedom.
@@ -319,7 +338,7 @@ private:
 
         // for the main model, find out the global indices of the neighboring degrees of
         // freedom of each primary degree of freedom
-        typedef std::set< unsigned > NeighborSet;
+        using NeighborSet = std::set< unsigned >;
         std::vector<NeighborSet> sparsityPattern(model.numTotalDof());
 
         ElementIterator elemIt = gridView_().template begin<0>();
@@ -495,7 +514,7 @@ private:
         localLinearizer.linearize(*elementCtx, elem);
 
         // update the right hand side and the Jacobian matrix
-        if (GET_PROP_VALUE(TypeTag, UseLinearizationLock))
+        if (getPropValue<TypeTag, Properties::UseLinearizationLock>())
             globalMatrixMutex_.lock();
 
         size_t numPrimaryDof = elementCtx->numPrimaryDof(/*timeIdx=*/0);
@@ -513,7 +532,7 @@ private:
             }
         }
 
-        if (GET_PROP_VALUE(TypeTag, UseLinearizationLock))
+        if (getPropValue<TypeTag, Properties::UseLinearizationLock>())
             globalMatrixMutex_.unlock();
     }
 
@@ -558,7 +577,7 @@ private:
     }
 
     static bool enableConstraints_()
-    { return GET_PROP_VALUE(TypeTag, EnableConstraints); }
+    { return getPropValue<TypeTag, Properties::EnableConstraints>(); }
 
     Simulator *simulatorPtr_;
     std::vector<ElementContext*> elementCtx_;
@@ -573,6 +592,7 @@ private:
     // the right-hand side
     GlobalEqVector residual_;
 
+    LinearizationType linearizationType_;
 
     std::mutex globalMatrixMutex_;
 };

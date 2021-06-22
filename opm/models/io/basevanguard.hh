@@ -27,7 +27,7 @@
 #ifndef EWOMS_BASE_VANGUARD_HH
 #define EWOMS_BASE_VANGUARD_HH
 
-#include <opm/models/utils/propertysystem.hh>
+#include <opm/models/utils/basicproperties.hh>
 #include <opm/models/utils/parametersystem.hh>
 
 #include <dune/common/version.hh>
@@ -39,19 +39,6 @@
 #include <type_traits>
 #include <memory>
 
-BEGIN_PROPERTIES
-
-NEW_PROP_TAG(Grid);
-NEW_PROP_TAG(Vanguard);
-NEW_PROP_TAG(GridView);
-NEW_PROP_TAG(GridPart);
-NEW_PROP_TAG(GridViewLevel);
-NEW_PROP_TAG(GridFile);
-NEW_PROP_TAG(GridGlobalRefinements);
-NEW_PROP_TAG(Simulator);
-
-END_PROPERTIES
-
 namespace Opm {
 
 /*!
@@ -60,13 +47,13 @@ namespace Opm {
 template <class TypeTag>
 class BaseVanguard
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, Grid) Grid;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
-    typedef typename GET_PROP_TYPE(TypeTag, Vanguard) Implementation;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using Grid = GetPropType<TypeTag, Properties::Grid>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
+    using Implementation = GetPropType<TypeTag, Properties::Vanguard>;
 
 #if HAVE_DUNE_FEM
-    typedef typename GET_PROP_TYPE(TypeTag, GridPart) GridPart;
+    using GridPart = GetPropType<TypeTag, Properties::GridPart>;
 #endif
 
 public:
@@ -105,7 +92,7 @@ public:
     int gridSequenceNumber () const
     {
 #if HAVE_DUNE_FEM
-        typedef Dune::Fem::DofManager< Grid > FemDofManager;
+        using FemDofManager = Dune::Fem::DofManager< Grid >;
         return FemDofManager::instance( asImp_().grid() ).sequence();
 #else
         return 0; // return the same sequence number >= 0 means the grid never changes

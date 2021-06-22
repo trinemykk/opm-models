@@ -34,16 +34,19 @@
 #include <iostream>
 
 //! \cond SKIP_THIS
-BEGIN_PROPERTIES
+namespace Opm::Properties {
 
 // forward declaration of the required property tags
-NEW_PROP_TAG(GridView);
-NEW_PROP_TAG(NewtonMethod);
-NEW_PROP_TAG(SolutionVector);
-NEW_PROP_TAG(GlobalEqVector);
-NEW_PROP_TAG(VtkOutputFormat);
+template<class TypeTag, class MyTypeTag>
+struct SolutionVector;
+template<class TypeTag, class MyTypeTag>
+struct GlobalEqVector;
+template<class TypeTag, class MyTypeTag>
+struct NewtonMethod;
+template<class TypeTag, class MyTypeTag>
+struct VtkOutputFormat;
 
-END_PROPERTIES
+} // namespace Opm::Properties
 //! \endcond
 
 namespace Opm {
@@ -56,14 +59,14 @@ namespace Opm {
 template <class TypeTag>
 class FvBaseNewtonConvergenceWriter
 {
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, SolutionVector) SolutionVector;
-    typedef typename GET_PROP_TYPE(TypeTag, GlobalEqVector) GlobalEqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, NewtonMethod) NewtonMethod;
+    using SolutionVector = GetPropType<TypeTag, Properties::SolutionVector>;
+    using GlobalEqVector = GetPropType<TypeTag, Properties::GlobalEqVector>;
+    using NewtonMethod = GetPropType<TypeTag, Properties::NewtonMethod>;
 
-    static const int vtkFormat = GET_PROP_VALUE(TypeTag, VtkOutputFormat);
-    typedef Opm::VtkMultiWriter<GridView, vtkFormat> VtkMultiWriter;
+    static const int vtkFormat = getPropValue<TypeTag, Properties::VtkOutputFormat>();
+    using VtkMultiWriter = ::Opm::VtkMultiWriter<GridView, vtkFormat>;
 
 public:
     FvBaseNewtonConvergenceWriter(NewtonMethod& nm)

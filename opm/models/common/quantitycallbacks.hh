@@ -46,15 +46,15 @@ namespace Opm {
 template <class TypeTag>
 class TemperatureCallback
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef decltype(std::declval<IntensiveQuantities>().fluidState()) IQFluidState;
-    typedef decltype(std::declval<IQFluidState>().temperature(0)) ResultRawType;
+    using IQFluidState = decltype(std::declval<IntensiveQuantities>().fluidState());
+    using ResultRawType = decltype(std::declval<IQFluidState>().temperature(0));
 
 public:
-    typedef typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type ResultType;
-    typedef typename Opm::MathToolbox<ResultType>::ValueType ResultValueType;
+    using ResultType = typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type;
+    using ResultValueType = typename MathToolbox<ResultType>::ValueType;
 
     TemperatureCallback(const ElementContext& elemCtx)
         : elemCtx_(elemCtx)
@@ -82,19 +82,19 @@ private:
 template <class TypeTag>
 class PressureCallback
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef decltype(std::declval<IntensiveQuantities>().fluidState()) IQFluidState;
-    typedef decltype(std::declval<IQFluidState>().pressure(0)) ResultRawType;
+    using IQFluidState = decltype(std::declval<IntensiveQuantities>().fluidState());
+    using ResultRawType = decltype(std::declval<IQFluidState>().pressure(0));
 
 public:
-    typedef typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type ResultType;
-    typedef typename Opm::MathToolbox<ResultType>::ValueType ResultValueType;
+    using ResultType = typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type;
+    using ResultValueType = typename MathToolbox<ResultType>::ValueType;
 
     PressureCallback(const ElementContext& elemCtx)
         : elemCtx_(elemCtx)
-    { Opm::Valgrind::SetUndefined(phaseIdx_); }
+    { Valgrind::SetUndefined(phaseIdx_); }
 
     PressureCallback(const ElementContext& elemCtx, unsigned phaseIdx)
         : elemCtx_(elemCtx)
@@ -114,7 +114,7 @@ public:
      */
     ResultType operator()(unsigned dofIdx) const
     {
-        Opm::Valgrind::CheckDefined(phaseIdx_);
+        Valgrind::CheckDefined(phaseIdx_);
         return elemCtx_.intensiveQuantities(dofIdx, /*timeIdx=*/0).fluidState().pressure(phaseIdx_);
     }
 
@@ -131,22 +131,22 @@ private:
 template <class TypeTag, class FluidState>
 class BoundaryPressureCallback
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef decltype(std::declval<IntensiveQuantities>().fluidState()) IQRawFluidState;
-    typedef typename std::remove_const<typename std::remove_reference<IQRawFluidState>::type>::type IQFluidState;
-    typedef typename IQFluidState::Scalar IQScalar;
-    typedef Opm::MathToolbox<IQScalar> Toolbox;
+    using IQRawFluidState = decltype(std::declval<IntensiveQuantities>().fluidState());
+    using IQFluidState = typename std::remove_const<typename std::remove_reference<IQRawFluidState>::type>::type;
+    using IQScalar = typename IQFluidState::Scalar;
+    using Toolbox = MathToolbox<IQScalar>;
 
 public:
-    typedef IQScalar ResultType;
+    using ResultType = IQScalar;
 
     BoundaryPressureCallback(const ElementContext& elemCtx, const FluidState& boundaryFs)
         : elemCtx_(elemCtx)
         , boundaryFs_(boundaryFs)
-    { Opm::Valgrind::SetUndefined(phaseIdx_); }
+    { Valgrind::SetUndefined(phaseIdx_); }
 
     BoundaryPressureCallback(const ElementContext& elemCtx,
                              const FluidState& boundaryFs,
@@ -169,13 +169,13 @@ public:
      */
     ResultType operator()(unsigned dofIdx) const
     {
-        Opm::Valgrind::CheckDefined(phaseIdx_);
+        Valgrind::CheckDefined(phaseIdx_);
         return elemCtx_.intensiveQuantities(dofIdx, /*timeIdx=*/0).fluidState().pressure(phaseIdx_);
     }
 
     IQScalar boundaryValue() const
     {
-        Opm::Valgrind::CheckDefined(phaseIdx_);
+        Valgrind::CheckDefined(phaseIdx_);
         return boundaryFs_.pressure(phaseIdx_);
     }
 
@@ -193,19 +193,19 @@ private:
 template <class TypeTag>
 class DensityCallback
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef decltype(std::declval<IntensiveQuantities>().fluidState()) IQFluidState;
-    typedef decltype(std::declval<IQFluidState>().density(0)) ResultRawType;
+    using IQFluidState = decltype(std::declval<IntensiveQuantities>().fluidState());
+    using ResultRawType = decltype(std::declval<IQFluidState>().density(0));
 
 public:
-    typedef typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type ResultType;
-    typedef typename Opm::MathToolbox<ResultType>::ValueType ResultValueType;
+    using ResultType = typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type;
+    using ResultValueType = typename MathToolbox<ResultType>::ValueType;
 
     DensityCallback(const ElementContext& elemCtx)
         : elemCtx_(elemCtx)
-    { Opm::Valgrind::SetUndefined(phaseIdx_); }
+    { Valgrind::SetUndefined(phaseIdx_); }
 
     DensityCallback(const ElementContext& elemCtx, unsigned phaseIdx)
         : elemCtx_(elemCtx)
@@ -225,7 +225,7 @@ public:
      */
     ResultType operator()(unsigned dofIdx) const
     {
-        Opm::Valgrind::CheckDefined(phaseIdx_);
+        Valgrind::CheckDefined(phaseIdx_);
         return elemCtx_.intensiveQuantities(dofIdx, /*timeIdx=*/0).fluidState().density(phaseIdx_);
     }
 
@@ -242,18 +242,18 @@ private:
 template <class TypeTag>
 class MolarDensityCallback
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef decltype(std::declval<IntensiveQuantities>().fluidState()) IQFluidState;
+    using IQFluidState = decltype(std::declval<IntensiveQuantities>().fluidState());
 
 public:
-    typedef decltype(std::declval<IQFluidState>().molarDensity(0)) ResultType;
-    typedef typename Opm::MathToolbox<ResultType>::ValueType ResultValueType;
+    using ResultType = decltype(std::declval<IQFluidState>().molarDensity(0));
+    using ResultValueType = typename MathToolbox<ResultType>::ValueType;
 
     MolarDensityCallback(const ElementContext& elemCtx)
         : elemCtx_(elemCtx)
-    { Opm::Valgrind::SetUndefined(phaseIdx_); }
+    { Valgrind::SetUndefined(phaseIdx_); }
 
     MolarDensityCallback(const ElementContext& elemCtx, unsigned phaseIdx)
         : elemCtx_(elemCtx)
@@ -273,7 +273,7 @@ public:
      */
     ResultType operator()(unsigned dofIdx) const
     {
-        Opm::Valgrind::CheckDefined(phaseIdx_);
+        Valgrind::CheckDefined(phaseIdx_);
         return elemCtx_.intensiveQuantities(dofIdx, /*timeIdx=*/0).fluidState().molarDensity(phaseIdx_);
     }
 
@@ -290,19 +290,19 @@ private:
 template <class TypeTag>
 class ViscosityCallback
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef decltype(std::declval<IntensiveQuantities>().fluidState()) IQFluidState;
-    typedef decltype(std::declval<IQFluidState>().viscosity(0)) ResultRawType;
+    using IQFluidState = decltype(std::declval<IntensiveQuantities>().fluidState());
+    using ResultRawType = decltype(std::declval<IQFluidState>().viscosity(0));
 
 public:
-    typedef typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type ResultType;
-    typedef typename Opm::MathToolbox<ResultType>::ValueType ResultValueType;
+    using ResultType = typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type;
+    using ResultValueType = typename MathToolbox<ResultType>::ValueType;
 
     ViscosityCallback(const ElementContext& elemCtx)
         : elemCtx_(elemCtx)
-    { Opm::Valgrind::SetUndefined(phaseIdx_); }
+    { Valgrind::SetUndefined(phaseIdx_); }
 
     ViscosityCallback(const ElementContext& elemCtx, unsigned phaseIdx)
         : elemCtx_(elemCtx)
@@ -322,7 +322,7 @@ public:
      */
     ResultType operator()(unsigned dofIdx) const
     {
-        Opm::Valgrind::CheckDefined(phaseIdx_);
+        Valgrind::CheckDefined(phaseIdx_);
         return elemCtx_.intensiveQuantities(dofIdx, /*timeIdx=*/0).fluidState().viscosity(phaseIdx_);
     }
 
@@ -339,18 +339,18 @@ private:
 template <class TypeTag>
 class VelocityCallback
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
 
-    typedef decltype(IntensiveQuantities().velocityCenter()) ResultRawType;
+    using ResultRawType = decltype(IntensiveQuantities().velocityCenter());
 
     enum { dim = GridView::dimensionworld };
 
 public:
-    typedef typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type ResultType;
-    typedef typename ResultType::field_type ResultFieldType;
-    typedef typename Opm::MathToolbox<ResultFieldType>::ValueType ResultFieldValueType;
+    using ResultType = typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type;
+    using ResultFieldType = typename ResultType::field_type;
+    using ResultFieldValueType = typename MathToolbox<ResultFieldType>::ValueType;
 
     VelocityCallback(const ElementContext& elemCtx)
         : elemCtx_(elemCtx)
@@ -375,18 +375,18 @@ private:
 template <class TypeTag>
 class VelocityComponentCallback
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef decltype(IntensiveQuantities().velocityCenter()[0]) ResultRawType;
+    using ResultRawType = decltype(IntensiveQuantities().velocityCenter()[0]);
 
 public:
-    typedef typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type ResultType;
-    typedef typename Opm::MathToolbox<ResultType>::ValueType ResultValueType;
+    using ResultType = typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type;
+    using ResultValueType = typename MathToolbox<ResultType>::ValueType;
 
     VelocityComponentCallback(const ElementContext& elemCtx)
         : elemCtx_(elemCtx)
-    { Opm::Valgrind::SetUndefined(dimIdx_); }
+    { Valgrind::SetUndefined(dimIdx_); }
 
     VelocityComponentCallback(const ElementContext& elemCtx, unsigned dimIdx)
         : elemCtx_(elemCtx)
@@ -406,7 +406,7 @@ public:
      */
     ResultType operator()(unsigned dofIdx) const
     {
-        Opm::Valgrind::CheckDefined(dimIdx_);
+        Valgrind::CheckDefined(dimIdx_);
         return elemCtx_.intensiveQuantities(dofIdx, /*timeIdx=*/0).velocityCenter()[dimIdx_];
     }
 
@@ -423,21 +423,21 @@ private:
 template <class TypeTag>
 class MoleFractionCallback
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef decltype(std::declval<IntensiveQuantities>().fluidState()) IQFluidState;
-    typedef decltype(std::declval<IQFluidState>().moleFraction(0, 0)) ResultRawType;
+    using IQFluidState = decltype(std::declval<IntensiveQuantities>().fluidState());
+    using ResultRawType = decltype(std::declval<IQFluidState>().moleFraction(0, 0));
 
 public:
-    typedef typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type ResultType;
-    typedef typename Opm::MathToolbox<ResultType>::ValueType ResultValueType;
+    using ResultType = typename std::remove_const<typename std::remove_reference<ResultRawType>::type>::type;
+    using ResultValueType = typename MathToolbox<ResultType>::ValueType;
 
     MoleFractionCallback(const ElementContext& elemCtx)
         : elemCtx_(elemCtx)
     {
-        Opm::Valgrind::SetUndefined(phaseIdx_);
-        Opm::Valgrind::SetUndefined(compIdx_);
+        Valgrind::SetUndefined(phaseIdx_);
+        Valgrind::SetUndefined(compIdx_);
     }
 
     MoleFractionCallback(const ElementContext& elemCtx, unsigned phaseIdx, unsigned compIdx)
@@ -466,8 +466,8 @@ public:
      */
     ResultType operator()(unsigned dofIdx) const
     {
-        Opm::Valgrind::CheckDefined(phaseIdx_);
-        Opm::Valgrind::CheckDefined(compIdx_);
+        Valgrind::CheckDefined(phaseIdx_);
+        Valgrind::CheckDefined(compIdx_);
         return elemCtx_.intensiveQuantities(dofIdx, /*timeIdx=*/0).fluidState().moleFraction(phaseIdx_, compIdx_);
     }
 

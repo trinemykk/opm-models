@@ -30,6 +30,8 @@
 
 #include "fvbaseproperties.hh"
 
+#include <opm/models/common/multiphasebaseproperties.hh>
+
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/material/common/Unused.hpp>
 
@@ -43,9 +45,9 @@ namespace Opm {
 template <class TypeTag>
 class FvBaseExtensiveQuantities
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
 
 public:
     /*!
@@ -71,7 +73,7 @@ public:
         extrusionFactor_ =
             (elemCtx.intensiveQuantities(interiorScvIdx_, timeIdx).extrusionFactor()
              + elemCtx.intensiveQuantities(exteriorScvIdx_, timeIdx).extrusionFactor()) / 2;
-        Opm::Valgrind::CheckDefined(extrusionFactor_);
+        Valgrind::CheckDefined(extrusionFactor_);
         assert(extrusionFactor_ > 0);
     }
 
@@ -97,7 +99,7 @@ public:
         exteriorScvIdx_ = static_cast<unsigned short>(dofIdx);
 
         extrusionFactor_ = context.intensiveQuantities(bfIdx, timeIdx).extrusionFactor();
-        Opm::Valgrind::CheckDefined(extrusionFactor_);
+        Valgrind::CheckDefined(extrusionFactor_);
         assert(extrusionFactor_ > 0);
     }
 

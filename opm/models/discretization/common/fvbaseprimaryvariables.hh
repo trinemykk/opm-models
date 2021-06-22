@@ -31,7 +31,7 @@
 #include <type_traits>
 
 #include "fvbaseproperties.hh"
-
+#include "linearizationtype.hh"
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/material/common/Unused.hpp>
 #include <opm/material/common/Exceptions.hpp>
@@ -47,21 +47,21 @@ namespace Opm {
  */
 template <class TypeTag>
 class FvBasePrimaryVariables
-    : public Dune::FieldVector<typename GET_PROP_TYPE(TypeTag, Scalar),
-                               GET_PROP_VALUE(TypeTag, NumEq)>
+    : public Dune::FieldVector<GetPropType<TypeTag, Properties::Scalar>,
+                               getPropValue<TypeTag, Properties::NumEq>()>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
 
-    enum { numEq = GET_PROP_VALUE(TypeTag, NumEq) };
+    enum { numEq = getPropValue<TypeTag, Properties::NumEq>() };
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
-    typedef Dune::FieldVector<Scalar, numEq> ParentType;
+    using Toolbox = MathToolbox<Evaluation>;
+    using ParentType = Dune::FieldVector<Scalar, numEq>;
 
 public:
     FvBasePrimaryVariables()
         : ParentType()
-    { Opm::Valgrind::SetUndefined(*this); }
+    { Valgrind::SetUndefined(*this); }
 
     /*!
      * \brief Construction from a scalar value
@@ -87,13 +87,13 @@ public:
      * it represents the a constant f = x_i. (the difference is that in the first case,
      * the derivative w.r.t. x_i is 1, while it is 0 in the second case.
      */
-    Evaluation makeEvaluation(unsigned varIdx, unsigned timeIdx) const
+    Evaluation makeEvaluation(unsigned varIdx, unsigned timeIdx, LinearizationType linearizationType = LinearizationType()) const
     {
         if (std::is_same<Evaluation, Scalar>::value)
             return (*this)[varIdx]; // finite differences
         else {
             // automatic differentiation
-            if (timeIdx == 0)
+            if (timeIdx == linearizationType.time)
                 return Toolbox::createVariable((*this)[varIdx], varIdx);
             else
                 return Toolbox::createConstant((*this)[varIdx]);
@@ -122,7 +122,7 @@ public:
      */
     void checkDefined() const
     {
-        Opm::Valgrind::CheckDefined(*static_cast<const ParentType*>(this));
+        Valgrind::CheckDefined(*static_cast<const ParentType*>(this));
     }
 };
 
@@ -139,8 +139,8 @@ namespace Dune {
    * Opm::FvBasePrimaryVariables: use FieldVector's FieldTraits implementation) */
   template<class TypeTag>
   struct FieldTraitsImpl< TypeTag, true >
-      : public FieldTraits<FieldVector<typename GET_PROP_TYPE(TypeTag, Scalar),
-                                       GET_PROP_VALUE(TypeTag, NumEq)> >
+      : public FieldTraits<FieldVector<Opm::GetPropType<TypeTag, Opm::Properties::Scalar>,
+                                       Opm::getPropValue<TypeTag, Opm::Properties::NumEq>()> >
   {
   };
 

@@ -34,8 +34,6 @@
 
 #include "parametersystem.hh"
 
-#include <opm/models/utils/parametersystem.hh>
-#include <opm/models/utils/propertysystem.hh>
 #include <opm/models/utils/simulator.hh>
 #include <opm/models/utils/timer.hh>
 
@@ -68,19 +66,6 @@
 #include <mpi.h>
 #endif
 
-BEGIN_PROPERTIES
-
-// forward declaration of property tags
-NEW_PROP_TAG(Scalar);
-NEW_PROP_TAG(Simulator);
-NEW_PROP_TAG(ThreadManager);
-NEW_PROP_TAG(PrintProperties);
-NEW_PROP_TAG(PrintParameters);
-NEW_PROP_TAG(ParameterFile);
-NEW_PROP_TAG(Problem);
-
-END_PROPERTIES
-
 //! \cond SKIP_THIS
 
 namespace Opm {
@@ -90,8 +75,8 @@ namespace Opm {
 template <class TypeTag>
 static inline void registerAllParameters_(bool finalizeRegistration = true)
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, ThreadManager) ThreadManager;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using ThreadManager = GetPropType<TypeTag, Properties::ThreadManager>;
 
     EWOMS_REGISTER_PARAM(TypeTag, std::string, ParameterFile,
                          "An .ini file which contains a set of run-time "
@@ -116,6 +101,8 @@ static inline void registerAllParameters_(bool finalizeRegistration = true)
  *
  * \param argc The number of command line arguments
  * \param argv Array with the command line argument strings
+ * \return A negative value if --help or --print-properties was provided,
+ *         a positive value for errors or 0 for success.
  */
 template <class TypeTag>
 static inline int setupParameters_(int argc,
@@ -124,7 +111,7 @@ static inline int setupParameters_(int argc,
                                    bool allowUnused=false,
                                    bool handleHelp = true)
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Problem) Problem;
+    using Problem = GetPropType<TypeTag, Properties::Problem>;
 
     // first, get the MPI rank of the current process
     int myRank = 0;
@@ -141,7 +128,7 @@ static inline int setupParameters_(int argc,
 
     // fill the parameter tree with the options from the command line
     const auto& positionalParamCallback = Problem::handlePositionalParameter;
-    std::string helpPreamble = "";
+    std::string helpPreamble = ""; // print help if non-empty!
     if (myRank == 0 && handleHelp)
         helpPreamble = Problem::helpPreamble(argc, argv);
     std::string s =
@@ -150,7 +137,18 @@ static inline int setupParameters_(int argc,
                                                      helpPreamble,
                                                      positionalParamCallback);
     if (!s.empty())
-        return /*status=*/1;
+    {
+        int status = 1;
+        if (s == "Help called") // only on master process
+            status = -1; // Use negative values to indicate --help argument
+#if HAVE_MPI
+        // Force -1 if the master process has that.
+        int globalStatus;
+        MPI_Allreduce(&status, &globalStatus, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+        return globalStatus;
+#endif
+        return status;
+    }
 
     std::string paramFileName = EWOMS_GET_PARAM_(TypeTag, std::string, ParameterFile);
     if (paramFileName != "") {
@@ -176,8 +174,8 @@ static inline int setupParameters_(int argc,
     }
 
     // make sure that no unknown parameters are encountered
-    typedef std::pair<std::string, std::string> KeyValuePair;
-    typedef std::list<KeyValuePair> ParamList;
+    using KeyValuePair = std::pair<std::string, std::string>;
+    using ParamList = std::list<KeyValuePair>;
 
     ParamList usedParams;
     ParamList unusedParams;
@@ -281,10 +279,10 @@ static inline void resetTerminal_(int signum)
 template <class TypeTag>
 static inline int start(int argc, char **argv,  bool registerParams=true)
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, Problem) Problem;
-    typedef typename GET_PROP_TYPE(TypeTag, ThreadManager) ThreadManager;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using Problem = GetPropType<TypeTag, Properties::Problem>;
+    using ThreadManager = GetPropType<TypeTag, Properties::ThreadManager>;
 
     // set the signal handlers to reset the TTY to a well defined state on unexpected
     // program aborts
@@ -298,7 +296,7 @@ static inline int start(int argc, char **argv,  bool registerParams=true)
         signal(SIGTERM, resetTerminal_);
     }
 
-    Opm::resetLocale();
+    resetLocale();
 
     int myRank = 0;
     try
@@ -364,20 +362,20 @@ static inline int start(int argc, char **argv,  bool registerParams=true)
             if (printParams) {
                 bool printSeparator = false;
                 if (printParams == 1 || !isatty(fileno(stdout))) {
-                    Opm::Parameters::printValues<TypeTag>();
+                    Parameters::printValues<TypeTag>();
                     printSeparator = true;
                 }
                 else
                     // always print the list of specified but unused parameters
                     printSeparator =
                         printSeparator ||
-                        Opm::Parameters::printUnused<TypeTag>();
+                        Parameters::printUnused<TypeTag>();
                 if (printSeparator)
                     std::cout << endParametersSeparator;
             }
             else
                 // always print the list of specified but unused parameters
-                if (Opm::Parameters::printUnused<TypeTag>())
+                if (Parameters::printUnused<TypeTag>())
                     std::cout << endParametersSeparator;
         }
 
@@ -385,7 +383,7 @@ static inline int start(int argc, char **argv,  bool registerParams=true)
         int printProps = EWOMS_GET_PARAM(TypeTag, int, PrintProperties);
         if (printProps && myRank == 0) {
             if (printProps == 1 || !isatty(fileno(stdout)))
-                Opm::Properties::printValues<TypeTag>();
+                Properties::printValues<TypeTag>();
         }
 
         // instantiate and run the concrete problem. make sure to

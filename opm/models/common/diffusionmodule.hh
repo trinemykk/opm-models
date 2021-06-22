@@ -33,15 +33,8 @@
 
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/material/common/Unused.hpp>
-#include <opm/material/common/Exceptions.hpp>
 
 #include <dune/common/fvector.hh>
-
-BEGIN_PROPERTIES
-
-NEW_PROP_TAG(Indices);
-
-END_PROPERTIES
 
 namespace Opm {
 
@@ -60,9 +53,9 @@ class DiffusionModule;
 template <class TypeTag>
 class DiffusionModule<TypeTag, /*enableDiffusion=*/false>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, RateVector) RateVector;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
 
 public:
     /*!
@@ -89,17 +82,17 @@ public:
 template <class TypeTag>
 class DiffusionModule<TypeTag, /*enableDiffusion=*/true>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, RateVector) RateVector;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
 
     enum { numPhases = FluidSystem::numPhases };
     enum { numComponents = FluidSystem::numComponents };
     enum { conti0EqIdx = Indices::conti0EqIdx };
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
+    using Toolbox = Opm::MathToolbox<Evaluation>;
 
 public:
     /*!
@@ -153,9 +146,9 @@ class DiffusionIntensiveQuantities;
 template <class TypeTag>
 class DiffusionIntensiveQuantities<TypeTag, /*enableDiffusion=*/false>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
 
 public:
     /*!
@@ -208,10 +201,10 @@ protected:
 template <class TypeTag>
 class DiffusionIntensiveQuantities<TypeTag, /*enableDiffusion=*/true>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
 
     enum { numPhases = FluidSystem::numPhases };
     enum { numComponents = FluidSystem::numComponents };
@@ -250,7 +243,7 @@ protected:
                  unsigned dofIdx,
                  unsigned timeIdx)
     {
-        typedef Opm::MathToolbox<Evaluation> Toolbox;
+        using Toolbox = Opm::MathToolbox<Evaluation>;
 
         const auto& intQuants = elemCtx.intensiveQuantities(dofIdx, timeIdx);
         for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
@@ -260,13 +253,14 @@ protected:
             // TODO: let the problem do this (this is a constitutive
             // relation of which the model should be free of from the
             // abstraction POV!)
+            // Based on Millington, R. J., & Quirk, J. P. (1961).
             const Evaluation& base =
                 Toolbox::max(0.0001,
                              intQuants.porosity()
                              * intQuants.fluidState().saturation(phaseIdx));
             tortuosity_[phaseIdx] =
                 1.0 / (intQuants.porosity() * intQuants.porosity())
-                * Toolbox::pow(base, 7.0/3.0);
+                * Toolbox::pow(base, 10.0/3.0);
 
             for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
                 diffusionCoefficient_[phaseIdx][compIdx] =
@@ -298,9 +292,9 @@ class DiffusionExtensiveQuantities;
 template <class TypeTag>
 class DiffusionExtensiveQuantities<TypeTag, /*enableDiffusion=*/false>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
 
 protected:
     /*!
@@ -354,17 +348,17 @@ public:
 template <class TypeTag>
 class DiffusionExtensiveQuantities<TypeTag, /*enableDiffusion=*/true>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
 
     enum { dimWorld = GridView::dimensionworld };
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
-    enum { numComponents = GET_PROP_VALUE(TypeTag, NumComponents) };
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
+    enum { numComponents = getPropValue<TypeTag, Properties::NumComponents>() };
 
-    typedef Dune::FieldVector<Scalar, dimWorld> DimVector;
-    typedef Dune::FieldVector<Evaluation, dimWorld> DimEvalVector;
+    using DimVector = Dune::FieldVector<Scalar, dimWorld>;
+    using DimEvalVector = Dune::FieldVector<Evaluation, dimWorld>;
 
 protected:
     /*!

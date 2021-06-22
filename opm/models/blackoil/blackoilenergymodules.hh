@@ -36,7 +36,6 @@
 
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/material/common/Unused.hpp>
-#include <opm/material/common/Exceptions.hpp>
 
 #include <dune/common/fvector.hh>
 
@@ -48,27 +47,27 @@ namespace Opm {
  * \brief Contains the high level supplements required to extend the black oil
  *        model by energy.
  */
-template <class TypeTag, bool enableEnergyV = GET_PROP_VALUE(TypeTag, EnableEnergy)>
+template <class TypeTag, bool enableEnergyV = getPropValue<TypeTag, Properties::EnableEnergy>()>
 class BlackOilEnergyModule
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) ExtensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, Model) Model;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, EqVector) EqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, RateVector) RateVector;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
+    using ExtensiveQuantities = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
+    using Model = GetPropType<TypeTag, Properties::Model>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using EqVector = GetPropType<TypeTag, Properties::EqVector>;
+    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
 
     static constexpr unsigned temperatureIdx = Indices::temperatureIdx;
     static constexpr unsigned contiEnergyEqIdx = Indices::contiEnergyEqIdx;
 
     static constexpr unsigned enableEnergy = enableEnergyV;
-    static constexpr unsigned numEq = GET_PROP_VALUE(TypeTag, NumEq);
+    static constexpr unsigned numEq = getPropValue<TypeTag, Properties::NumEq>();
     static constexpr unsigned numPhases = FluidSystem::numPhases;
 
 public:
@@ -81,7 +80,7 @@ public:
             // energys have been disabled at compile time
             return;
 
-        Opm::VtkBlackOilEnergyModule<TypeTag>::registerParameters();
+        VtkBlackOilEnergyModule<TypeTag>::registerParameters();
     }
 
     /*!
@@ -94,7 +93,7 @@ public:
             // energys have been disabled at compile time
             return;
 
-        model.addOutputModule(new Opm::VtkBlackOilEnergyModule<TypeTag>(simulator));
+        model.addOutputModule(new VtkBlackOilEnergyModule<TypeTag>(simulator));
     }
 
     static bool primaryVarApplies(unsigned pvIdx)
@@ -151,7 +150,7 @@ public:
         if (!enableEnergy)
             return;
 
-        const auto& poro = Opm::decay<LhsEval>(intQuants.porosity());
+        const auto& poro = decay<LhsEval>(intQuants.porosity());
 
         // accumulate the internal energy of the fluids
         const auto& fs = intQuants.fluidState();
@@ -159,18 +158,18 @@ public:
             if (!FluidSystem::phaseIsActive(phaseIdx))
                 continue;
 
-            const auto& u = Opm::decay<LhsEval>(fs.internalEnergy(phaseIdx));
-            const auto& S = Opm::decay<LhsEval>(fs.saturation(phaseIdx));
-            const auto& rho = Opm::decay<LhsEval>(fs.density(phaseIdx));
+            const auto& u = decay<LhsEval>(fs.internalEnergy(phaseIdx));
+            const auto& S = decay<LhsEval>(fs.saturation(phaseIdx));
+            const auto& rho = decay<LhsEval>(fs.density(phaseIdx));
 
             storage[contiEnergyEqIdx] += poro*S*u*rho;
         }
 
         // add the internal energy of the rock
         Scalar refPoro = intQuants.referencePorosity();
-        const auto& uRock = Opm::decay<LhsEval>(intQuants.rockInternalEnergy());
+        const auto& uRock = decay<LhsEval>(intQuants.rockInternalEnergy());
         storage[contiEnergyEqIdx] += (1.0 - refPoro)*uRock;
-        storage[contiEnergyEqIdx] *= GET_PROP_VALUE(TypeTag, BlackOilEnergyScalingFactor);
+        storage[contiEnergyEqIdx] *= getPropValue<TypeTag, Properties::BlackOilEnergyScalingFactor>();
     }
 
     static void computeFlux(RateVector& flux,
@@ -198,7 +197,7 @@ public:
 
         // diffusive energy flux
         flux[contiEnergyEqIdx] += extQuants.energyFlux();
-        flux[contiEnergyEqIdx] *= GET_PROP_VALUE(TypeTag, BlackOilEnergyScalingFactor);
+        flux[contiEnergyEqIdx] *= getPropValue<TypeTag, Properties::BlackOilEnergyScalingFactor>();
     }
 
     template <class UpstreamEval>
@@ -215,8 +214,8 @@ public:
 
         const auto& volFlux = extQuants.volumeFlux(phaseIdx);
         flux[contiEnergyEqIdx] +=
-            Opm::decay<UpstreamEval>(fs.enthalpy(phaseIdx))
-            * Opm::decay<UpstreamEval>(fs.density(phaseIdx))
+            decay<UpstreamEval>(fs.enthalpy(phaseIdx))
+            * decay<UpstreamEval>(fs.density(phaseIdx))
             * volFlux;
     }
 
@@ -286,7 +285,7 @@ public:
     static Scalar computeResidualError(const EqVector& resid)
     {
         // do not weight the residual of energy when it comes to convergence
-        return std::abs(Opm::scalarValue(resid[contiEnergyEqIdx]));
+        return std::abs(scalarValue(resid[contiEnergyEqIdx]));
     }
 
     template <class DofEntity>
@@ -324,23 +323,23 @@ public:
  * \brief Provides the volumetric quantities required for the equations needed by the
  *        energys extension of the black-oil model.
  */
-template <class TypeTag, bool enableEnergyV = GET_PROP_VALUE(TypeTag, EnableEnergy)>
+template <class TypeTag, bool enableEnergyV = getPropValue<TypeTag, Properties::EnableEnergy>()>
 class BlackOilEnergyIntensiveQuantities
 {
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) Implementation;
+    using Implementation = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, SolidEnergyLaw) SolidEnergyLaw;
-    typedef typename GET_PROP_TYPE(TypeTag, ThermalConductionLaw) ThermalConductionLaw;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using SolidEnergyLaw = GetPropType<TypeTag, Properties::SolidEnergyLaw>;
+    using ThermalConductionLaw = GetPropType<TypeTag, Properties::ThermalConductionLaw>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
 
-    typedef BlackOilEnergyModule<TypeTag> EnergyModule;
+    using EnergyModule = BlackOilEnergyModule<TypeTag>;
 
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
     static constexpr int temperatureIdx = Indices::temperatureIdx;
     static constexpr int waterPhaseIdx = FluidSystem::waterPhaseIdx;
 
@@ -358,7 +357,7 @@ public:
         const auto& priVars = elemCtx.primaryVars(dofIdx, timeIdx);
 
         // set temperature
-        fs.setTemperature(priVars.makeEvaluation(temperatureIdx, timeIdx));
+        fs.setTemperature(priVars.makeEvaluation(temperatureIdx, timeIdx, elemCtx.linearizationType()));
     }
 
     /*!
@@ -407,14 +406,14 @@ protected:
 template <class TypeTag>
 class BlackOilEnergyIntensiveQuantities<TypeTag, false>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) Implementation;
+    using Implementation = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
 
-    static constexpr bool enableTemperature = GET_PROP_VALUE(TypeTag, EnableTemperature);
+    static constexpr bool enableTemperature = getPropValue<TypeTag, Properties::EnableTemperature>();
 
 public:
     void updateTemperature_(const ElementContext& elemCtx,
@@ -457,26 +456,26 @@ protected:
  * \brief Provides the energy specific extensive quantities to the generic black-oil
  *        module's extensive quantities.
  */
-template <class TypeTag, bool enableEnergyV = GET_PROP_VALUE(TypeTag, EnableEnergy)>
+template <class TypeTag, bool enableEnergyV = getPropValue<TypeTag, Properties::EnableEnergy>()>
 class BlackOilEnergyExtensiveQuantities
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) Implementation;
+    using Implementation = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) ExtensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
+    using ExtensiveQuantities = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
+    using Toolbox = MathToolbox<Evaluation>;
 
-    typedef BlackOilEnergyModule<TypeTag> EnergyModule;
+    using EnergyModule = BlackOilEnergyModule<TypeTag>;
 
     static const int dimWorld = GridView::dimensionworld;
-    typedef Dune::FieldVector<Scalar, dimWorld> DimVector;
-    typedef Dune::FieldVector<Evaluation, dimWorld> DimEvalVector;
+    using DimVector = Dune::FieldVector<Scalar, dimWorld>;
+    using DimEvalVector = Dune::FieldVector<Evaluation, dimWorld>;
 
 public:
     void updateEnergy(const ElementContext& elemCtx,
@@ -497,28 +496,28 @@ public:
         Evaluation deltaT;
         if (elemCtx.focusDofIndex() == inIdx)
             deltaT =
-                Opm::decay<Scalar>(exFs.temperature(/*phaseIdx=*/0))
+                decay<Scalar>(exFs.temperature(/*phaseIdx=*/0))
                 - inFs.temperature(/*phaseIdx=*/0);
         else if (elemCtx.focusDofIndex() == exIdx)
             deltaT =
                 exFs.temperature(/*phaseIdx=*/0)
-                - Opm::decay<Scalar>(inFs.temperature(/*phaseIdx=*/0));
+                - decay<Scalar>(inFs.temperature(/*phaseIdx=*/0));
         else
             deltaT =
-                Opm::decay<Scalar>(exFs.temperature(/*phaseIdx=*/0))
-                - Opm::decay<Scalar>(inFs.temperature(/*phaseIdx=*/0));
+                decay<Scalar>(exFs.temperature(/*phaseIdx=*/0))
+                - decay<Scalar>(inFs.temperature(/*phaseIdx=*/0));
 
         Evaluation inLambda;
         if (elemCtx.focusDofIndex() == inIdx)
             inLambda = inIq.totalThermalConductivity();
         else
-            inLambda = Opm::decay<Scalar>(inIq.totalThermalConductivity());
+            inLambda = decay<Scalar>(inIq.totalThermalConductivity());
 
         Evaluation exLambda;
         if (elemCtx.focusDofIndex() == exIdx)
             exLambda = exIq.totalThermalConductivity();
         else
-            exLambda = Opm::decay<Scalar>(exIq.totalThermalConductivity());
+            exLambda = decay<Scalar>(exIq.totalThermalConductivity());
 
         auto distVec = elemCtx.pos(exIdx, timeIdx);
         distVec -= elemCtx.pos(inIdx, timeIdx);
@@ -529,9 +528,10 @@ public:
             // transmissibility this cannot be done as a preprocessing step because the
             // average thermal thermal conductivity is analogous to the permeability but
             // depends on the solution.
-            Scalar alpha = elemCtx.problem().thermalHalfTransmissibility(elemCtx, scvfIdx, timeIdx);
-            const Evaluation& inH = inLambda*alpha;
-            const Evaluation& exH = exLambda*alpha;
+            Scalar inAlpha = elemCtx.problem().thermalHalfTransmissibilityIn(elemCtx, scvfIdx, timeIdx);
+            Scalar outAlpha = elemCtx.problem().thermalHalfTransmissibilityOut(elemCtx, scvfIdx, timeIdx);
+            const Evaluation& inH = inLambda*inAlpha;
+            const Evaluation& exH = exLambda*outAlpha;
             H = 1.0/(1.0/inH + 1.0/exH);
         }
         else
@@ -560,14 +560,14 @@ public:
                 - inFs.temperature(/*phaseIdx=*/0);
         else
             deltaT =
-                Opm::decay<Scalar>(boundaryFs.temperature(/*phaseIdx=*/0))
-                - Opm::decay<Scalar>(inFs.temperature(/*phaseIdx=*/0));
+                decay<Scalar>(boundaryFs.temperature(/*phaseIdx=*/0))
+                - decay<Scalar>(inFs.temperature(/*phaseIdx=*/0));
 
         Evaluation lambda;
         if (ctx.focusDofIndex() == inIdx)
             lambda = inIq.totalThermalConductivity();
         else
-            lambda = Opm::decay<Scalar>(inIq.totalThermalConductivity());
+            lambda = decay<Scalar>(inIq.totalThermalConductivity());
 
         auto distVec = scvf.integrationPos();
         distVec -= ctx.pos(inIdx, timeIdx);
@@ -597,8 +597,8 @@ private:
 template <class TypeTag>
 class BlackOilEnergyExtensiveQuantities<TypeTag, false>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
 
 public:
     void updateEnergy(const ElementContext& elemCtx OPM_UNUSED,

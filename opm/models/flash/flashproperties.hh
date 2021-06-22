@@ -35,25 +35,15 @@
 #include <opm/models/io/vtkenergymodule.hh>
 #include <opm/models/io/vtkdiffusionmodule.hh>
 
-BEGIN_PROPERTIES
+namespace Opm::Properties {
 
-//! Provides the thermodynamic relations
-NEW_PROP_TAG(FluidSystem);
 //! The type of the flash constraint solver
-NEW_PROP_TAG(FlashSolver);
+template<class TypeTag, class MyTypeTag>
+struct FlashSolver { using type = UndefinedProperty; };
 //! The maximum accepted error of the flash solver
-NEW_PROP_TAG(FlashTolerance);
+template<class TypeTag, class MyTypeTag>
+struct FlashTolerance { using type = UndefinedProperty; };
 
-//! The thermal conduction law which ought to be used
-NEW_PROP_TAG(ThermalConductionLaw);
-//! The parameters of the thermal conduction law
-NEW_PROP_TAG(ThermalConductionLawParams);
-
-//! Specifies whether energy should be considered as a conservation quantity or not
-NEW_PROP_TAG(EnableEnergy);
-//! Enable diffusive fluxes?
-NEW_PROP_TAG(EnableDiffusion);
-
-END_PROPERTIES
+} // namespace Opm::Properties
 
 #endif

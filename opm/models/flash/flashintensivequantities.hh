@@ -50,48 +50,44 @@ namespace Opm {
  */
 template <class TypeTag>
 class FlashIntensiveQuantities
-    : public GET_PROP_TYPE(TypeTag, DiscIntensiveQuantities)
-    , public DiffusionIntensiveQuantities<TypeTag, GET_PROP_VALUE(TypeTag, EnableDiffusion) >
-    , public EnergyIntensiveQuantities<TypeTag, GET_PROP_VALUE(TypeTag, EnableEnergy) >
-    , public GET_PROP_TYPE(TypeTag, FluxModule)::FluxIntensiveQuantities
+    : public GetPropType<TypeTag, Properties::DiscIntensiveQuantities>
+    , public DiffusionIntensiveQuantities<TypeTag, getPropValue<TypeTag, Properties::EnableDiffusion>() >
+    , public EnergyIntensiveQuantities<TypeTag, getPropValue<TypeTag, Properties::EnableEnergy>() >
+    , public GetPropType<TypeTag, Properties::FluxModule>::FluxIntensiveQuantities
 {
-    typedef typename GET_PROP_TYPE(TypeTag, DiscIntensiveQuantities) ParentType;
+    using ParentType = GetPropType<TypeTag, Properties::DiscIntensiveQuantities>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, MaterialLaw) MaterialLaw;
-    typedef typename GET_PROP_TYPE(TypeTag, MaterialLawParams) MaterialLawParams;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
-    typedef typename GET_PROP_TYPE(TypeTag, FluxModule) FluxModule;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
-    typedef typename GET_PROP_TYPE(TypeTag, ThreadManager) ThreadManager;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
+    using MaterialLawParams = GetPropType<TypeTag, Properties::MaterialLawParams>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
+    using FluxModule = GetPropType<TypeTag, Properties::FluxModule>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
+    using ThreadManager = GetPropType<TypeTag, Properties::ThreadManager>;
 
     // primary variable indices
-    enum { z0Idx = Indices::z0Idx };
-    enum { pressure0Idx = Indices::pressure0Idx };
-    enum { saturation0Idx = Indices::saturation0Idx };
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
-    enum { numComponents = GET_PROP_VALUE(TypeTag, NumComponents) };
-    enum { enableDiffusion = GET_PROP_VALUE(TypeTag, EnableDiffusion) };
-    enum { enableEnergy = GET_PROP_VALUE(TypeTag, EnableEnergy) };
+    enum { cTot0Idx = Indices::cTot0Idx };
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
+    enum { numComponents = getPropValue<TypeTag, Properties::NumComponents>() };
+    enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
+    enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
     enum { dimWorld = GridView::dimensionworld };
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, FlashSolver) FlashSolver;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using FlashSolver = GetPropType<TypeTag, Properties::FlashSolver>;
 
-    enum { waterPhaseIdx = FluidSystem::waterPhaseIdx};
+    using ComponentVector = Dune::FieldVector<Evaluation, numComponents>;
+    using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
 
-    typedef Dune::FieldVector<Evaluation, numComponents> ComponentVector;
-    typedef Dune::FieldMatrix<Scalar, dimWorld, dimWorld> DimMatrix;
-
-    typedef typename FluxModule::FluxIntensiveQuantities FluxIntensiveQuantities;
-    typedef Opm::DiffusionIntensiveQuantities<TypeTag, enableDiffusion> DiffusionIntensiveQuantities;
-    typedef Opm::EnergyIntensiveQuantities<TypeTag, enableEnergy> EnergyIntensiveQuantities;
+    using FluxIntensiveQuantities = typename FluxModule::FluxIntensiveQuantities;
+    using DiffusionIntensiveQuantities = Opm::DiffusionIntensiveQuantities<TypeTag, enableDiffusion>;
+    using EnergyIntensiveQuantities = Opm::EnergyIntensiveQuantities<TypeTag, enableEnergy>;
 
 public:
     //! The type of the object returned by the fluidState() method
-    typedef Opm::CompositionalFluidState<Evaluation, FluidSystem, enableEnergy> FluidState;
+    using FluidState = Opm::CompositionalFluidState<Evaluation, FluidSystem, enableEnergy>;
 
     FlashIntensiveQuantities()
     { }
@@ -112,14 +108,10 @@ public:
         const auto& problem = elemCtx.problem();
         Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
 
-        // extract the global mole fractions
-        ComponentVector z;
-        Evaluation lastZ = 1.0;
-        for (unsigned compIdx = 0; compIdx < numComponents - 2; ++compIdx) {
-            z[compIdx] = priVars.makeEvaluation(z0Idx + compIdx, timeIdx);
-            lastZ -= z[compIdx];
-        }
-        z[numComponents - 2] = lastZ;
+        // extract the total molar densities of the components
+        ComponentVector cTotal;
+        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx)
+            cTotal[compIdx] = priVars.makeEvaluation(cTot0Idx + compIdx, timeIdx);
 
         Evaluation p = priVars.makeEvaluation(pressure0Idx, timeIdx);
         for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
@@ -127,7 +119,6 @@ public:
         Evaluation swat = priVars.makeEvaluation(saturation0Idx, timeIdx);
         fluidState_.setSaturation(waterPhaseIdx, swat);
 
-#if 0
         const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
         if (hint) {
             // use the same fluid state as the one of the hint, but
@@ -139,10 +130,16 @@ public:
         }
         else
             FlashSolver::guessInitial(fluidState_, cTotal);
-#endif
 
         // compute the phase compositions, densities and pressures
-        FlashSolver::solve(fluidState_, z);
+        typename FluidSystem::template ParameterCache<Evaluation> paramCache;
+        const MaterialLawParams& materialParams =
+            problem.materialLawParams(elemCtx, dofIdx, timeIdx);
+        FlashSolver::template solve<MaterialLaw>(fluidState_,
+                                                 materialParams,
+                                                 paramCache,
+                                                 cTotal,
+                                                 flashTolerance);
 
         // calculate relative permeabilities
         const MaterialLawParams& materialParams = problem.materialLawParams(elemCtx, dofIdx, timeIdx);

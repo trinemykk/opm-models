@@ -33,6 +33,7 @@
 #include <opm/models/utils/parametersystem.hh>
 #include <opm/models/utils/timer.hh>
 #include <opm/models/utils/timerguard.hh>
+#include <opm/simulators/linalg/linalgproperties.hh>
 
 #include <opm/material/densead/Math.hpp>
 #include <opm/material/common/Unused.hpp>
@@ -59,67 +60,41 @@ namespace Opm {
 // forward declaration of property tags
 } // namespace Opm
 
-BEGIN_PROPERTIES
+namespace Opm::Properties {
+
+namespace TTag {
 
 //! The type tag on which the default properties for the Newton method
 //! are attached
-NEW_TYPE_TAG(NewtonMethod);
+struct NewtonMethod {};
 
-//! The simulation management class of the simulation
-NEW_PROP_TAG(Simulator);
-
-//! The physical model which we would like to solve
-NEW_PROP_TAG(Problem);
-
-//! The model describing the PDEs for the conservation quantities
-NEW_PROP_TAG(Model);
-
-//! The type of scalar values
-NEW_PROP_TAG(Scalar);
+} // namespace TTag
 
 //! Specifies the type of the actual Newton method
-NEW_PROP_TAG(NewtonMethod);
-
-//! Specifies the type of a solution
-NEW_PROP_TAG(SolutionVector);
-
-//! Specifies the type of a solution for a single degee of freedom
-NEW_PROP_TAG(PrimaryVariables);
-
-//! Specifies whether the problem to be simulated exhibits contraint degrees of freedom
-NEW_PROP_TAG(EnableConstraints);
-
-//! Specifies the type of objects which specify constraints for a single degee of freedom
-NEW_PROP_TAG(Constraints);
-
-//! Vector containing a quantity of for equation on the whole grid
-NEW_PROP_TAG(GlobalEqVector);
-
-//! Vector containing a quantity of for equation for a single degee of freedom
-NEW_PROP_TAG(EqVector);
+template<class TypeTag, class MyTypeTag>
+struct NewtonMethod { using type = UndefinedProperty; };
 
 //! The class which linearizes the non-linear system of equations
-NEW_PROP_TAG(Linearizer);
-
-//! Specifies the type of a global Jacobian matrix
-NEW_PROP_TAG(SparseMatrixAdapter);
-
-//! Specifies the type of the linear solver to be used
-NEW_PROP_TAG(LinearSolverBackend);
+template<class TypeTag, class MyTypeTag>
+struct Linearizer { using type = UndefinedProperty; };
 
 //! Specifies whether the Newton method should print messages or not
-NEW_PROP_TAG(NewtonVerbose);
+template<class TypeTag, class MyTypeTag>
+struct NewtonVerbose { using type = UndefinedProperty; };
 
 //! Specifies the type of the class which writes out the Newton convergence
-NEW_PROP_TAG(NewtonConvergenceWriter);
+template<class TypeTag, class MyTypeTag>
+struct NewtonConvergenceWriter { using type = UndefinedProperty; };
 
 //! Specifies whether the convergence rate and the global residual
 //! gets written out to disk for every Newton iteration
-NEW_PROP_TAG(NewtonWriteConvergence);
+template<class TypeTag, class MyTypeTag>
+struct NewtonWriteConvergence { using type = UndefinedProperty; };
 
 //! Specifies whether the convergence rate and the global residual
 //! gets written out to disk for every Newton iteration
-NEW_PROP_TAG(ConvergenceWriter);
+template<class TypeTag, class MyTypeTag>
+struct ConvergenceWriter { using type = UndefinedProperty; };
 
 /*!
  * \brief The value for the error below which convergence is declared
@@ -127,11 +102,13 @@ NEW_PROP_TAG(ConvergenceWriter);
  * This value can (and for the porous media models will) be changed to account for grid
  * scaling and other effects.
  */
-NEW_PROP_TAG(NewtonTolerance);
+template<class TypeTag, class MyTypeTag>
+struct NewtonTolerance { using type = UndefinedProperty; };
 
 //! The maximum error which may occur in a simulation before the
 //! Newton method for the time step is aborted
-NEW_PROP_TAG(NewtonMaxError);
+template<class TypeTag, class MyTypeTag>
+struct NewtonMaxError { using type = UndefinedProperty; };
 
 /*!
  * \brief The number of iterations at which the Newton method
@@ -141,24 +118,42 @@ NEW_PROP_TAG(NewtonMaxError);
  * is to scale the last time-step size by the deviation of the
  * number of iterations used from the target steps.
  */
-NEW_PROP_TAG(NewtonTargetIterations);
+template<class TypeTag, class MyTypeTag>
+struct NewtonTargetIterations { using type = UndefinedProperty; };
 
 //! Number of maximum iterations for the Newton method.
-NEW_PROP_TAG(NewtonMaxIterations);
+template<class TypeTag, class MyTypeTag>
+struct NewtonMaxIterations { using type = UndefinedProperty; };
 
 // set default values for the properties
-SET_TYPE_PROP(NewtonMethod, NewtonMethod, Opm::NewtonMethod<TypeTag>);
-SET_TYPE_PROP(NewtonMethod, NewtonConvergenceWriter, Opm::NullConvergenceWriter<TypeTag>);
-SET_BOOL_PROP(NewtonMethod, NewtonWriteConvergence, false);
-SET_BOOL_PROP(NewtonMethod, NewtonVerbose, true);
-SET_SCALAR_PROP(NewtonMethod, NewtonTolerance, 1e-8);
+template<class TypeTag>
+struct NewtonMethod<TypeTag, TTag::NewtonMethod> { using type = ::Opm::NewtonMethod<TypeTag>; };
+template<class TypeTag>
+struct NewtonConvergenceWriter<TypeTag, TTag::NewtonMethod> { using type = NullConvergenceWriter<TypeTag>; };
+template<class TypeTag>
+struct NewtonWriteConvergence<TypeTag, TTag::NewtonMethod> { static constexpr bool value = false; };
+template<class TypeTag>
+struct NewtonVerbose<TypeTag, TTag::NewtonMethod> { static constexpr bool value = true; };
+template<class TypeTag>
+struct NewtonTolerance<TypeTag, TTag::NewtonMethod>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 1e-8;
+};
 // set the abortion tolerace to some very large value. if not
 // overwritten at run-time this basically disables abortions
-SET_SCALAR_PROP(NewtonMethod, NewtonMaxError, 1e100);
-SET_INT_PROP(NewtonMethod, NewtonTargetIterations, 10);
-SET_INT_PROP(NewtonMethod, NewtonMaxIterations, 18);
+template<class TypeTag>
+struct NewtonMaxError<TypeTag, TTag::NewtonMethod>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 1e100;
+};
+template<class TypeTag>
+struct NewtonTargetIterations<TypeTag, TTag::NewtonMethod> { static constexpr int value = 10; };
+template<class TypeTag>
+struct NewtonMaxIterations<TypeTag, TTag::NewtonMethod> { static constexpr int value = 18; };
 
-END_PROPERTIES
+} // namespace Opm::Properties
 
 namespace Opm {
 /*!
@@ -171,23 +166,23 @@ namespace Opm {
 template <class TypeTag>
 class NewtonMethod
 {
-    typedef typename GET_PROP_TYPE(TypeTag, NewtonMethod) Implementation;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, Problem) Problem;
-    typedef typename GET_PROP_TYPE(TypeTag, Model) Model;
+    using Implementation = GetPropType<TypeTag, Properties::NewtonMethod>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using Problem = GetPropType<TypeTag, Properties::Problem>;
+    using Model = GetPropType<TypeTag, Properties::Model>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, SolutionVector) SolutionVector;
-    typedef typename GET_PROP_TYPE(TypeTag, GlobalEqVector) GlobalEqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, Constraints) Constraints;
-    typedef typename GET_PROP_TYPE(TypeTag, EqVector) EqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, Linearizer) Linearizer;
-    typedef typename GET_PROP_TYPE(TypeTag, LinearSolverBackend) LinearSolverBackend;
-    typedef typename GET_PROP_TYPE(TypeTag, NewtonConvergenceWriter) ConvergenceWriter;
+    using SolutionVector = GetPropType<TypeTag, Properties::SolutionVector>;
+    using GlobalEqVector = GetPropType<TypeTag, Properties::GlobalEqVector>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using Constraints = GetPropType<TypeTag, Properties::Constraints>;
+    using EqVector = GetPropType<TypeTag, Properties::EqVector>;
+    using Linearizer = GetPropType<TypeTag, Properties::Linearizer>;
+    using LinearSolverBackend = GetPropType<TypeTag, Properties::LinearSolverBackend>;
+    using ConvergenceWriter = GetPropType<TypeTag, Properties::NewtonConvergenceWriter>;
 
-    typedef typename Dune::MPIHelper::MPICommunicator Communicator;
-    typedef Dune::CollectiveCommunication<Communicator> CollectiveCommunication;
+    using Communicator = typename Dune::MPIHelper::MPICommunicator;
+    using CollectiveCommunication = Dune::CollectiveCommunication<Communicator>;
 
 public:
     NewtonMethod(Simulator& simulator)
@@ -332,7 +327,7 @@ public:
 
         Linearizer& linearizer = model().linearizer();
 
-        Opm::TimerGuard prePostProcessTimerGuard(prePostProcessTimer_);
+        TimerGuard prePostProcessTimerGuard(prePostProcessTimer_);
 
         // tell the implementation that we begin solving
         prePostProcessTimer_.start();
@@ -340,10 +335,10 @@ public:
         prePostProcessTimer_.stop();
 
         try {
-            Opm::TimerGuard innerPrePostProcessTimerGuard(prePostProcessTimer_);
-            Opm::TimerGuard linearizeTimerGuard(linearizeTimer_);
-            Opm::TimerGuard updateTimerGuard(updateTimer_);
-            Opm::TimerGuard solveTimerGuard(solveTimer_);
+            TimerGuard innerPrePostProcessTimerGuard(prePostProcessTimer_);
+            TimerGuard linearizeTimerGuard(linearizeTimer_);
+            TimerGuard updateTimerGuard(updateTimer_);
+            TimerGuard solveTimerGuard(solveTimer_);
 
             // execute the method as long as the implementation thinks
             // that we should do another iteration
@@ -465,7 +460,7 @@ public:
 
             return false;
         }
-        catch (const Opm::NumericalIssue& e)
+        catch (const NumericalIssue& e)
         {
             if (asImp_().verbose_())
                 std::cout << "Newton method caught exception: \""
@@ -574,16 +569,16 @@ public:
     const LinearSolverBackend& linearSolver() const
     { return linearSolver_; }
 
-    const Opm::Timer& prePostProcessTimer() const
+    const Timer& prePostProcessTimer() const
     { return prePostProcessTimer_; }
 
-    const Opm::Timer& linearizeTimer() const
+    const Timer& linearizeTimer() const
     { return linearizeTimer_; }
 
-    const Opm::Timer& solveTimer() const
+    const Timer& solveTimer() const
     { return solveTimer_; }
 
-    const Opm::Timer& updateTimer() const
+    const Timer& updateTimer() const
     { return updateTimer_; }
 
 protected:
@@ -632,7 +627,7 @@ protected:
         succeeded = comm.min(succeeded);
 
         if (!succeeded)
-            throw Opm::NumericalIssue("pre processing of the problem failed");
+            throw NumericalIssue("pre processing of the problem failed");
 
         lastError_ = error_;
     }
@@ -675,7 +670,7 @@ protected:
 
             const auto& r = currentResidual[dofIdx];
             for (unsigned eqIdx = 0; eqIdx < r.size(); ++eqIdx)
-                error_ = Opm::max(std::abs(r[eqIdx] * model().eqWeight(dofIdx, eqIdx)), error_);
+                error_ = max(std::abs(r[eqIdx] * model().eqWeight(dofIdx, eqIdx)), error_);
         }
 
         // take the other processes into account
@@ -684,9 +679,9 @@ protected:
         // make sure that the error never grows beyond the maximum
         // allowed one
         if (error_ > newtonMaxError)
-            throw Opm::NumericalIssue("Newton: Error "+std::to_string(double(error_))
-                                        +" is larger than maximum allowed error of "
-                                        +std::to_string(double(newtonMaxError)));
+            throw NumericalIssue("Newton: Error "+std::to_string(double(error_))
+                                  +" is larger than maximum allowed error of "
+                                  +std::to_string(double(newtonMaxError)));
     }
 
     /*!
@@ -727,7 +722,7 @@ protected:
             succeeded = comm.min(succeeded);
 
             if (!succeeded)
-                throw Opm::NumericalIssue("post processing of an auxilary equation failed");
+                throw NumericalIssue("post processing of an auxilary equation failed");
         }
     }
 
@@ -758,7 +753,7 @@ protected:
 
         // make sure not to swallow non-finite values at this point
         if (!std::isfinite(solutionUpdate.one_norm()))
-            throw Opm::NumericalIssue("Non-finite update!");
+            throw NumericalIssue("Non-finite update!");
 
         size_t numGridDof = model().numGridDof();
         for (unsigned dofIdx = 0; dofIdx < numGridDof; ++dofIdx) {
@@ -856,7 +851,7 @@ protected:
         succeeded = comm.min(succeeded);
 
         if (!succeeded)
-            throw Opm::NumericalIssue("post processing of the problem failed");
+            throw NumericalIssue("post processing of the problem failed");
 
         if (asImp_().verbose_()) {
             std::cout << "Newton iteration " << numIterations_ << ""
@@ -922,14 +917,14 @@ protected:
     { return EWOMS_GET_PARAM(TypeTag, int, NewtonMaxIterations); }
 
     static bool enableConstraints_()
-    { return GET_PROP_VALUE(TypeTag, EnableConstraints); }
+    { return getPropValue<TypeTag, Properties::EnableConstraints>(); }
 
     Simulator& simulator_;
 
-    Opm::Timer prePostProcessTimer_;
-    Opm::Timer linearizeTimer_;
-    Opm::Timer solveTimer_;
-    Opm::Timer updateTimer_;
+    Timer prePostProcessTimer_;
+    Timer linearizeTimer_;
+    Timer solveTimer_;
+    Timer updateTimer_;
 
     std::ostringstream endIterMsgStream_;
 
