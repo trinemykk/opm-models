@@ -49,140 +49,281 @@ template <class TypeTag>
 class ChiwomsProblem;
 } // namespace Opm
 
-BEGIN_PROPERTIES
+namespace Opm::Properties {
 
-NEW_TYPE_TAG(ChiwomsProblem);
+// Create new type tags
+namespace TTag {
+struct ChiwomsProblem ;
+} // end namespace TTag
 
-SET_TYPE_PROP(ChiwomsProblem, Grid, Dune::YaspGrid<2>);
-//SET_TYPE_PROP(ChiwomsProblem, Grid,
-//              Dune::ALUGrid</*dim=*/2,
-//                            /*dimWorld=*/2,
-//                            Dune::cube,
-//                            Dune::nonconforming>);
+
+template<class TypeTag>
+struct Grid<TypeTag, TTag::ChiwomsProblem>
+{ using type = Dune::YaspGrid<2></*dim=*/2 };
+
+//SET_TYPE_PROP(ChiwomsProblem, Grid, Dune::YaspGrid<2>);
 
 // declare the CO2 finger problem specific property tags
-NEW_PROP_TAG(TopResvPres);
-NEW_PROP_TAG(Temperature);
-NEW_PROP_TAG(SimulationName);
-NEW_PROP_TAG(EpisodeLength);
-NEW_PROP_TAG(WaveLength);
+template<class TypeTag, class MyTypeTag>
+struct TopResvPres{ using type = UndefinedProperty; };
 
-NEW_PROP_TAG(ConnateWater);
-NEW_PROP_TAG(ResidualOil);
-NEW_PROP_TAG(EntryPressure);
-NEW_PROP_TAG(PoreSizeDist);
+template<class TypeTag, class MyTypeTag>
+struct Temperature{ using type = UndefinedProperty; };
+
+template<class TypeTag, class MyTypeTag>
+struct SimulationName{ using type = UndefinedProperty; };
+
+template<class TypeTag, class MyTypeTag>
+struct EpisodeLength{ using type = UndefinedProperty; };
+
+template<class TypeTag, class MyTypeTag>
+struct WaveLength{ using type = UndefinedProperty; };
+
+template<class TypeTag, class MyTypeTag>
+struct ConnateWater{ using type = UndefinedProperty; };
+
+template<class TypeTag, class MyTypeTag>
+struct ResidualOil{ using type = UndefinedProperty; };
+
+template<class TypeTag, class MyTypeTag>
+struct EntryPressure{ using type = UndefinedProperty; };
+
+template<class TypeTag, class MyTypeTag>
+struct PoreSizeDist{ using type = UndefinedProperty; };
 
 
 // Set the problem property
-SET_TYPE_PROP(ChiwomsProblem, Problem,
-              Opm::ChiwomsProblem<TypeTag>);
+template<class TypeTag>
+struct Problem<TypeTag, TTag::ChiwomsProblem> { using type = Opm::ChiwomsProblem<TypeTag>; };
 
-SET_PROP(ChiwomsProblem, FlashSolver)
+template<class TypeTag>
+struct FlashSolver<TypeTag, TTag::ChiwomsProblem>
+template<class TypeTag>
+struct FlashSolver<TypeTag, TTag::ChiwomsProblem>
 {
 private:
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
 
 public:
-    typedef Opm::ChiFlash<Scalar, Evaluation, FluidSystem> type;
+    using type = Opm::ChiFlash<Scalar, Evaluation, FluidSystem >;
 };
 
 // Set fluid configuration
-SET_PROP(ChiwomsProblem, FluidSystem)
+template<class TypeTag>
+struct FluidSystem<TypeTag, TTag::ChiwomsProblem>
 {
 private:
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
 
 public:
-    typedef Opm::ThreePhaseCo2OctaneBrineFluidSystem<Scalar> type;
+    using type = Opm::ThreePhaseCo2OctaneBrineFluidSystem<Scalar>;
 };
 
 // Set the material Law
-SET_PROP(ChiwomsProblem, MaterialLaw)
+template<class TypeTag>
+struct MaterialLaw<TypeTag, TTag::ChiwomsProblem>
 {
 private:
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
     enum {
         oilPhaseIdx = FluidSystem::oilPhaseIdx,
         waterPhaseIdx = FluidSystem::waterPhaseIdx,
         gasPhaseIdx = FluidSystem::gasPhaseIdx,
     };
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef Opm::ThreePhaseMaterialTraits<
-	    Scalar,
-        /*wettingPhaseIdx=*/ FluidSystem::waterPhaseIdx,
-        /*nonWettingPhaseIdx=*/ FluidSystem::oilPhaseIdx,
-        /*gasPhaseIdx=*/ FluidSystem::gasPhaseIdx> Traits;
-
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Traits = Opm::ThreePhaseMaterialTraits<Scalar,
+                                               /*wettingPhaseIdx=*/FluidSystem::waterPhaseIdx,
+                                               /*nonWettingPhaseIdx=*/FluidSystem::oilPhaseIdx>;
 
     // define the material law which is parameterized by effective
     // saturations
-    typedef Opm::NullMaterial<Traits> EffMaterialLaw;
+
+    using EffMaterialLaw = Opm::NullMaterial<Traits>;
 
 public:
-//    // define the material law parameterized by absolute saturations
-//    typedef Opm::EffToAbsLaw<EffMaterialLaw> type;
-    typedef EffMaterialLaw type;
+/ // define the material law parameterized by absolute saturations
+
+    using type = EffMaterialLaw;
 };
 
 // Write the Newton convergence behavior to disk?
-SET_BOOL_PROP(ChiwomsProblem, NewtonWriteConvergence, false);
+template<class TypeTag>
+struct NewtonWriteConvergence<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
 
 // Enable gravity
-SET_BOOL_PROP(ChiwomsProblem, EnableGravity, false);
+template<class TypeTag>
+struct EnableGravity<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
 
 // set the defaults for the problem specific properties
-SET_SCALAR_PROP(ChiwomsProblem, TopResvPres, 200 * 1.e5);
-SET_SCALAR_PROP(ChiwomsProblem, Temperature, 273.15 + TEMPERATURE);
-SET_STRING_PROP(ChiwomsProblem, SimulationName, "chiwoms");
+template<class TypeTag>
+struct TopResvPres<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 200 * 1.e5;
+};
+
+template<class TypeTag>
+struct Temperature<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 273.15 + TEMPERATURE;
+};
+
+
+template<class TypeTag>
+struct SimulationName<TypeTag, TTag::ChiwomsProblem>
+{ static constexpr auto value = "chiwoms"; };
+
 
 // The default for the end time of the simulation
-SET_SCALAR_PROP(ChiwomsProblem, EndTime, SIM_TIME * 24. * 60. * 60.);
+template<class TypeTag>
+struct EndTime<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value =  SIM_TIME * 24. * 60. * 60.;
+};
+
 
 // convergence control
-SET_SCALAR_PROP(ChiwomsProblem, InitialTimeStepSize, 30);
-SET_SCALAR_PROP(ChiwomsProblem, LinearSolverTolerance, 1e-3);
-SET_SCALAR_PROP(ChiwomsProblem, LinearSolverAbsTolerance, 0.);
-SET_SCALAR_PROP(ChiwomsProblem, NewtonTolerance, 1e-3);
-SET_SCALAR_PROP(ChiwomsProblem, MaxTimeStepSize, 60 * 60);
-SET_INT_PROP(ChiwomsProblem, NewtonMaxIterations, 10);
-SET_INT_PROP(ChiwomsProblem, NewtonTargetIterations, 6);
+template<class TypeTag>
+struct InitialTimeStepSize<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 30;
+};
+
+template<class TypeTag>
+struct LinearSolverTolerance<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 1e-3;
+};
+
+template<class TypeTag>
+struct LinearSolverAbsTolerance<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 0.;
+};
+template<class TypeTag>
+struct NewtonTolerance<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 1e-3;
+};
+template<class TypeTag>
+struct MaxTimeStepSize<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 60 * 60;
+};
+template<class TypeTag>
+struct NewtonMaxIterations<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 10;
+};
+template<class TypeTag>
+struct NewtonTargetIterations<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 6;
+};
 
 // output
-SET_BOOL_PROP(ChiwomsProblem, VtkWriteFilterVelocities, true);
-SET_BOOL_PROP(ChiwomsProblem, VtkWritePotentialGradients, true);
-SET_BOOL_PROP(ChiwomsProblem, VtkWriteTotalMassFractions, true);
-SET_BOOL_PROP(ChiwomsProblem, VtkWriteTotalMoleFractions, true);
-SET_BOOL_PROP(ChiwomsProblem, VtkWriteFugacityCoeffs, true);
+template<class TypeTag>
+struct VtkWriteFilterVelocities<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+template<class TypeTag>
+struct VtkWritePotentialGradients<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+template<class TypeTag>
+struct VtkWriteTotalMassFractions<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+template<class TypeTag>
+struct VtkWriteTotalMoleFractions<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+template<class TypeTag>
+struct VtkWriteFugacityCoeffs<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
 
 // write restart for every hour
-SET_SCALAR_PROP(ChiwomsProblem, EpisodeLength, 60. * 60.);
+template<class TypeTag>
+struct EpisodeLength<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 60. * 60.;
+};
 
 // mesh grid
-SET_TYPE_PROP(ChiwomsProblem, Vanguard, Opm::StructuredGridVanguard<TypeTag>);
-SET_SCALAR_PROP(ChiwomsProblem, DomainSizeX, (X_SIZE / 100.));
-SET_INT_PROP(ChiwomsProblem, CellsX, NX);
-SET_SCALAR_PROP(ChiwomsProblem, DomainSizeY, (Y_SIZE / 100.));
-SET_INT_PROP(ChiwomsProblem, CellsY, NY);
-SET_SCALAR_PROP(ChiwomsProblem, DomainSizeZ, 1.);
-SET_INT_PROP(ChiwomsProblem, CellsZ, 1);
+template<class TypeTag>
+struct Vanguard<TypeTag, TTag::ChiwomsProblem> { using type = Opm::StructuredGridVanguard<TypeTag>; };
+
+template<class TypeTag>
+struct DomainSizeX<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = (X_SIZE / 100.);
+}
+template<class TypeTag>
+struct CellsX<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = NX; };
+template<class TypeTag>
+struct DomainSizeY<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = (Y_SIZE / 100.);
+};
+template<class TypeTag>
+struct CellsY<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = NY; };
+template<class TypeTag>
+struct DomainSizeZ<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 1.;
+};
+template<class TypeTag>
+struct CellsZ<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = 1: };
+
 
 // compositional, with diffusion
-SET_BOOL_PROP(ChiwomsProblem, EnableEnergy, false);
-SET_BOOL_PROP(ChiwomsProblem, EnableDiffusion, true);
+template<class TypeTag>
+struct EnableEnergy<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
+template<class TypeTag>
+struct EnableDiffusion<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
 
 // injection rate parameter
-SET_SCALAR_PROP(ChiwomsProblem, WaveLength, WAVE_LENGTH);
+template<class TypeTag>
+struct WaveLength<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = WAVE_LENGTH;
+};
 
 // default hydrology: almost (but not quite) Snohvit-like Brooks-Corey
-SET_SCALAR_PROP(ChiwomsProblem, ConnateWater, 0.15);
-SET_SCALAR_PROP(ChiwomsProblem, ResidualOil, 0.10);
-SET_SCALAR_PROP(ChiwomsProblem, EntryPressure, 1.5e4 /* [Pa] */);
-SET_SCALAR_PROP(ChiwomsProblem, PoreSizeDist, 2.0);
+template<class TypeTag>
+struct ConnateWater<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 0.15;
+};
+template<class TypeTag>
+struct ResidualOil<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 0.10;
+};
+template<class TypeTag>
+struct EntryPressure<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 1.5e4 /* [Pa] */;
+};
+template<class TypeTag>
+struct PoreSizeDist<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 2.0;
+};
 
-END_PROPERTIES
+}// namespace Opm::Properties
 
 namespace Opm {
 /*!
@@ -192,19 +333,20 @@ namespace Opm {
 template <class TypeTag>
 class ChiwomsProblem : public GET_PROP_TYPE(TypeTag, BaseProblem)
 {
-    typedef typename GET_PROP_TYPE(TypeTag, BaseProblem) ParentType;
+    using ParentType = GetPropType<TypeTag, Properties::BaseProblem>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, MaterialLawParams) MaterialLawParams;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using MaterialLawParams = GetPropType<TypeTag, Properties::MaterialLawParams>;
+
 
     enum { dim = GridView::dimension };
     enum { dimWorld = GridView::dimensionworld };
 
     // copy some indices for convenience
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
     enum { numPhases = FluidSystem::numPhases };
     enum {
         oilPhaseIdx = FluidSystem::oilPhaseIdx,
@@ -219,19 +361,20 @@ class ChiwomsProblem : public GET_PROP_TYPE(TypeTag, BaseProblem)
     enum { enableEnergy = GET_PROP_VALUE(TypeTag, EnableEnergy) };
     enum { enableDiffusion = GET_PROP_VALUE(TypeTag, EnableDiffusion) };
 
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, RateVector) RateVector;
-    typedef typename GET_PROP_TYPE(TypeTag, BoundaryRateVector) BoundaryRateVector;
-    typedef typename GET_PROP_TYPE(TypeTag, MaterialLaw) MaterialLaw;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, Model) Model;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
+    using BoundaryRateVector = GetPropType<TypeTag, Properties::BoundaryRateVector>;
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
-    typedef typename GridView::ctype CoordScalar;
-    typedef Dune::FieldVector<CoordScalar, dimWorld> GlobalPosition;
-    typedef Dune::FieldMatrix<Scalar, dimWorld, dimWorld> DimMatrix;
-    typedef Dune::FieldMatrix<Scalar, NX, NY> FullField;
-    typedef Dune::FieldVector<Scalar, NY> FieldColumn;
+    using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using Model = GetPropType<TypeTag, Properties::Model>;
+
+    using Toolbox = Opm::MathToolbox<Evaluation>;
+    using CoordScalar = typename GridView::ctype;
+    using GlobalPosition = Dune::FieldVector<CoordScalar, dimWorld>;
+    using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
+    using FullField = Dune::FieldMatrix<Scalar, NX, NY>;//    typedef Dune::FieldMatrix<Scalar, NX, NY> FullField;
+    using FieldColumn = Dune::FieldVector<Scalar, NY>;//typedef Dune::FieldVector<Scalar, NY> FieldColumn;
 
     const unsigned XDIM = 0;
     const unsigned YDIM = 1;
@@ -625,12 +768,11 @@ private:
         // fill in viscosity and enthalpy based on the state set above
         // and the fluid system defined in this class
         typename FluidSystem::template ParameterCache<Scalar> paramCache;
-        typedef Opm::ComputeFromReferencePhase<Scalar, FluidSystem> CFRP;
-
-          CFRP::solve(fs, paramCache,
-                      /*refPhaseIdx=*/ oilPhaseIdx,
-                      /*setViscosity=*/ true,
-                      /*setEnthalpy=*/ true);
+                using CFRP = Opm::ComputeFromReferencePhase<Scalar, FluidSystem>;
+        CFRP::solve(fs, paramCache,
+                    /*refPhaseIdx=*/oilPhaseIdx,
+                    /*setViscosity=*/true,
+                    /*setEnthalpy=*/true);
 
 
         // const auto& matParams = this->materialLawParams(context, spaceIdx,
