@@ -59,7 +59,7 @@ struct ChiwomsProblem ;
 
 template<class TypeTag>
 struct Grid<TypeTag, TTag::ChiwomsProblem>
-{ using type = Dune::YaspGrid<2></*dim=*/2 };
+{ using type = Dune::YaspGrid<2>; };
 
 //SET_TYPE_PROP(ChiwomsProblem, Grid, Dune::YaspGrid<2>);
 
@@ -98,8 +98,6 @@ struct Problem<TypeTag, TTag::ChiwomsProblem> { using type = Opm::ChiwomsProblem
 
 template<class TypeTag>
 struct FlashSolver<TypeTag, TTag::ChiwomsProblem>
-template<class TypeTag>
-struct FlashSolver<TypeTag, TTag::ChiwomsProblem>
 {
 private:
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
@@ -136,7 +134,8 @@ private:
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
     using Traits = Opm::ThreePhaseMaterialTraits<Scalar,
                                                /*wettingPhaseIdx=*/FluidSystem::waterPhaseIdx,
-                                               /*nonWettingPhaseIdx=*/FluidSystem::oilPhaseIdx>;
+                                               /*nonWettingPhaseIdx=*/FluidSystem::oilPhaseIdx,
+                                               /*gasPhaseIdx=*/ FluidSystem::gasPhaseIdx>;
 
     // define the material law which is parameterized by effective
     // saturations
@@ -144,8 +143,7 @@ private:
     using EffMaterialLaw = Opm::NullMaterial<Traits>;
 
 public:
-/ // define the material law parameterized by absolute saturations
-
+    // define the material law parameterized by absolute saturations
     using type = EffMaterialLaw;
 };
 
@@ -262,7 +260,7 @@ struct DomainSizeX<TypeTag, TTag::ChiwomsProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = (X_SIZE / 100.);
-}
+};
 template<class TypeTag>
 struct CellsX<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = NX; };
 template<class TypeTag>
@@ -280,14 +278,12 @@ struct DomainSizeZ<TypeTag, TTag::ChiwomsProblem>
     static constexpr type value = 1.;
 };
 template<class TypeTag>
-struct CellsZ<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = 1: };
+struct CellsZ<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = 1; };
 
 
 // compositional, with diffusion
 template<class TypeTag>
 struct EnableEnergy<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
-template<class TypeTag>
-struct EnableDiffusion<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
 
 // injection rate parameter
 template<class TypeTag>
@@ -331,7 +327,7 @@ namespace Opm {
  *
  */
 template <class TypeTag>
-class ChiwomsProblem : public GET_PROP_TYPE(TypeTag, BaseProblem)
+class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
 {
     using ParentType = GetPropType<TypeTag, Properties::BaseProblem>;
 
