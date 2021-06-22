@@ -82,7 +82,7 @@ public:
     /*!
      * \brief Send the buffer asyncronously to a peer process.
      */
-    void send(unsigned peerRank OPM_UNUSED_NOMPI)
+    void send([[maybe_unused]] unsigned peerRank)
     {
 #if HAVE_MPI
         MPI_Isend(data_,
@@ -108,7 +108,7 @@ public:
     /*!
      * \brief Receive the buffer syncronously from a peer rank
      */
-    void receive(unsigned peerRank OPM_UNUSED_NOMPI)
+    void receive([[maybe_unused]] unsigned peerRank)
     {
 #if HAVE_MPI
         MPI_Recv(data_,
@@ -165,7 +165,7 @@ public:
      */
     DataType& operator[](size_t i)
     {
-        assert(0 <= i && i < dataSize_);
+        assert(i < dataSize_);
         return data_[i];
     }
 
@@ -174,7 +174,7 @@ public:
      */
     const DataType& operator[](size_t i) const
     {
-        assert(0 <= i && i < dataSize_);
+        assert(i < dataSize_);
         return data_[i];
     }
 

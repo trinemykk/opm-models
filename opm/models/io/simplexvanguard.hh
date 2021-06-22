@@ -36,23 +36,6 @@
 
 #include <memory>
 
-BEGIN_PROPERTIES
-
-NEW_PROP_TAG(Scalar);
-NEW_PROP_TAG(Grid);
-
-NEW_PROP_TAG(DomainSizeX);
-NEW_PROP_TAG(DomainSizeY);
-NEW_PROP_TAG(DomainSizeZ);
-
-NEW_PROP_TAG(CellsX);
-NEW_PROP_TAG(CellsY);
-NEW_PROP_TAG(CellsZ);
-
-NEW_PROP_TAG(GridGlobalRefinements);
-
-END_PROPERTIES
-
 namespace Opm {
 /*!
  * \brief Provides a simulator vanguard which a creates regular grid made of simplices.
@@ -60,15 +43,15 @@ namespace Opm {
 template <class TypeTag>
 class SimplexGridVanguard
 {
-    typedef BaseVanguard<TypeTag> ParentType;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, Grid) Grid;
+    using ParentType = BaseVanguard<TypeTag>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using Grid = GetPropType<TypeTag, Properties::Grid>;
 
-    typedef Dune::shared_ptr<Grid> GridPointer;
-    typedef typename Grid::ctype CoordScalar;
+    using GridPointer = std::unique_ptr<Grid>;
+    using CoordScalar = typename Grid::ctype;
     enum { dimWorld = Grid::dimensionworld };
-    typedef Dune::FieldVector<CoordScalar, dimWorld> GlobalPosition;
+    using GlobalPosition = Dune::FieldVector<CoordScalar, dimWorld>;
 
 public:
     /*!

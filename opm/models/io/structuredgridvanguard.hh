@@ -52,23 +52,13 @@ class StructuredGridVanguard;
 
 } // namespace Opm
 
-BEGIN_PROPERTIES
+namespace Opm::Properties {
 
-NEW_TYPE_TAG(StructuredGridVanguard);
+namespace TTag {
 
-// declare the properties required by the for the structured grid simulator vanguard
-NEW_PROP_TAG(Grid);
-NEW_PROP_TAG(Scalar);
+struct StructuredGridVanguard {};
 
-NEW_PROP_TAG(DomainSizeX);
-NEW_PROP_TAG(DomainSizeY);
-NEW_PROP_TAG(DomainSizeZ);
-
-NEW_PROP_TAG(CellsX);
-NEW_PROP_TAG(CellsY);
-NEW_PROP_TAG(CellsZ);
-
-NEW_PROP_TAG(GridGlobalRefinements);
+} // namespace TTag
 
 // GRIDDIM is only set by the finger problem
 #ifndef GRIDDIM
@@ -79,14 +69,17 @@ static const int dim = GRIDDIM;
 
 // set the Grid and Vanguard properties
 #if HAVE_DUNE_ALUGRID
-SET_TYPE_PROP(StructuredGridVanguard, Grid, Dune::ALUGrid< dim, dim, Dune::cube, Dune::nonconforming >);
+template<class TypeTag>
+struct Grid<TypeTag, TTag::StructuredGridVanguard> { using type = Dune::ALUGrid< dim, dim, Dune::cube, Dune::nonconforming >; };
 #else
-SET_TYPE_PROP(StructuredGridVanguard, Grid, Dune::YaspGrid< dim >);
+template<class TypeTag>
+struct Grid<TypeTag, TTag::StructuredGridVanguard> { using type = Dune::YaspGrid< dim >; };
 #endif
 
-SET_TYPE_PROP(StructuredGridVanguard, Vanguard, Opm::StructuredGridVanguard<TypeTag>);
+template<class TypeTag>
+struct Vanguard<TypeTag, TTag::StructuredGridVanguard> { using type = Opm::StructuredGridVanguard<TypeTag>; };
 
-END_PROPERTIES
+} // namespace Opm::Properties
 
 namespace Opm {
 
@@ -98,12 +91,12 @@ namespace Opm {
 template <class TypeTag>
 class StructuredGridVanguard : public BaseVanguard<TypeTag>
 {
-    typedef BaseVanguard<TypeTag> ParentType;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, Grid) Grid;
+    using ParentType = BaseVanguard<TypeTag>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using Grid = GetPropType<TypeTag, Properties::Grid>;
 
-    typedef std::unique_ptr<Grid> GridPointer;
+    using GridPointer = std::unique_ptr<Grid>;
 
     static const int dim = Grid::dimension;
 
@@ -142,7 +135,7 @@ public:
     {
         Dune::FieldVector<int, dim> cellRes;
 
-        typedef double GridScalar;
+        using GridScalar = double;
         Dune::FieldVector<GridScalar, dim> upperRight;
         Dune::FieldVector<GridScalar, dim> lowerLeft( 0 );
 

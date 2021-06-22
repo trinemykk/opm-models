@@ -47,11 +47,11 @@ class EcfvDiscretization;
 template<class TypeTag>
 class FvBaseGradientCalculator
 {
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, Discretization) Discretization;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using Discretization = GetPropType<TypeTag, Properties::Discretization>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
 
     enum { dim = GridView::dimension };
     enum { dimWorld = GridView::dimensionworld };
@@ -60,8 +60,8 @@ class FvBaseGradientCalculator
     // we assume that the geometry with the most pointsq is a cube.
     enum { maxFap = 2 << dim };
 
-    typedef Dune::FieldVector<Scalar, dimWorld> DimVector;
-    typedef Dune::FieldVector<Evaluation, dimWorld> EvalDimVector;
+    using DimVector = Dune::FieldVector<Scalar, dimWorld>;
+    using EvalDimVector = Dune::FieldVector<Evaluation, dimWorld>;
 
 public:
     /*!
@@ -99,8 +99,8 @@ public:
                               const QuantityCallback& quantityCallback) const
         -> typename std::remove_reference<decltype(quantityCallback.operator()(0))>::type
     {
-        typedef decltype(quantityCallback.operator()(0)) RawReturnType;
-        typedef typename std::remove_const<typename std::remove_reference<RawReturnType>::type>::type ReturnType;
+        using RawReturnType = decltype(quantityCallback.operator()(0));
+        using ReturnType = typename std::remove_const<typename std::remove_reference<RawReturnType>::type>::type;
 
         Scalar interiorDistance;
         Scalar exteriorDistance;
@@ -116,12 +116,12 @@ public:
         if (i == focusDofIdx)
             value = quantityCallback(i)*interiorDistance;
         else
-            value = Opm::getValue(quantityCallback(i))*interiorDistance;
+            value = getValue(quantityCallback(i))*interiorDistance;
 
         if (j == focusDofIdx)
             value += quantityCallback(j)*exteriorDistance;
         else
-            value += Opm::getValue(quantityCallback(j))*exteriorDistance;
+            value += getValue(quantityCallback(j))*exteriorDistance;
 
         value /= interiorDistance + exteriorDistance;
 
@@ -145,8 +145,8 @@ public:
                               const QuantityCallback& quantityCallback) const
         -> typename std::remove_reference<decltype(quantityCallback.operator()(0))>::type
     {
-        typedef decltype(quantityCallback.operator()(0)) RawReturnType;
-        typedef typename std::remove_const<typename std::remove_reference<RawReturnType>::type>::type ReturnType;
+        using RawReturnType = decltype(quantityCallback.operator()(0));
+        using ReturnType = typename std::remove_const<typename std::remove_reference<RawReturnType>::type>::type;
 
         Scalar interiorDistance;
         Scalar exteriorDistance;
@@ -165,9 +165,9 @@ public:
                 value[k] *= interiorDistance;
         }
         else {
-            const auto& dofVal = Opm::getValue(quantityCallback(i));
+            const auto& dofVal = getValue(quantityCallback(i));
             for (int k = 0; k < dofVal.size(); ++k)
-                value[k] = Opm::getValue(dofVal[k])*interiorDistance;
+                value[k] = getValue(dofVal[k])*interiorDistance;
         }
 
         if (j == focusDofIdx) {
@@ -178,7 +178,7 @@ public:
         else {
             const auto& dofVal = quantityCallback(j);
             for (int k = 0; k < dofVal.size(); ++k)
-                value[k] += Opm::getValue(dofVal[k])*exteriorDistance;
+                value[k] += getValue(dofVal[k])*exteriorDistance;
         }
 
         Scalar totDistance = interiorDistance + exteriorDistance;
@@ -218,18 +218,18 @@ public:
         Evaluation deltay;
         if (i == focusIdx) {
             deltay =
-                Opm::getValue(quantityCallback(j))
+                getValue(quantityCallback(j))
                 - quantityCallback(i);
         }
         else if (j == focusIdx) {
             deltay =
                 quantityCallback(j)
-                - Opm::getValue(quantityCallback(i));
+                - getValue(quantityCallback(i));
         }
         else
             deltay =
-                Opm::getValue(quantityCallback(j))
-                - Opm::getValue(quantityCallback(i));
+                getValue(quantityCallback(j))
+                - getValue(quantityCallback(i));
 
         Scalar distSquared = 0.0;
         for (unsigned dimIdx = 0; dimIdx < dimWorld; ++dimIdx) {
@@ -296,8 +296,8 @@ public:
             deltay = quantityCallback.boundaryValue() - quantityCallback(face.interiorIndex());
         else
             deltay =
-                Opm::getValue(quantityCallback.boundaryValue())
-                - Opm::getValue(quantityCallback(face.interiorIndex()));
+                getValue(quantityCallback.boundaryValue())
+                - getValue(quantityCallback(face.interiorIndex()));
 
         const auto& boundaryFacePos = face.integrationPos();
         const auto& interiorPos = stencil.subControlVolume(face.interiorIndex()).center();

@@ -31,20 +31,68 @@
 #include "blackoilproperties.hh"
 
 #include <opm/models/utils/signum.hh>
+#include <opm/models/nonlinear/newtonmethod.hh>
 
 #include <opm/material/common/Unused.hpp>
 
-BEGIN_PROPERTIES
+namespace Opm::Properties {
 
-NEW_PROP_TAG(DpMaxRel);
-NEW_PROP_TAG(DsMax);
-NEW_PROP_TAG(PriVarOscilationThreshold);
+template <class TypeTag, class MyTypeTag>
+struct DiscNewtonMethod;
 
-SET_SCALAR_PROP(NewtonMethod, DpMaxRel, 0.3);
-SET_SCALAR_PROP(NewtonMethod, DsMax, 0.2);
-SET_SCALAR_PROP(NewtonMethod, PriVarOscilationThreshold, 1e-5);
-
-END_PROPERTIES
+template<class TypeTag, class MyTypeTag>
+struct DpMaxRel { using type = UndefinedProperty; };
+template<class TypeTag, class MyTypeTag>
+struct DsMax { using type = UndefinedProperty; };
+template<class TypeTag, class MyTypeTag>
+struct PriVarOscilationThreshold { using type = UndefinedProperty; };
+template<class TypeTag, class MyTypeTag>
+struct ProjectSaturations { using type = UndefinedProperty; };
+template<class TypeTag, class MyTypeTag>
+struct MaxTemperatureChange { using type = UndefinedProperty; };
+template<class TypeTag, class MyTypeTag>
+struct TemperatureMax { using type = UndefinedProperty; };
+template<class TypeTag, class MyTypeTag>
+struct TemperatureMin { using type = UndefinedProperty; };
+template<class TypeTag>
+struct DpMaxRel<TypeTag, TTag::NewtonMethod>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 0.3;
+};
+template<class TypeTag>
+struct DsMax<TypeTag, TTag::NewtonMethod>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 0.2;
+};
+template<class TypeTag>
+struct PriVarOscilationThreshold<TypeTag, TTag::NewtonMethod>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 1e-5;
+};
+template<class TypeTag>
+struct ProjectSaturations<TypeTag, TTag::NewtonMethod> { static constexpr bool value = false; };
+template<class TypeTag>
+struct MaxTemperatureChange<TypeTag, TTag::NewtonMethod>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 5; //Kelvin
+};
+template<class TypeTag>
+struct TemperatureMax<TypeTag, TTag::NewtonMethod>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 400; //Kelvin
+};
+template<class TypeTag>
+struct TemperatureMin<TypeTag, TTag::NewtonMethod>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = 280; //Kelvin
+};
+} // namespace Opm::Properties
 
 namespace Opm {
 
@@ -54,19 +102,19 @@ namespace Opm {
  * \brief A newton solver which is specific to the black oil model.
  */
 template <class TypeTag>
-class BlackOilNewtonMethod : public GET_PROP_TYPE(TypeTag, DiscNewtonMethod)
+class BlackOilNewtonMethod : public GetPropType<TypeTag, Properties::DiscNewtonMethod>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, DiscNewtonMethod) ParentType;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, SolutionVector) SolutionVector;
-    typedef typename GET_PROP_TYPE(TypeTag, GlobalEqVector) GlobalEqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, EqVector) EqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Linearizer) Linearizer;
+    using ParentType = GetPropType<TypeTag, Properties::DiscNewtonMethod>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using SolutionVector = GetPropType<TypeTag, Properties::SolutionVector>;
+    using GlobalEqVector = GetPropType<TypeTag, Properties::GlobalEqVector>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using EqVector = GetPropType<TypeTag, Properties::EqVector>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Linearizer = GetPropType<TypeTag, Properties::Linearizer>;
 
-    static const unsigned numEq = GET_PROP_VALUE(TypeTag, NumEq);
+    static const unsigned numEq = getPropValue<TypeTag, Properties::NumEq>();
 
 public:
     BlackOilNewtonMethod(Simulator& simulator) : ParentType(simulator)
@@ -74,6 +122,11 @@ public:
         priVarOscilationThreshold_ = EWOMS_GET_PARAM(TypeTag, Scalar, PriVarOscilationThreshold);
         dpMaxRel_ = EWOMS_GET_PARAM(TypeTag, Scalar, DpMaxRel);
         dsMax_ = EWOMS_GET_PARAM(TypeTag, Scalar, DsMax);
+        projectSaturations_ = EWOMS_GET_PARAM(TypeTag, bool, ProjectSaturations);
+        maxTempChange_ = EWOMS_GET_PARAM(TypeTag, Scalar, MaxTemperatureChange);
+        tempMax_ = EWOMS_GET_PARAM(TypeTag, Scalar, TemperatureMax);
+        tempMin_ = EWOMS_GET_PARAM(TypeTag, Scalar, TemperatureMin);
+
     }
 
     /*!
@@ -98,6 +151,10 @@ public:
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, DsMax, "Maximum absolute change of any saturation in a single iteration");
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, PriVarOscilationThreshold,
                              "The threshold value for the primary variable switching conditions after its meaning has switched to hinder oscilations");
+        EWOMS_REGISTER_PARAM(TypeTag,bool, ProjectSaturations, "Option for doing saturation projection");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, MaxTemperatureChange, "Maximum absolute change of temperature in a single iteration");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, TemperatureMax, "Maximum absolute temperature");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, TemperatureMin, "Minimum absolute temperature");
     }
 
     /*!
@@ -168,7 +225,7 @@ public:
         succeeded = comm.min(succeeded);
 
         if (!succeeded)
-            throw Opm::NumericalIssue("A process did not succeed in adapting the primary variables");
+            throw NumericalIssue("A process did not succeed in adapting the primary variables");
 
         numPriVarsSwitched_ = comm.sum(numPriVarsSwitched_);
     }
@@ -184,6 +241,7 @@ protected:
                                  const EqVector& currentResidual)
     {
         static constexpr bool enableSolvent = Indices::solventSaturationIdx >= 0;
+        static constexpr bool enableExtbo = Indices::zFractionIdx >= 0;
         static constexpr bool enablePolymer = Indices::polymerConcentrationIdx >= 0;
         static constexpr bool enablePolymerWeight = Indices::polymerMoleWeightIdx >= 0;
         static constexpr bool enableEnergy = Indices::temperatureIdx >= 0;
@@ -191,8 +249,8 @@ protected:
         static constexpr bool enableBrine = Indices::saltConcentrationIdx >= 0;
 
         currentValue.checkDefined();
-        Opm::Valgrind::CheckDefined(update);
-        Opm::Valgrind::CheckDefined(currentResidual);
+        Valgrind::CheckDefined(update);
+        Valgrind::CheckDefined(currentResidual);
 
         // saturation delta for each phase
         Scalar deltaSw = 0.0;
@@ -238,7 +296,7 @@ protected:
             // limit pressure delta
             if (pvIdx == Indices::pressureSwitchIdx) {
                 if (std::abs(delta) > dpMaxRel_*currentValue[pvIdx])
-                    delta = Opm::signum(delta)*dpMaxRel_*currentValue[pvIdx];
+                    delta = signum(delta)*dpMaxRel_*currentValue[pvIdx];
             }
             // water saturation delta
             else if (pvIdx == Indices::waterSaturationIdx)
@@ -259,6 +317,13 @@ protected:
             else if (enableSolvent && pvIdx == Indices::solventSaturationIdx)
                 // solvent saturation updates are also subject to the Appleyard chop
                 delta *= satAlpha;
+            else if (enableExtbo && pvIdx == Indices::zFractionIdx) {
+                // z fraction updates are also subject to the Appleyard chop
+                if (delta > currentValue[Indices::zFractionIdx])
+                        delta = currentValue[Indices::zFractionIdx];
+                if (delta < currentValue[Indices::zFractionIdx]-1.0)
+                        delta = currentValue[Indices::zFractionIdx]-1.0;
+            }
             else if (enablePolymerWeight && pvIdx == Indices::polymerMoleWeightIdx) {
                 const double sign = delta >= 0. ? 1. : -1.;
                 // maximum change of polymer molecular weight, the unit is MDa.
@@ -267,12 +332,20 @@ protected:
                 delta = sign * std::min(std::abs(delta), maxMolarWeightChange);
                 delta *= satAlpha;
             }
+            else if (enableEnergy && pvIdx == Indices::temperatureIdx) {
+                const double sign = delta >= 0. ? 1. : -1.;
+                delta = sign * std::min(std::abs(delta), maxTempChange_);
+            }
 
             // do the actual update
             nextValue[pvIdx] = currentValue[pvIdx] - delta;
 
             // keep the solvent saturation between 0 and 1
             if (enableSolvent && pvIdx == Indices::solventSaturationIdx)
+                nextValue[pvIdx] = std::min(std::max(nextValue[pvIdx], 0.0), 1.0);
+
+            // keep the z fraction between 0 and 1
+            if (enableExtbo && pvIdx == Indices::zFractionIdx)
                 nextValue[pvIdx] = std::min(std::max(nextValue[pvIdx], 0.0), 1.0);
 
             // keep the polymer concentration above 0
@@ -294,9 +367,9 @@ protected:
             if (enableBrine && pvIdx == Indices::saltConcentrationIdx)
                 nextValue[pvIdx] = std::max(nextValue[pvIdx], 0.0);
 
-            // keep the temperature above 100 and below 1000 Kelvin
+            // keep the temperature within given values
             if (enableEnergy && pvIdx == Indices::temperatureIdx)
-                nextValue[pvIdx] = std::max(std::min(nextValue[pvIdx], 1000.0), 100.0);
+                nextValue[pvIdx] = std::clamp(nextValue[pvIdx], tempMin_, tempMax_);
         }
 
         // switch the new primary variables to something which is physically meaningful.
@@ -309,6 +382,9 @@ protected:
 
         if (wasSwitched_[globalDofIdx])
             ++ numPriVarsSwitched_;
+        if(projectSaturations_){
+            nextValue.chopAndNormalizeSaturations();
+        }
 
         nextValue.checkDefined();
     }
@@ -319,6 +395,10 @@ private:
     Scalar priVarOscilationThreshold_;
     Scalar dpMaxRel_;
     Scalar dsMax_;
+    bool projectSaturations_;
+    Scalar maxTempChange_;
+    Scalar tempMax_;
+    Scalar tempMin_;
 
     // keep track of cells where the primary variable meaning has changed
     // to detect and hinder oscillations

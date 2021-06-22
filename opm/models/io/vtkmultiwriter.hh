@@ -35,6 +35,8 @@
 #include <opm/models/io/baseoutputwriter.hh>
 #include <opm/models/parallel/tasklets.hh>
 
+#include <opm/common/utility/FileSystem.hpp>
+
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/material/common/Unused.hpp>
 
@@ -85,9 +87,12 @@ class VtkMultiWriter : public BaseOutputWriter
 
             // determine name to write into the multi-file for the
             // current time step
+            // The file names in the pvd file are relative, the path should therefore be stripped.
+            const filesystem::path fullPath{fileName};
+            const std::string localFileName = fullPath.filename();
             multiWriter_.multiFile_.precision(16);
             multiWriter_.multiFile_ << "   <DataSet timestep=\"" << multiWriter_.curTime_ << "\" file=\""
-                                    << fileName << "\"/>\n";
+                                    << localFileName << "\"/>\n";
         }
 
     private:
@@ -96,19 +101,19 @@ class VtkMultiWriter : public BaseOutputWriter
 
     enum { dim = GridView::dimension };
 
-    typedef Dune::MultipleCodimMultipleGeomTypeMapper<GridView> VertexMapper;
-    typedef Dune::MultipleCodimMultipleGeomTypeMapper<GridView> ElementMapper;
+    using VertexMapper = Dune::MultipleCodimMultipleGeomTypeMapper<GridView>;
+    using ElementMapper = Dune::MultipleCodimMultipleGeomTypeMapper<GridView>;
 
 public:
-    typedef BaseOutputWriter::Scalar Scalar;
-    typedef BaseOutputWriter::Vector Vector;
-    typedef BaseOutputWriter::Tensor Tensor;
-    typedef BaseOutputWriter::ScalarBuffer ScalarBuffer;
-    typedef BaseOutputWriter::VectorBuffer VectorBuffer;
-    typedef BaseOutputWriter::TensorBuffer TensorBuffer;
+    using Scalar = BaseOutputWriter::Scalar;
+    using Vector = BaseOutputWriter::Vector;
+    using Tensor = BaseOutputWriter::Tensor;
+    using ScalarBuffer = BaseOutputWriter::ScalarBuffer;
+    using VectorBuffer = BaseOutputWriter::VectorBuffer;
+    using TensorBuffer = BaseOutputWriter::TensorBuffer;
 
-    typedef Dune::VTKWriter<GridView> VtkWriter;
-    typedef std::shared_ptr< Dune::VTKFunction< GridView > > FunctionPtr;
+    using VtkWriter = Dune::VTKWriter<GridView>;
+    using FunctionPtr = std::shared_ptr< Dune::VTKFunction< GridView > >;
 
     VtkMultiWriter(bool asyncWriting,
                    const GridView& gridView,
@@ -234,7 +239,7 @@ public:
     {
         sanitizeScalarBuffer_(buf);
 
-        typedef Opm::VtkScalarFunction<GridView, VertexMapper> VtkFn;
+        using VtkFn = VtkScalarFunction<GridView, VertexMapper>;
         FunctionPtr fnPtr(new VtkFn(name,
                                     gridView_,
                                     vertexMapper_,
@@ -262,7 +267,7 @@ public:
     {
         sanitizeScalarBuffer_(buf);
 
-        typedef Opm::VtkScalarFunction<GridView, ElementMapper> VtkFn;
+        using VtkFn = VtkScalarFunction<GridView, ElementMapper>;
         FunctionPtr fnPtr(new VtkFn(name,
                                     gridView_,
                                     elementMapper_,
@@ -291,7 +296,7 @@ public:
     {
         sanitizeVectorBuffer_(buf);
 
-        typedef Opm::VtkVectorFunction<GridView, VertexMapper> VtkFn;
+        using VtkFn = VtkVectorFunction<GridView, VertexMapper>;
         FunctionPtr fnPtr(new VtkFn(name,
                                     gridView_,
                                     vertexMapper_,
@@ -305,7 +310,7 @@ public:
      */
     void attachTensorVertexData(TensorBuffer& buf, std::string name)
     {
-        typedef Opm::VtkTensorFunction<GridView, VertexMapper> VtkFn;
+        using VtkFn = VtkTensorFunction<GridView, VertexMapper>;
 
         for (unsigned colIdx = 0; colIdx < buf[0].N(); ++colIdx) {
             std::ostringstream oss;
@@ -340,7 +345,7 @@ public:
     {
         sanitizeVectorBuffer_(buf);
 
-        typedef Opm::VtkVectorFunction<GridView, ElementMapper> VtkFn;
+        using VtkFn = VtkVectorFunction<GridView, ElementMapper>;
         FunctionPtr fnPtr(new VtkFn(name,
                                     gridView_,
                                     elementMapper_,
@@ -354,7 +359,7 @@ public:
      */
     void attachTensorElementData(TensorBuffer& buf, std::string name)
     {
-        typedef Opm::VtkTensorFunction<GridView, ElementMapper> VtkFn;
+        using VtkFn = VtkTensorFunction<GridView, ElementMapper>;
 
         for (unsigned colIdx = 0; colIdx < buf[0].N(); ++colIdx) {
             std::ostringstream oss;

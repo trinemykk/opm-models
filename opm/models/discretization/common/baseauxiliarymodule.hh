@@ -34,19 +34,11 @@
 #include <set>
 #include <vector>
 
-BEGIN_PROPERTIES
+namespace Opm::Properties::Tag {
 
-NEW_TYPE_TAG(AuxModule);
+struct AuxModule {};
 
-// declare the properties required by the for the ecl grid manager
-NEW_PROP_TAG(Grid);
-NEW_PROP_TAG(GridView);
-NEW_PROP_TAG(Scalar);
-NEW_PROP_TAG(DofMapper);
-NEW_PROP_TAG(GlobalEqVector);
-NEW_PROP_TAG(SparseMatrixAdapter);
-
-END_PROPERTIES
+} // namespace Opm::Properties::TTag
 
 namespace Opm {
 
@@ -61,13 +53,13 @@ namespace Opm {
 template <class TypeTag>
 class BaseAuxiliaryModule
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
-    typedef typename GET_PROP_TYPE(TypeTag, GlobalEqVector) GlobalEqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, SparseMatrixAdapter) SparseMatrixAdapter;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
+    using GlobalEqVector = GetPropType<TypeTag, Properties::GlobalEqVector>;
+    using SparseMatrixAdapter = GetPropType<TypeTag, Properties::SparseMatrixAdapter>;
 
 protected:
-    typedef std::set<unsigned> NeighborSet;
+    using NeighborSet = std::set<unsigned>;
 
 public:
     virtual ~BaseAuxiliaryModule()
@@ -99,7 +91,6 @@ public:
      */
     int localToGlobalDof(unsigned localDofIdx) const
     {
-        assert(0 <= localDofIdx);
         assert(localDofIdx < numDofs());
         return dofOffset_ + localDofIdx;
     }

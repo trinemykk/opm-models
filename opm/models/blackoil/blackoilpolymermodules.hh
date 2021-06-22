@@ -35,6 +35,8 @@
 #include <opm/material/common/Tabulated1DFunction.hpp>
 #include <opm/material/common/IntervalTabulated2DFunction.hpp>
 
+#include <opm/common/OpmLog/OpmLog.hpp>
+
 #if HAVE_ECL_INPUT
 #include <opm/parser/eclipse/EclipseState/EclipseState.hpp>
 #include <opm/parser/eclipse/EclipseState/Tables/PlyadsTable.hpp>
@@ -46,7 +48,6 @@
 
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/material/common/Unused.hpp>
-#include <opm/material/common/Exceptions.hpp>
 
 #include <dune/common/fvector.hh>
 
@@ -58,26 +59,26 @@ namespace Opm {
  * \brief Contains the high level supplements required to extend the black oil
  *        model by polymer.
  */
-template <class TypeTag, bool enablePolymerV = GET_PROP_VALUE(TypeTag, EnablePolymer)>
+template <class TypeTag, bool enablePolymerV = getPropValue<TypeTag, Properties::EnablePolymer>()>
 class BlackOilPolymerModule
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) ExtensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, Model) Model;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, EqVector) EqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, RateVector) RateVector;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
+    using ExtensiveQuantities = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using Model = GetPropType<TypeTag, Properties::Model>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using EqVector = GetPropType<TypeTag, Properties::EqVector>;
+    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
+    using Toolbox = MathToolbox<Evaluation>;
 
-    typedef typename Opm::Tabulated1DFunction<Scalar> TabulatedFunction;
-    typedef typename Opm::IntervalTabulated2DFunction<Scalar> TabulatedTwoDFunction;
+    using TabulatedFunction = Tabulated1DFunction<Scalar>;
+    using TabulatedTwoDFunction = IntervalTabulated2DFunction<Scalar>;
 
     static constexpr unsigned polymerConcentrationIdx = Indices::polymerConcentrationIdx;
     static constexpr unsigned polymerMoleWeightIdx = Indices::polymerMoleWeightIdx;
@@ -87,9 +88,9 @@ class BlackOilPolymerModule
 
 
     static constexpr unsigned enablePolymer = enablePolymerV;
-    static constexpr bool enablePolymerMolarWeight = GET_PROP_VALUE(TypeTag, EnablePolymerMW);
+    static constexpr bool enablePolymerMolarWeight = getPropValue<TypeTag, Properties::EnablePolymerMW>();
 
-    static constexpr unsigned numEq = GET_PROP_VALUE(TypeTag, NumEq);
+    static constexpr unsigned numEq = getPropValue<TypeTag, Properties::NumEq>();
     static constexpr unsigned numPhases = FluidSystem::numPhases;
 
     struct SkprpolyTable {
@@ -114,7 +115,7 @@ public:
     /*!
      * \brief Initialize all internal data structures needed by the polymer module
      */
-    static void initFromState(const Opm::EclipseState& eclState)
+    static void initFromState(const EclipseState& eclState)
     {
         // some sanity checks: if polymers are enabled, the POLYMER keyword must be
         // present, if polymers are disabled the keyword must not be present.
@@ -154,7 +155,7 @@ public:
         if (!plyrockTables.empty()) {
             assert(numSatRegions == plyrockTables.size());
             for (unsigned satRegionIdx = 0; satRegionIdx < numSatRegions; ++ satRegionIdx) {
-                const auto& plyrockTable = plyrockTables.template getTable<Opm::PlyrockTable>(satRegionIdx);
+                const auto& plyrockTable = plyrockTables.template getTable<PlyrockTable>(satRegionIdx);
                 setPlyrock(satRegionIdx,
                            plyrockTable.getDeadPoreVolumeColumn()[0],
                            plyrockTable.getResidualResistanceFactorColumn()[0],
@@ -172,7 +173,7 @@ public:
         if (!plyadsTables.empty()) {
             assert(numSatRegions == plyadsTables.size());
             for (unsigned satRegionIdx = 0; satRegionIdx < numSatRegions; ++ satRegionIdx) {
-                const auto& plyadsTable = plyadsTables.template getTable<Opm::PlyadsTable>(satRegionIdx);
+                const auto& plyadsTable = plyadsTables.template getTable<PlyadsTable>(satRegionIdx);
                 // Copy data
                 const auto& c = plyadsTable.getPolymerConcentrationColumn();
                 const auto& ads = plyadsTable.getAdsorbedPolymerColumn();
@@ -192,14 +193,14 @@ public:
         if (!plyviscTables.empty()) {
             // different viscosity model is used for POLYMW
             if (enablePolymerMolarWeight) {
-                Opm::OpmLog::warning("PLYVISC should not be used in POLYMW runs, "
+                OpmLog::warning("PLYVISC should not be used in POLYMW runs, "
                                      "it will have no effect. A viscosity model based on PLYVMH is used instead.\n");
             }
             else {
 
                 assert(numPvtRegions == plyviscTables.size());
                 for (unsigned pvtRegionIdx = 0; pvtRegionIdx < numPvtRegions; ++ pvtRegionIdx) {
-                    const auto& plyadsTable = plyviscTables.template getTable<Opm::PlyviscTable>(pvtRegionIdx);
+                    const auto& plyadsTable = plyviscTables.template getTable<PlyviscTable>(pvtRegionIdx);
                     // Copy data
                     const auto& c = plyadsTable.getPolymerConcentrationColumn();
                     const auto& visc = plyadsTable.getViscosityMultiplierColumn();
@@ -217,7 +218,7 @@ public:
         setNumMixRegions(numMixRegions);
         if (!plymaxTables.empty()) {
             for (unsigned mixRegionIdx = 0; mixRegionIdx < numMixRegions; ++ mixRegionIdx) {
-                const auto& plymaxTable = plymaxTables.template getTable<Opm::PlymaxTable>(mixRegionIdx);
+                const auto& plymaxTable = plymaxTables.template getTable<PlymaxTable>(mixRegionIdx);
                 setPlymax(mixRegionIdx, plymaxTable.getPolymerConcentrationColumn()[0]);
             }
         }
@@ -227,7 +228,7 @@ public:
 
         if (!eclState.getTableManager().getPlmixparTable().empty()) {
             if (enablePolymerMolarWeight) {
-                Opm::OpmLog::warning("PLMIXPAR should not be used in POLYMW runs, it will have no effect.\n");
+                OpmLog::warning("PLMIXPAR should not be used in POLYMW runs, it will have no effect.\n");
             }
             else {
                 const auto& plmixparTable = eclState.getTableManager().getPlmixparTable();
@@ -245,7 +246,7 @@ public:
         hasShrate_ = eclState.getTableManager().useShrate();
 
         if ((hasPlyshlog_ || hasShrate_) && enablePolymerMolarWeight) {
-            Opm::OpmLog::warning("PLYSHLOG and SHRATE should not be used in POLYMW runs, they will have no effect.\n");
+            OpmLog::warning("PLYSHLOG and SHRATE should not be used in POLYMW runs, they will have no effect.\n");
         }
 
         if (hasPlyshlog_ && !enablePolymerMolarWeight) {
@@ -254,14 +255,14 @@ public:
             plyshlogShearEffectRefMultiplier_.resize(numPvtRegions);
             plyshlogShearEffectRefLogVelocity_.resize(numPvtRegions);
             for (unsigned pvtRegionIdx = 0; pvtRegionIdx < numPvtRegions; ++ pvtRegionIdx) {
-                const auto& plyshlogTable = plyshlogTables.template getTable<Opm::PlyshlogTable>(pvtRegionIdx);
+                const auto& plyshlogTable = plyshlogTables.template getTable<PlyshlogTable>(pvtRegionIdx);
 
                 Scalar plyshlogRefPolymerConcentration = plyshlogTable.getRefPolymerConcentration();
                 auto waterVelocity = plyshlogTable.getWaterVelocityColumn().vectorCopy();
                 auto shearMultiplier = plyshlogTable.getShearMultiplierColumn().vectorCopy();
 
                 // do the unit version here for the waterVelocity
-                Opm::UnitSystem unitSystem = eclState.getDeckUnitSystem();
+                UnitSystem unitSystem = eclState.getDeckUnitSystem();
                 double siFactor = hasShrate_? unitSystem.parse("1/Time").getSIScaling() : unitSystem.parse("Length/Time").getSIScaling();
                 for (size_t i = 0; i < waterVelocity.size(); ++i) {
                     waterVelocity[i] *= siFactor;
@@ -506,7 +507,7 @@ public:
             // polymers have been disabled at compile time
             return;
 
-        Opm::VtkBlackOilPolymerModule<TypeTag>::registerParameters();
+        VtkBlackOilPolymerModule<TypeTag>::registerParameters();
     }
 
     /*!
@@ -519,7 +520,7 @@ public:
             // polymers have been disabled at compile time
             return;
 
-        model.addOutputModule(new Opm::VtkBlackOilPolymerModule<TypeTag>(simulator));
+        model.addOutputModule(new VtkBlackOilPolymerModule<TypeTag>(simulator));
     }
 
     static bool primaryVarApplies(unsigned pvIdx)
@@ -601,7 +602,7 @@ public:
                 * Toolbox::template decay<LhsEval>(intQuants.porosity());
 
         // avoid singular matrix if no water is present.
-        surfaceVolumeWater = Opm::max(surfaceVolumeWater, 1e-10);
+        surfaceVolumeWater = max(surfaceVolumeWater, 1e-10);
 
         // polymer in water phase
         const LhsEval massPolymer = surfaceVolumeWater
@@ -620,7 +621,7 @@ public:
 
         // tracking the polymer molecular weight
         if (enablePolymerMolarWeight) {
-            accumulationPolymer = Opm::max(accumulationPolymer, 1e-10);
+            accumulationPolymer = max(accumulationPolymer, 1e-10);
 
             storage[contiPolymerMolarWeightEqIdx]  += accumulationPolymer
                                          * Toolbox::template decay<LhsEval> (intQuants.polymerMoleWeight());
@@ -659,14 +660,14 @@ public:
         else {
             flux[contiPolymerEqIdx] =
                     extQuants.volumeFlux(waterPhaseIdx)
-                    *Opm::decay<Scalar>(up.fluidState().invB(waterPhaseIdx))
-                    *Opm::decay<Scalar>(up.polymerViscosityCorrection())
-                    /Opm::decay<Scalar>(extQuants.polymerShearFactor())
-                    *Opm::decay<Scalar>(up.polymerConcentration());
+                    *decay<Scalar>(up.fluidState().invB(waterPhaseIdx))
+                    *decay<Scalar>(up.polymerViscosityCorrection())
+                    /decay<Scalar>(extQuants.polymerShearFactor())
+                    *decay<Scalar>(up.polymerConcentration());
 
             // modify water
             flux[contiWaterEqIdx] /=
-                    Opm::decay<Scalar>(extQuants.waterShearFactor());
+                    decay<Scalar>(extQuants.waterShearFactor());
         }
 
         // flux related to transport of polymer molecular weight
@@ -676,7 +677,7 @@ public:
                     flux[contiPolymerEqIdx]*up.polymerMoleWeight();
             else
                 flux[contiPolymerMolarWeightEqIdx] =
-                    flux[contiPolymerEqIdx]*Opm::decay<Scalar>(up.polymerMoleWeight());
+                    flux[contiPolymerEqIdx]*decay<Scalar>(up.polymerMoleWeight());
         }
 
     }
@@ -834,10 +835,10 @@ public:
                                          unsigned pvtnumRegionIdx,
                                          const Evaluation& v0)
     {
-        typedef Opm::MathToolbox<Evaluation> ToolboxLocal;
+        using ToolboxLocal = MathToolbox<Evaluation>;
 
         const auto& viscosityMultiplierTable = plyviscViscosityMultiplierTable_[pvtnumRegionIdx];
-        Scalar viscosityMultiplier = viscosityMultiplierTable.eval(Opm::scalarValue(polymerConcentration), /*extrapolate=*/true);
+        Scalar viscosityMultiplier = viscosityMultiplierTable.eval(scalarValue(polymerConcentration), /*extrapolate=*/true);
 
         const Scalar eps = 1e-14;
         // return 1.0 if the polymer has no effect on the water.
@@ -845,7 +846,7 @@ public:
             return ToolboxLocal::createConstant(v0, 1.0);
 
         const std::vector<Scalar>& shearEffectRefLogVelocity = plyshlogShearEffectRefLogVelocity_[pvtnumRegionIdx];
-        auto v0AbsLog = Opm::log(Opm::abs(v0));
+        auto v0AbsLog = log(abs(v0));
         // return 1.0 if the velocity /sharte is smaller than the first velocity entry.
         if (v0AbsLog < shearEffectRefLogVelocity[0])
             return ToolboxLocal::createConstant(v0, 1.0);
@@ -861,7 +862,7 @@ public:
         std::vector<Scalar> shearEffectMultiplier(numTableEntries, 1.0);
         for (size_t i = 0; i < numTableEntries; ++i) {
             shearEffectMultiplier[i] = (1.0 + (viscosityMultiplier - 1.0)*shearEffectRefMultiplier[i]) / viscosityMultiplier;
-            shearEffectMultiplier[i] = Opm::log(shearEffectMultiplier[i]);
+            shearEffectMultiplier[i] = log(shearEffectMultiplier[i]);
         }
         // store the logarithmic velocity and logarithmic multipliers in a table for easy look up and
         // linear interpolation in the logarithmic space.
@@ -884,11 +885,12 @@ public:
         // Use log(v0) as initial value for u
         auto u = v0AbsLog;
         bool converged = false;
+        // TODO make this into parameters
         for (int i = 0; i < 20; ++i) {
             auto f = F(u);
             auto df = dF(u);
             u -= f/df;
-            if (std::abs(Opm::scalarValue(f)) < 1e-12) {
+            if (std::abs(scalarValue(f)) < 1e-12) {
                 converged = true;
                 break;
             }
@@ -898,7 +900,7 @@ public:
         }
 
         // return the shear factor
-        return Opm::exp(logShearEffectMultiplier.eval(u, /*extrapolate=*/true));
+        return exp(logShearEffectMultiplier.eval(u, /*extrapolate=*/true));
 
     }
 
@@ -1011,25 +1013,25 @@ BlackOilPolymerModule<TypeTag, enablePolymerV>::skprpolyTables_;
  * \brief Provides the volumetric quantities required for the equations needed by the
  *        polymers extension of the black-oil model.
  */
-template <class TypeTag, bool enablePolymerV = GET_PROP_VALUE(TypeTag, EnablePolymer)>
+template <class TypeTag, bool enablePolymerV = getPropValue<TypeTag, Properties::EnablePolymer>()>
 class BlackOilPolymerIntensiveQuantities
 {
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) Implementation;
+    using Implementation = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, MaterialLaw) MaterialLaw;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
 
-    typedef BlackOilPolymerModule<TypeTag> PolymerModule;
+    using PolymerModule = BlackOilPolymerModule<TypeTag>;
 
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
     static constexpr int polymerConcentrationIdx = Indices::polymerConcentrationIdx;
     static constexpr int waterPhaseIdx = FluidSystem::waterPhaseIdx;
-    static constexpr bool enablePolymerMolarWeight = GET_PROP_VALUE(TypeTag, EnablePolymerMW);
+    static constexpr bool enablePolymerMolarWeight = getPropValue<TypeTag, Properties::EnablePolymerMW>();
     static constexpr int polymerMoleWeightIdx = Indices::polymerMoleWeightIdx;
 
 
@@ -1044,10 +1046,11 @@ public:
                                   unsigned dofIdx,
                                   unsigned timeIdx)
     {
+        const auto linearizationType = elemCtx.linearizationType();
         const PrimaryVariables& priVars = elemCtx.primaryVars(dofIdx, timeIdx);
-        polymerConcentration_ = priVars.makeEvaluation(polymerConcentrationIdx, timeIdx);
+        polymerConcentration_ = priVars.makeEvaluation(polymerConcentrationIdx, timeIdx, linearizationType);
         if (enablePolymerMolarWeight) {
-            polymerMoleWeight_ = priVars.makeEvaluation(polymerMoleWeightIdx, timeIdx);
+            polymerMoleWeight_ = priVars.makeEvaluation(polymerMoleWeightIdx, timeIdx, linearizationType);
         }
         const Scalar cmax = PolymerModule::plymaxMaxConcentration(elemCtx, dofIdx, timeIdx);
 
@@ -1154,9 +1157,9 @@ protected:
 template <class TypeTag>
 class BlackOilPolymerIntensiveQuantities<TypeTag, false>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
 
 public:
     void polymerPropertiesUpdate_(const ElementContext& elemCtx OPM_UNUSED,
@@ -1194,27 +1197,27 @@ public:
  * \brief Provides the polymer specific extensive quantities to the generic black-oil
  *        module's extensive quantities.
  */
-template <class TypeTag, bool enablePolymerV = GET_PROP_VALUE(TypeTag, EnablePolymer)>
+template <class TypeTag, bool enablePolymerV = getPropValue<TypeTag, Properties::EnablePolymer>()>
 class BlackOilPolymerExtensiveQuantities
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) Implementation;
+    using Implementation = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) ExtensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
+    using ExtensiveQuantities = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
 
     static constexpr unsigned gasPhaseIdx = FluidSystem::gasPhaseIdx;
     static constexpr int dimWorld = GridView::dimensionworld;
     static constexpr unsigned waterPhaseIdx =  FluidSystem::waterPhaseIdx;
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
-    typedef BlackOilPolymerModule<TypeTag> PolymerModule;
-    typedef Dune::FieldVector<Scalar, dimWorld> DimVector;
-    typedef Dune::FieldVector<Evaluation, dimWorld> DimEvalVector;
+    using Toolbox = MathToolbox<Evaluation>;
+    using PolymerModule = BlackOilPolymerModule<TypeTag>;
+    using DimVector = Dune::FieldVector<Scalar, dimWorld>;
+    using DimEvalVector = Dune::FieldVector<Evaluation, dimWorld>;
 
 public:
     /*!
@@ -1271,7 +1274,7 @@ public:
         const Scalar& Swcr = scaledDrainageInfo.Swcr;
 
         // guard against zero porosity and no mobile water
-        Evaluation denom = Opm::max(poroAvg * (Sw - Swcr), 1e-12);
+        Evaluation denom = max(poroAvg * (Sw - Swcr), 1e-12);
         Evaluation waterVolumeVelocity = extQuants.volumeFlux(waterPhaseIdx) / denom;
 
         // if shrate is specified. Compute shrate based on the water velocity
@@ -1284,8 +1287,8 @@ public:
                 // compute permeability from transmissibility.
                 Scalar absPerm = trans / faceArea * dist.two_norm();
                 waterVolumeVelocity *=
-                    PolymerModule::shrate(pvtnumRegionIdx)*Opm::sqrt(poroAvg*Sw / (relWater*absPerm));
-                assert(Opm::isfinite(waterVolumeVelocity));
+                    PolymerModule::shrate(pvtnumRegionIdx)*sqrt(poroAvg*Sw / (relWater*absPerm));
+                assert(isfinite(waterVolumeVelocity));
             }
         }
 
@@ -1320,8 +1323,8 @@ private:
 template <class TypeTag>
 class BlackOilPolymerExtensiveQuantities<TypeTag, false>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
 
 public:
     void updateShearMultipliers(const ElementContext& elemCtx OPM_UNUSED,

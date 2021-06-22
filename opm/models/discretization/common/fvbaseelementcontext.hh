@@ -30,10 +30,10 @@
 
 #include "fvbaseproperties.hh"
 
+#include <opm/models/discretization/common/linearizationtype.hh>
 #include <opm/models/utils/alignedallocator.hh>
 
 #include <opm/material/common/Unused.hpp>
-#include <opm/material/common/Exceptions.hpp>
 
 #include <dune/common/fvector.hh>
 
@@ -50,39 +50,39 @@ namespace Opm {
 template<class TypeTag>
 class FvBaseElementContext
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) Implementation;
+    using Implementation = GetPropType<TypeTag, Properties::ElementContext>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) ExtensiveQuantities;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
+    using ExtensiveQuantities = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
 
     // the history size of the time discretization in number of steps
-    enum { timeDiscHistorySize = GET_PROP_VALUE(TypeTag, TimeDiscHistorySize) };
+    enum { timeDiscHistorySize = getPropValue<TypeTag, Properties::TimeDiscHistorySize>() };
 
     struct DofStore_ {
         IntensiveQuantities intensiveQuantities[timeDiscHistorySize];
         PrimaryVariables priVars[timeDiscHistorySize];
         const IntensiveQuantities *thermodynamicHint[timeDiscHistorySize];
     };
-    typedef std::vector<DofStore_> DofVarsVector;
-    typedef std::vector<ExtensiveQuantities> ExtensiveQuantitiesVector;
+    using DofVarsVector = std::vector<DofStore_>;
+    using ExtensiveQuantitiesVector = std::vector<ExtensiveQuantities>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, Problem) Problem;
-    typedef typename GET_PROP_TYPE(TypeTag, Model) Model;
-    typedef typename GET_PROP_TYPE(TypeTag, Stencil) Stencil;
-    typedef typename GET_PROP_TYPE(TypeTag, GradientCalculator) GradientCalculator;
-    typedef typename GET_PROP_TYPE(TypeTag, SolutionVector) SolutionVector;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using Problem = GetPropType<TypeTag, Properties::Problem>;
+    using Model = GetPropType<TypeTag, Properties::Model>;
+    using Stencil = GetPropType<TypeTag, Properties::Stencil>;
+    using GradientCalculator = GetPropType<TypeTag, Properties::GradientCalculator>;
+    using SolutionVector = GetPropType<TypeTag, Properties::SolutionVector>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
-    typedef typename GridView::template Codim<0>::Entity Element;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
+    using Element = typename GridView::template Codim<0>::Entity;
 
     static const unsigned dimWorld = GridView::dimensionworld;
-    static const unsigned numEq = GET_PROP_VALUE(TypeTag, NumEq);
+    static const unsigned numEq = getPropValue<TypeTag, Properties::NumEq>();
 
-    typedef typename GridView::ctype CoordScalar;
-    typedef Dune::FieldVector<CoordScalar, dimWorld> GlobalPosition;
+    using CoordScalar = typename GridView::ctype;
+    using GlobalPosition = Dune::FieldVector<CoordScalar, dimWorld>;
 
     // we don't allow copies of element contexts!
     FvBaseElementContext(const FvBaseElementContext& ) = delete;
@@ -103,10 +103,10 @@ public:
     }
 
     static void *operator new(size_t size)
-    { return Opm::aligned_alloc(alignof(FvBaseElementContext), size); }
+    { return aligned_alloc(alignof(FvBaseElementContext), size); }
 
     static void operator delete(void *ptr)
-    { Opm::aligned_free(ptr); }
+    { aligned_free(ptr); }
 
     /*!
      * \brief Construct all volume and extensive quantities of an element
@@ -269,6 +269,14 @@ public:
     { return focusDofIdx_; }
 
     /*!
+     * \brief Returns the linearization type.
+     *
+     * \copydetails setLinearizationType()
+     */
+    LinearizationType linearizationType() const
+    { return this->model().linearizer().getLinearizationType(); }
+
+    /*!
      * \brief Return a reference to the simulator.
      */
     const Simulator& simulator() const
@@ -401,7 +409,7 @@ public:
     const IntensiveQuantities& intensiveQuantities(unsigned dofIdx, unsigned timeIdx) const
     {
 #ifndef NDEBUG
-        assert(0 <= dofIdx && dofIdx < numDof(timeIdx));
+        assert(dofIdx < numDof(timeIdx));
 
         if (enableStorageCache_ && timeIdx != 0 && problem().recycleFirstIterationStorage())
             throw std::logic_error("If caching of the storage term is enabled, only the intensive quantities "
@@ -421,7 +429,7 @@ public:
      */
     const IntensiveQuantities *thermodynamicHint(unsigned dofIdx, unsigned timeIdx) const
     {
-        assert(0 <= dofIdx && dofIdx < numDof(timeIdx));
+        assert(dofIdx < numDof(timeIdx));
         return dofVars_[dofIdx].thermodynamicHint[timeIdx];
     }
     /*!
@@ -429,7 +437,7 @@ public:
      */
     IntensiveQuantities& intensiveQuantities(unsigned dofIdx, unsigned timeIdx)
     {
-        assert(0 <= dofIdx && dofIdx < numDof(timeIdx));
+        assert(dofIdx < numDof(timeIdx));
         return dofVars_[dofIdx].intensiveQuantities[timeIdx];
     }
 
@@ -443,7 +451,7 @@ public:
      */
     PrimaryVariables& primaryVars(unsigned dofIdx, unsigned timeIdx)
     {
-        assert(0 <= dofIdx && dofIdx < numDof(timeIdx));
+        assert(dofIdx < numDof(timeIdx));
         return dofVars_[dofIdx].priVars[timeIdx];
     }
     /*!
@@ -451,7 +459,7 @@ public:
      */
     const PrimaryVariables& primaryVars(unsigned dofIdx, unsigned timeIdx) const
     {
-        assert(0 <= dofIdx && dofIdx < numDof(timeIdx));
+        assert(dofIdx < numDof(timeIdx));
         return dofVars_[dofIdx].priVars[timeIdx];
     }
 
@@ -480,7 +488,7 @@ public:
      */
     void stashIntensiveQuantities(unsigned dofIdx)
     {
-        assert(0 <= dofIdx && dofIdx < numDof(/*timeIdx=*/0));
+        assert(dofIdx < numDof(/*timeIdx=*/0));
 
         intensiveQuantitiesStashed_ = dofVars_[dofIdx].intensiveQuantities[/*timeIdx=*/0];
         priVarsStashed_ = dofVars_[dofIdx].priVars[/*timeIdx=*/0];
@@ -589,8 +597,8 @@ protected:
 
     GradientCalculator gradientCalculator_;
 
-    std::vector<DofStore_, Opm::aligned_allocator<DofStore_, alignof(DofStore_)> > dofVars_;
-    std::vector<ExtensiveQuantities, Opm::aligned_allocator<ExtensiveQuantities, alignof(ExtensiveQuantities)> > extensiveQuantities_;
+    std::vector<DofStore_, aligned_allocator<DofStore_, alignof(DofStore_)> > dofVars_;
+    std::vector<ExtensiveQuantities, aligned_allocator<ExtensiveQuantities, alignof(ExtensiveQuantities)> > extensiveQuantities_;
 
     const Simulator *simulatorPtr_;
     const Element *elemPtr_;

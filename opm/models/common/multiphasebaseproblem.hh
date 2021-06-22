@@ -36,19 +36,9 @@
 #include <opm/material/fluidmatrixinteractions/NullMaterial.hpp>
 #include <opm/material/common/Means.hpp>
 #include <opm/material/common/Unused.hpp>
-#include <opm/material/common/Exceptions.hpp>
 
 #include <dune/common/fvector.hh>
 #include <dune/common/fmatrix.hh>
-
-BEGIN_PROPERTIES
-
-NEW_PROP_TAG(SolidEnergyLawParams);
-NEW_PROP_TAG(ThermalConductionLawParams);
-NEW_PROP_TAG(EnableGravity);
-NEW_PROP_TAG(FluxModule);
-
-END_PROPERTIES
 
 namespace Opm {
 
@@ -61,25 +51,25 @@ namespace Opm {
 template<class TypeTag>
 class MultiPhaseBaseProblem
     : public FvBaseProblem<TypeTag>
-    , public GET_PROP_TYPE(TypeTag, FluxModule)::FluxBaseProblem
+    , public GetPropType<TypeTag, Properties::FluxModule>::FluxBaseProblem
 {
 //! \cond SKIP_THIS
-    typedef Opm::FvBaseProblem<TypeTag> ParentType;
+    using ParentType = FvBaseProblem<TypeTag>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Problem) Implementation;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, SolidEnergyLawParams) SolidEnergyLawParams;
-    typedef typename GET_PROP_TYPE(TypeTag, ThermalConductionLawParams) ThermalConductionLawParams;
-    typedef typename GET_PROP_TYPE(TypeTag, MaterialLaw)::Params MaterialLawParams;
+    using Implementation = GetPropType<TypeTag, Properties::Problem>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using SolidEnergyLawParams = GetPropType<TypeTag, Properties::SolidEnergyLawParams>;
+    using ThermalConductionLawParams = GetPropType<TypeTag, Properties::ThermalConductionLawParams>;
+    using MaterialLawParams = typename GetPropType<TypeTag, Properties::MaterialLaw>::Params;
 
     enum { dimWorld = GridView::dimensionworld };
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
-    typedef Dune::FieldVector<Scalar, dimWorld> DimVector;
-    typedef Dune::FieldMatrix<Scalar, dimWorld, dimWorld> DimMatrix;
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
+    using DimVector = Dune::FieldVector<Scalar, dimWorld>;
+    using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
 //! \endcond
 
 public:
@@ -125,7 +115,7 @@ public:
         // you have off-main diagonal entries in your permeabilities!
         for (unsigned i = 0; i < dimWorld; ++i)
             for (unsigned j = 0; j < dimWorld; ++j)
-                result[i][j] = Opm::harmonicMean(K1[i][j], K2[i][j]);
+                result[i][j] = harmonicMean(K1[i][j], K2[i][j]);
     }
 
     /*!
@@ -315,7 +305,7 @@ public:
      */
     unsigned markForGridAdaptation()
     {
-        typedef Opm::MathToolbox<Evaluation> Toolbox;
+        using Toolbox = MathToolbox<Evaluation>;
 
         unsigned numMarked = 0;
         ElementContext elemCtx( this->simulator() );

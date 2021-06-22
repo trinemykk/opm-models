@@ -45,15 +45,17 @@
 #include "blackoilpolymermodules.hh"
 #include "blackoilfoammodules.hh"
 #include "blackoilbrinemodules.hh"
+#include "blackoilextbomodules.hh"
 #include "blackoildarcyfluxmodule.hh"
 
 #include <opm/models/common/multiphasebasemodel.hh>
 #include <opm/models/io/vtkcompositionmodule.hh>
 #include <opm/models/io/vtkblackoilmodule.hh>
+#include "blackoildiffusionmodule.hh"
+#include <opm/models/io/vtkdiffusionmodule.hh>
 
 #include <opm/material/fluidsystems/BlackOilFluidSystem.hpp>
 #include <opm/material/common/Unused.hpp>
-#include <opm/material/common/Exceptions.hpp>
 
 #include <sstream>
 #include <string>
@@ -66,78 +68,106 @@ template <class TypeTag>
 class EclVanguard;
 }
 
-BEGIN_PROPERTIES
+namespace Opm::Properties {
 
+namespace TTag {
 //! The type tag for the black-oil problems
-NEW_TYPE_TAG(BlackOilModel, INHERITS_FROM(MultiPhaseBaseModel,
-                                          VtkBlackOil,
-                                          VtkBlackOilSolvent,
-                                          VtkBlackOilPolymer,
-                                          VtkBlackOilEnergy,
-                                          VtkComposition));
+struct BlackOilModel { using InheritsFrom = std::tuple<VtkComposition,
+                                                       VtkBlackOilEnergy,
+                                                       VtkDiffusion,
+                                                       VtkBlackOilPolymer,
+                                                       VtkBlackOilSolvent,
+                                                       VtkBlackOil,
+                                                       MultiPhaseBaseModel>; };
+} // namespace TTag
 
 //! Set the local residual function
-SET_TYPE_PROP(BlackOilModel, LocalResidual,
-              Opm::BlackOilLocalResidual<TypeTag>);
+template<class TypeTag>
+struct LocalResidual<TypeTag, TTag::BlackOilModel> { using type = BlackOilLocalResidual<TypeTag>; };
 
 //! Use the black-oil specific newton method
-SET_TYPE_PROP(BlackOilModel, NewtonMethod, Opm::BlackOilNewtonMethod<TypeTag>);
+template<class TypeTag>
+struct NewtonMethod<TypeTag, TTag::BlackOilModel> { using type = BlackOilNewtonMethod<TypeTag>; };
 
 //! The Model property
-SET_TYPE_PROP(BlackOilModel, Model, Opm::BlackOilModel<TypeTag>);
+template<class TypeTag>
+struct Model<TypeTag, TTag::BlackOilModel> { using type = BlackOilModel<TypeTag>; };
 
 //! The Problem property
-SET_TYPE_PROP(BlackOilModel, BaseProblem, Opm::BlackOilProblem<TypeTag>);
+template<class TypeTag>
+struct BaseProblem<TypeTag, TTag::BlackOilModel> { using type = BlackOilProblem<TypeTag>; };
 
 //! the RateVector property
-SET_TYPE_PROP(BlackOilModel, RateVector, Opm::BlackOilRateVector<TypeTag>);
+template<class TypeTag>
+struct RateVector<TypeTag, TTag::BlackOilModel> { using type = BlackOilRateVector<TypeTag>; };
 
 //! the BoundaryRateVector property
-SET_TYPE_PROP(BlackOilModel, BoundaryRateVector, Opm::BlackOilBoundaryRateVector<TypeTag>);
+template<class TypeTag>
+struct BoundaryRateVector<TypeTag, TTag::BlackOilModel> { using type = BlackOilBoundaryRateVector<TypeTag>; };
 
 //! the PrimaryVariables property
-SET_TYPE_PROP(BlackOilModel, PrimaryVariables, Opm::BlackOilPrimaryVariables<TypeTag>);
+template<class TypeTag>
+struct PrimaryVariables<TypeTag, TTag::BlackOilModel> { using type = BlackOilPrimaryVariables<TypeTag>; };
 
 //! the IntensiveQuantities property
-SET_TYPE_PROP(BlackOilModel, IntensiveQuantities, Opm::BlackOilIntensiveQuantities<TypeTag>);
+template<class TypeTag>
+struct IntensiveQuantities<TypeTag, TTag::BlackOilModel> { using type = BlackOilIntensiveQuantities<TypeTag>; };
 
 //! the ExtensiveQuantities property
-SET_TYPE_PROP(BlackOilModel, ExtensiveQuantities, Opm::BlackOilExtensiveQuantities<TypeTag>);
+template<class TypeTag>
+struct ExtensiveQuantities<TypeTag, TTag::BlackOilModel> { using type = BlackOilExtensiveQuantities<TypeTag>; };
 
 //! Use the the velocity module which is aware of the black-oil specific model extensions
 //! (i.e., the polymer and solvent extensions)
-SET_TYPE_PROP(BlackOilModel, FluxModule, Opm::BlackOilDarcyFluxModule<TypeTag>);
+template<class TypeTag>
+struct FluxModule<TypeTag, TTag::BlackOilModel> { using type = BlackOilDarcyFluxModule<TypeTag>; };
 
 //! The indices required by the model
-SET_TYPE_PROP(BlackOilModel, Indices,
-              Opm::BlackOilIndices<GET_PROP_VALUE(TypeTag, EnableSolvent),
-                                   GET_PROP_VALUE(TypeTag, EnablePolymer),
-                                   GET_PROP_VALUE(TypeTag, EnableEnergy),
-                                   GET_PROP_VALUE(TypeTag, EnableFoam),
-                                   GET_PROP_VALUE(TypeTag, EnableBrine),
-                                   /*PVOffset=*/0>);
+template<class TypeTag>
+struct Indices<TypeTag, TTag::BlackOilModel>
+{ using type = BlackOilIndices<getPropValue<TypeTag, Properties::EnableSolvent>(),
+                               getPropValue<TypeTag, Properties::EnableExtbo>(),
+                               getPropValue<TypeTag, Properties::EnablePolymer>(),
+                               getPropValue<TypeTag, Properties::EnableEnergy>(),
+                               getPropValue<TypeTag, Properties::EnableFoam>(),
+                               getPropValue<TypeTag, Properties::EnableBrine>(),
+                               /*PVOffset=*/0>; };
 
 //! Set the fluid system to the black-oil fluid system by default
-SET_PROP(BlackOilModel, FluidSystem)
+template<class TypeTag>
+struct FluidSystem<TypeTag, TTag::BlackOilModel>
 {
 private:
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
 
 public:
-    typedef Opm::BlackOilFluidSystem<Scalar> type;
+    using type = BlackOilFluidSystem<Scalar>;
 };
 
 // by default, all ECL extension modules are disabled
-SET_BOOL_PROP(BlackOilModel, EnableSolvent, false);
-SET_BOOL_PROP(BlackOilModel, EnablePolymer, false);
-SET_BOOL_PROP(BlackOilModel, EnablePolymerMW, false);
-SET_BOOL_PROP(BlackOilModel, EnableFoam, false);
-SET_BOOL_PROP(BlackOilModel, EnableBrine, false);
+template<class TypeTag>
+struct EnableSolvent<TypeTag, TTag::BlackOilModel> { static constexpr bool value = false; };
+template<class TypeTag>
+struct EnableExtbo<TypeTag, TTag::BlackOilModel> { static constexpr bool value = false; };
+template<class TypeTag>
+struct EnablePolymer<TypeTag, TTag::BlackOilModel> { static constexpr bool value = false; };
+template<class TypeTag>
+struct EnablePolymerMW<TypeTag, TTag::BlackOilModel> { static constexpr bool value = false; };
+template<class TypeTag>
+struct EnableFoam<TypeTag, TTag::BlackOilModel> { static constexpr bool value = false; };
+template<class TypeTag>
+struct EnableBrine<TypeTag, TTag::BlackOilModel> { static constexpr bool value = false; };
 
 //! By default, the blackoil model is isothermal and does not conserve energy
-SET_BOOL_PROP(BlackOilModel, EnableTemperature, false);
-SET_BOOL_PROP(BlackOilModel, EnableEnergy, false);
+template<class TypeTag>
+struct EnableTemperature<TypeTag, TTag::BlackOilModel> { static constexpr bool value = false; };
+template<class TypeTag>
+struct EnableEnergy<TypeTag, TTag::BlackOilModel> { static constexpr bool value = false; };
+
+//! disable diffusion by default
+template<class TypeTag>
+struct EnableDiffusion<TypeTag, TTag::BlackOilModel> { static constexpr bool value = false; };
 
 //! by default, scale the energy equation by the inverse of the energy required to heat
 //! up one kg of water by 30 Kelvin. If we conserve surface volumes, this must be divided
@@ -145,25 +175,24 @@ SET_BOOL_PROP(BlackOilModel, EnableEnergy, false);
 //! solvers that do not weight the components of the solutions do the right thing.
 //! by default, don't scale the energy equation, i.e. assume that a reasonable linear
 //! solver is used. (Not scaling it makes debugging quite a bit easier.)
-SET_PROP(BlackOilModel, BlackOilEnergyScalingFactor)
+template<class TypeTag>
+struct BlackOilEnergyScalingFactor<TypeTag, TTag::BlackOilModel>
 {
 private:
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    static constexpr Scalar alpha = GET_PROP_VALUE(TypeTag, BlackoilConserveSurfaceVolume) ? 1000.0 : 1.0;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    static constexpr Scalar alpha = getPropValue<TypeTag, Properties::BlackoilConserveSurfaceVolume>() ? 1000.0 : 1.0;
 
 public:
-    typedef Scalar type;
-    static const Scalar value;
+    using type = Scalar;
+    static constexpr Scalar value = 1.0/(30.0*4184.0*alpha);
 };
-
-PROP_STATIC_CONST_MEMBER_DEFINITION_PREFIX_(BlackOilModel, BlackOilEnergyScalingFactor)
-    ::value = 1.0/(30*4184.0*alpha);
 
 // by default, ebos formulates the conservation equations in terms of mass not surface
 // volumes
-SET_BOOL_PROP(BlackOilModel, BlackoilConserveSurfaceVolume, false);
+template<class TypeTag>
+struct BlackoilConserveSurfaceVolume<TypeTag, TTag::BlackOilModel> { static constexpr bool value = false; };
 
-END_PROPERTIES
+} // namespace Opm::Properties
 
 namespace Opm {
 
@@ -222,7 +251,8 @@ namespace Opm {
  * \c FluxModule property. For example, the velocity model can by
  * changed to the Forchheimer approach by
  * \code
- * SET_TYPE_PROP(MyProblemTypeTag, FluxModule, Opm::ForchheimerFluxModule<TypeTag>);
+ * template<class TypeTag>
+struct FluxModule<TypeTag, TTag::MyProblemTypeTag> { using type = Opm::ForchheimerFluxModule<TypeTag>; };
  * \endcode
  *
  * The primary variables used by this model are:
@@ -233,27 +263,31 @@ template<class TypeTag >
 class BlackOilModel
     : public MultiPhaseBaseModel<TypeTag>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Model) Implementation;
-    typedef MultiPhaseBaseModel<TypeTag> ParentType;
+    using Implementation = GetPropType<TypeTag, Properties::Model>;
+    using ParentType = MultiPhaseBaseModel<TypeTag>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, Discretization) Discretization;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using Discretization = GetPropType<TypeTag, Properties::Discretization>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
 
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
     enum { numComponents = FluidSystem::numComponents };
-    enum { numEq = GET_PROP_VALUE(TypeTag, NumEq) };
+    enum { numEq = getPropValue<TypeTag, Properties::NumEq>() };
+    enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
 
     static const bool compositionSwitchEnabled = Indices::gasEnabled;
     static const bool waterEnabled = Indices::waterEnabled;
 
-    typedef BlackOilSolventModule<TypeTag> SolventModule;
-    typedef BlackOilPolymerModule<TypeTag> PolymerModule;
-    typedef BlackOilEnergyModule<TypeTag> EnergyModule;
+    using SolventModule = BlackOilSolventModule<TypeTag>;
+    using ExtboModule = BlackOilExtboModule<TypeTag>;
+    using PolymerModule = BlackOilPolymerModule<TypeTag>;
+    using EnergyModule = BlackOilEnergyModule<TypeTag>;
+    using DiffusionModule = BlackOilDiffusionModule<TypeTag, enableDiffusion>;
+
 public:
     BlackOilModel(Simulator& simulator)
         : ParentType(simulator)
@@ -267,12 +301,17 @@ public:
         ParentType::registerParameters();
 
         SolventModule::registerParameters();
+        ExtboModule::registerParameters();
         PolymerModule::registerParameters();
         EnergyModule::registerParameters();
+        DiffusionModule::registerParameters();
 
         // register runtime parameters of the VTK output modules
-        Opm::VtkBlackOilModule<TypeTag>::registerParameters();
-        Opm::VtkCompositionModule<TypeTag>::registerParameters();
+        VtkBlackOilModule<TypeTag>::registerParameters();
+        VtkCompositionModule<TypeTag>::registerParameters();
+
+        if (enableDiffusion)
+            VtkDiffusionModule<TypeTag>::registerParameters();
     }
 
     /*!
@@ -296,6 +335,8 @@ public:
             oss << "composition_switching";
         else if (SolventModule::primaryVarApplies(pvIdx))
             return SolventModule::primaryVarName(pvIdx);
+        else if (ExtboModule::primaryVarApplies(pvIdx))
+            return ExtboModule::primaryVarName(pvIdx);
         else if (PolymerModule::primaryVarApplies(pvIdx))
             return PolymerModule::primaryVarName(pvIdx);
         else if (EnergyModule::primaryVarApplies(pvIdx))
@@ -317,6 +358,8 @@ public:
             oss << "conti_" << FluidSystem::phaseName(eqIdx - Indices::conti0EqIdx);
         else if (SolventModule::eqApplies(eqIdx))
             return SolventModule::eqName(eqIdx);
+        else if (ExtboModule::eqApplies(eqIdx))
+            return ExtboModule::eqName(eqIdx);
         else if (PolymerModule::eqApplies(eqIdx))
             return PolymerModule::eqName(eqIdx);
         else if (EnergyModule::eqApplies(eqIdx))
@@ -349,6 +392,10 @@ public:
         // deal with primary variables stemming from the solvent module
         else if (SolventModule::primaryVarApplies(pvIdx))
             return SolventModule::primaryVarWeight(pvIdx);
+
+        // deal with primary variables stemming from the extBO module
+        else if (ExtboModule::primaryVarApplies(pvIdx))
+            return ExtboModule::primaryVarWeight(pvIdx);
 
         // deal with primary variables stemming from the polymer module
         else if (PolymerModule::primaryVarApplies(pvIdx))
@@ -386,7 +433,7 @@ public:
         // we do not care much about water, so it gets de-prioritized by a factor of 100
         static constexpr Scalar waterPriority = 1e-2;
 
-        if (GET_PROP_VALUE(TypeTag, BlackoilConserveSurfaceVolume)) {
+        if (getPropValue<TypeTag, Properties::BlackoilConserveSurfaceVolume>()) {
             // Roughly convert the surface volume of the fluids from m^3 to kg. (in this
             // context, it does not really matter if the actual densities are off by a
             // factor of two or three.)
@@ -404,6 +451,9 @@ public:
 
         if (SolventModule::eqApplies(eqIdx))
             return SolventModule::eqWeight(eqIdx);
+
+        if (ExtboModule::eqApplies(eqIdx))
+            return ExtboModule::eqWeight(eqIdx);
 
         else if (PolymerModule::eqApplies(eqIdx))
             return PolymerModule::eqWeight(eqIdx);
@@ -444,6 +494,7 @@ public:
         outstream << priVars.pvtRegionIndex() << " ";
 
         SolventModule::serializeEntity(*this, outstream, dof);
+        ExtboModule::serializeEntity(*this, outstream, dof);
         PolymerModule::serializeEntity(*this, outstream, dof);
         EnergyModule::serializeEntity(*this, outstream, dof);
     }
@@ -481,10 +532,11 @@ public:
             throw std::runtime_error("Could not deserialize degree of freedom "+std::to_string(dofIdx));
 
         SolventModule::deserializeEntity(*this, instream, dof);
+        ExtboModule::deserializeEntity(*this, instream, dof);
         PolymerModule::deserializeEntity(*this, instream, dof);
         EnergyModule::deserializeEntity(*this, instream, dof);
 
-        typedef typename PrimaryVariables::PrimaryVarsMeaning PVM;
+        using PVM = typename PrimaryVariables::PrimaryVarsMeaning;
         priVars.setPrimaryVarsMeaning(static_cast<PVM>(primaryVarsMeaning));
         priVars.setPvtRegionIndex(pvtRegionIdx);
     }
@@ -544,8 +596,11 @@ protected:
         PolymerModule::registerOutputModules(*this, this->simulator_);
         EnergyModule::registerOutputModules(*this, this->simulator_);
 
-        this->addOutputModule(new Opm::VtkBlackOilModule<TypeTag>(this->simulator_));
-        this->addOutputModule(new Opm::VtkCompositionModule<TypeTag>(this->simulator_));
+        this->addOutputModule(new VtkBlackOilModule<TypeTag>(this->simulator_));
+        this->addOutputModule(new VtkCompositionModule<TypeTag>(this->simulator_));
+
+        if (enableDiffusion)
+            this->addOutputModule(new VtkDiffusionModule<TypeTag>(this->simulator_));
     }
 
 private:

@@ -31,41 +31,39 @@
 
 #include <opm/models/common/multiphasebaseproperties.hh>
 
-BEGIN_PROPERTIES
+namespace Opm::Properties {
 
 //! Specifies if the simulation should write output files that are
 //! compatible with those produced by the commercial Eclipse simulator
-NEW_PROP_TAG(EnableEclipseOutput);
-//! The material law for thermal conduction
-NEW_PROP_TAG(ThermalConductionLaw);
-//! The parameters of the material law for thermal conduction
-NEW_PROP_TAG(ThermalConductionLawParams);
-//! The material law for energy storage of the rock
-NEW_PROP_TAG(SolidEnergyLaw);
-//! The parameters for material law for energy storage of the rock
-NEW_PROP_TAG(SolidEnergyLawParams);
+template<class TypeTag, class MyTypeTag>
+struct EnableEclipseOutput { using type = UndefinedProperty; };
 //! Enable the ECL-blackoil extension for solvents. ("Second gas")
-NEW_PROP_TAG(EnableSolvent);
+template<class TypeTag, class MyTypeTag>
+struct EnableSolvent { using type = UndefinedProperty; };
+//! Enable the ECL-blackoil extension for extended BO. ("Second gas" - alternative approach)
+template<class TypeTag, class MyTypeTag>
+struct EnableExtbo { using type = UndefinedProperty; };
 //! Enable the ECL-blackoil extension for polymer.
-NEW_PROP_TAG(EnablePolymer);
+template<class TypeTag, class MyTypeTag>
+struct EnablePolymer { using type = UndefinedProperty; };
 //! Enable the tracking polymer molecular weight tracking and related functionalities
-NEW_PROP_TAG(EnablePolymerMW);
+template<class TypeTag, class MyTypeTag>
+struct EnablePolymerMW { using type = UndefinedProperty; };
 //! Enable surface volume scaling
-NEW_PROP_TAG(BlackoilConserveSurfaceVolume);
+template<class TypeTag, class MyTypeTag>
+struct BlackoilConserveSurfaceVolume { using type = UndefinedProperty; };
 //! Enable the ECL-blackoil extension for foam
-NEW_PROP_TAG(EnableFoam);
+template<class TypeTag, class MyTypeTag>
+struct EnableFoam { using type = UndefinedProperty; };
 //! Enable the ECL-blackoil extension for salt
-NEW_PROP_TAG(EnableBrine);
+template<class TypeTag, class MyTypeTag>
+struct EnableBrine { using type = UndefinedProperty; };
 
 
 //! Allow the spatial and temporal domains to exhibit non-constant temperature
 //! in the black-oil model
-NEW_PROP_TAG(EnableTemperature);
-
-//! Enable the ECL-blackoil extension for energy conservation
-//!
-//! Setting this property to true implies EnableTemperature.
-NEW_PROP_TAG(EnableEnergy);
+template<class TypeTag, class MyTypeTag>
+struct EnableTemperature { using type = UndefinedProperty; };
 
 //! The relative weight of the residual of the energy equation compared to the mass
 //! residuals
@@ -74,9 +72,10 @@ NEW_PROP_TAG(EnableEnergy);
 //! of unmodified dune-istl linear solvers cannot weight the individual equations. if the
 //! energy equation is not scaled, its absolute value is normally several orders of
 //! magnitude larger than that of the mass balance equations
-NEW_PROP_TAG(BlackOilEnergyScalingFactor);
+template<class TypeTag, class MyTypeTag>
+struct BlackOilEnergyScalingFactor { using type = UndefinedProperty; };
 
 
-END_PROPERTIES
+} // namespace Opm::Properties
 
 #endif

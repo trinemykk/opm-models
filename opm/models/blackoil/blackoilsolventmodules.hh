@@ -62,33 +62,33 @@ namespace Opm {
  * \brief Contains the high level supplements required to extend the black oil
  *        model by solvents.
  */
-template <class TypeTag, bool enableSolventV = GET_PROP_VALUE(TypeTag, EnableSolvent)>
+template <class TypeTag, bool enableSolventV = getPropValue<TypeTag, Properties::EnableSolvent>()>
 class BlackOilSolventModule
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) ExtensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, Model) Model;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, EqVector) EqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, RateVector) RateVector;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
+    using ExtensiveQuantities = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using Model = GetPropType<TypeTag, Properties::Model>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using EqVector = GetPropType<TypeTag, Properties::EqVector>;
+    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
-    typedef Opm::SolventPvt<Scalar> SolventPvt;
+    using Toolbox = MathToolbox<Evaluation>;
+    using SolventPvt = ::Opm::SolventPvt<Scalar>;
 
-    typedef typename Opm::Tabulated1DFunction<Scalar> TabulatedFunction;
+    using TabulatedFunction = Tabulated1DFunction<Scalar>;
 
     static constexpr unsigned solventSaturationIdx = Indices::solventSaturationIdx;
     static constexpr unsigned contiSolventEqIdx = Indices::contiSolventEqIdx;
     static constexpr unsigned enableSolvent = enableSolventV;
-    static constexpr unsigned numEq = GET_PROP_VALUE(TypeTag, NumEq);
+    static constexpr unsigned numEq = getPropValue<TypeTag, Properties::NumEq>();
     static constexpr unsigned numPhases = FluidSystem::numPhases;
-    static constexpr bool blackoilConserveSurfaceVolume = GET_PROP_VALUE(TypeTag, BlackoilConserveSurfaceVolume);
+    static constexpr bool blackoilConserveSurfaceVolume = getPropValue<TypeTag, Properties::BlackoilConserveSurfaceVolume>();
 
 
 public:
@@ -96,7 +96,7 @@ public:
     /*!
      * \brief Initialize all internal data structures needed by the solvent module
      */
-    static void initFromState(const Opm::EclipseState& eclState, const Schedule& schedule)
+    static void initFromState(const EclipseState& eclState, const Schedule& schedule)
     {
         // some sanity checks: if solvents are enabled, the SOLVENT keyword must be
         // present, if solvents are disabled the keyword must not be present.
@@ -118,7 +118,7 @@ public:
         unsigned numSatRegions = tableManager.getTabdims().getNumSatTables();
         setNumSatRegions(numSatRegions);
         for (unsigned satRegionIdx = 0; satRegionIdx < numSatRegions; ++ satRegionIdx) {
-            const auto& ssfnTable = ssfnTables.template getTable<Opm::SsfnTable>(satRegionIdx);
+            const auto& ssfnTable = ssfnTables.template getTable<SsfnTable>(satRegionIdx);
             ssfnKrg_[satRegionIdx].setXYContainers(ssfnTable.getSolventFractionColumn(),
                                                    ssfnTable.getGasRelPermMultiplierColumn(),
                                                    /*sortInput=*/true);
@@ -141,7 +141,7 @@ public:
                 // resize the attributes of the object
                 sof2Krn_.resize(numSatRegions);
                 for (unsigned satRegionIdx = 0; satRegionIdx < numSatRegions; ++ satRegionIdx) {
-                    const auto& sof2Table = sof2Tables.template getTable<Opm::Sof2Table>(satRegionIdx);
+                    const auto& sof2Table = sof2Tables.template getTable<Sof2Table>(satRegionIdx);
                     sof2Krn_[satRegionIdx].setXYContainers(sof2Table.getSoColumn(),
                                                        sof2Table.getKroColumn(),
                                                        /*sortInput=*/true);
@@ -159,7 +159,7 @@ public:
                 // resize the attributes of the object
                 misc_.resize(numMiscRegions);
                 for (unsigned miscRegionIdx = 0; miscRegionIdx < numMiscRegions; ++miscRegionIdx) {
-                    const auto& miscTable = miscTables.template getTable<Opm::MiscTable>(miscRegionIdx);
+                    const auto& miscTable = miscTables.template getTable<MiscTable>(miscRegionIdx);
 
                     // solventFraction = Ss / (Ss + Sg);
                     const auto& solventFraction = miscTable.getSolventFractionColumn();
@@ -179,7 +179,7 @@ public:
                 assert(numMiscRegions == pmiscTables.size());
 
                 for (unsigned regionIdx = 0; regionIdx < numMiscRegions; ++regionIdx) {
-                    const auto& pmiscTable = pmiscTables.template getTable<Opm::PmiscTable>(regionIdx);
+                    const auto& pmiscTable = pmiscTables.template getTable<PmiscTable>(regionIdx);
 
                     // Copy data
                     const auto& po = pmiscTable.getOilPhasePressureColumn();
@@ -209,7 +209,7 @@ public:
 
 
                 for (unsigned regionIdx = 0; regionIdx < numSatRegions; ++regionIdx) {
-                    const Opm::MsfnTable& msfnTable = msfnTables.template getTable<Opm::MsfnTable>(regionIdx);
+                    const MsfnTable& msfnTable = msfnTables.template getTable<MsfnTable>(regionIdx);
 
                     // Copy data
                     // Ssg = Ss + Sg;
@@ -239,7 +239,7 @@ public:
                 assert(numMiscRegions == sorwmisTables.size());
 
                 for (unsigned regionIdx = 0; regionIdx < numMiscRegions; ++regionIdx) {
-                    const auto& sorwmisTable = sorwmisTables.template getTable<Opm::SorwmisTable>(regionIdx);
+                    const auto& sorwmisTable = sorwmisTables.template getTable<SorwmisTable>(regionIdx);
 
                     // Copy data
                     const auto& sw = sorwmisTable.getWaterSaturationColumn();
@@ -266,7 +266,7 @@ public:
                 assert(numMiscRegions ==sgcwmisTables.size());
 
                 for (unsigned regionIdx = 0; regionIdx < numMiscRegions; ++regionIdx) {
-                    const auto& sgcwmisTable = sgcwmisTables.template getTable<Opm::SgcwmisTable>(regionIdx);
+                    const auto& sgcwmisTable = sgcwmisTables.template getTable<SgcwmisTable>(regionIdx);
 
                     // Copy data
                     const auto& sw = sgcwmisTable.getWaterSaturationColumn();
@@ -284,22 +284,17 @@ public:
                     setSgcmis(regionIdx, zero);
             }
 
-
-            if (!eclState.getTableManager().getTlmixparTable().empty()) {
+            const auto& tlmixpar = eclState.getTableManager().getTLMixpar();
+            if (!tlmixpar.empty()) {
                 // resize the attributes of the object
                 tlMixParamViscosity_.resize(numMiscRegions);
                 tlMixParamDensity_.resize(numMiscRegions);
 
-                const auto& tlmixparTable = eclState.getTableManager().getTlmixparTable();
-
-                assert(numMiscRegions == tlmixparTable.size());
+                assert(numMiscRegions == tlmixpar.size());
                 for (unsigned regionIdx = 0; regionIdx < numMiscRegions; ++regionIdx) {
-                    // Copy data
-                    tlMixParamViscosity_[regionIdx] = tlmixparTable[regionIdx].viscosity;
-                    if (tlmixparTable[regionIdx].density == 0.0)
-                        tlMixParamDensity_[regionIdx] = tlMixParamViscosity_[regionIdx];
-                    else
-                        tlMixParamDensity_[regionIdx] = tlmixparTable[regionIdx].density;
+                    const auto& tlp = tlmixpar[regionIdx];
+                    tlMixParamViscosity_[regionIdx] = tlp.viscosity_parameter;
+                    tlMixParamDensity_[regionIdx] = tlp.density_parameter;
                 }
             }
             else
@@ -313,7 +308,7 @@ public:
 
                     assert(numMiscRegions == tlpmixparTables.size());
                     for (unsigned regionIdx = 0; regionIdx < numMiscRegions; ++regionIdx) {
-                        const auto& tlpmixparTable = tlpmixparTables.template getTable<Opm::TlpmixpaTable>(regionIdx);
+                        const auto& tlpmixparTable = tlpmixparTables.template getTable<TlpmixpaTable>(regionIdx);
 
                         // Copy data
                         const auto& po = tlpmixparTable.getOilPhasePressureColumn();
@@ -480,7 +475,7 @@ public:
             // solvents have disabled at compile time
             return;
 
-        Opm::VtkBlackOilSolventModule<TypeTag>::registerParameters();
+        VtkBlackOilSolventModule<TypeTag>::registerParameters();
     }
 
     /*!
@@ -493,7 +488,7 @@ public:
             // solvents have disabled at compile time
             return;
 
-        model.addOutputModule(new Opm::VtkBlackOilSolventModule<TypeTag>(simulator));
+        model.addOutputModule(new VtkBlackOilSolventModule<TypeTag>(simulator));
     }
 
     static bool primaryVarApplies(unsigned pvIdx)
@@ -587,7 +582,7 @@ public:
             else
                 flux[contiSolventEqIdx] =
                         extQuants.solventVolumeFlux()
-                        *Opm::decay<Scalar>(up.solventInverseFormationVolumeFactor());
+                        *decay<Scalar>(up.solventInverseFormationVolumeFactor());
         }
         else {
             if (upIdx == inIdx)
@@ -597,7 +592,7 @@ public:
             else
                 flux[contiSolventEqIdx] =
                         extQuants.solventVolumeFlux()
-                        *Opm::decay<Scalar>(up.solventDensity());
+                        *decay<Scalar>(up.solventDensity());
         }
     }
 
@@ -866,22 +861,22 @@ BlackOilSolventModule<TypeTag, enableSolventV>::isMiscible_;
  * \brief Provides the volumetric quantities required for the equations needed by the
  *        solvents extension of the black-oil model.
  */
-template <class TypeTag, bool enableSolventV = GET_PROP_VALUE(TypeTag, EnableSolvent)>
+template <class TypeTag, bool enableSolventV = getPropValue<TypeTag, Properties::EnableSolvent>()>
 class BlackOilSolventIntensiveQuantities
 {
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) Implementation;
+    using Implementation = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, MaterialLaw) MaterialLaw;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
 
-    typedef BlackOilSolventModule<TypeTag> SolventModule;
+    using SolventModule = BlackOilSolventModule<TypeTag>;
 
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
     static constexpr int solventSaturationIdx = Indices::solventSaturationIdx;
     static constexpr int oilPhaseIdx = FluidSystem::oilPhaseIdx;
     static constexpr int gasPhaseIdx = FluidSystem::gasPhaseIdx;
@@ -902,7 +897,7 @@ public:
     {
         const PrimaryVariables& priVars = elemCtx.primaryVars(dofIdx, timeIdx);
         auto& fs = asImp_().fluidState_;
-        solventSaturation_ = priVars.makeEvaluation(solventSaturationIdx, timeIdx);
+        solventSaturation_ = priVars.makeEvaluation(solventSaturationIdx, timeIdx, elemCtx.linearizationType());
         hydrocarbonSaturation_ = fs.saturation(gasPhaseIdx);
 
         // apply a cut-off. Don't waste calculations if no solvent
@@ -951,10 +946,11 @@ public:
             MaterialLaw::capillaryPressures(pC, materialParams, fs);
 
             //oil is the reference phase for pressure
+            const auto linearizationType = elemCtx.linearizationType();
             if (priVars.primaryVarsMeaning() == PrimaryVariables::Sw_pg_Rv)
-                pgMisc = priVars.makeEvaluation(Indices::pressureSwitchIdx, timeIdx);
+                pgMisc = priVars.makeEvaluation(Indices::pressureSwitchIdx, timeIdx, linearizationType);
             else {
-                const Evaluation& po = priVars.makeEvaluation(Indices::pressureSwitchIdx, timeIdx);
+                const Evaluation& po = priVars.makeEvaluation(Indices::pressureSwitchIdx, timeIdx, linearizationType);
                 pgMisc = po + (pC[gasPhaseIdx] - pC[oilPhaseIdx]);
             }
 
@@ -1265,9 +1261,9 @@ protected:
 template <class TypeTag>
 class BlackOilSolventIntensiveQuantities<TypeTag, false>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
 
 
 public:
@@ -1312,26 +1308,26 @@ public:
  * \brief Provides the solvent specific extensive quantities to the generic black-oil
  *        module's extensive quantities.
  */
-template <class TypeTag, bool enableSolventV = GET_PROP_VALUE(TypeTag, EnableSolvent)>
+template <class TypeTag, bool enableSolventV = getPropValue<TypeTag, Properties::EnableSolvent>()>
 class BlackOilSolventExtensiveQuantities
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) Implementation;
+    using Implementation = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) ExtensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
+    using ExtensiveQuantities = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
+    using Toolbox = MathToolbox<Evaluation>;
 
     static constexpr unsigned gasPhaseIdx = FluidSystem::gasPhaseIdx;
     static constexpr int dimWorld = GridView::dimensionworld;
 
-    typedef Dune::FieldVector<Scalar, dimWorld> DimVector;
-    typedef Dune::FieldVector<Evaluation, dimWorld> DimEvalVector;
+    using DimVector = Dune::FieldVector<Scalar, dimWorld>;
+    using DimEvalVector = Dune::FieldVector<Evaluation, dimWorld>;
 
 public:
     /*!
@@ -1345,7 +1341,7 @@ public:
                               unsigned timeIdx)
     {
         const auto& gradCalc = elemCtx.gradientCalculator();
-        Opm::PressureCallback<TypeTag> pressureCallback(elemCtx);
+        PressureCallback<TypeTag> pressureCallback(elemCtx);
 
         const auto& scvf = elemCtx.stencil(timeIdx).interiorFace(scvfIdx);
         const auto& faceNormal = scvf.normal();
@@ -1360,7 +1356,7 @@ public:
                                    elemCtx,
                                    scvfIdx,
                                    pressureCallback);
-        Opm::Valgrind::CheckDefined(solventPGrad);
+        Valgrind::CheckDefined(solventPGrad);
 
         // correct the pressure gradients by the gravitational acceleration
         if (EWOMS_GET_PARAM(TypeTag, bool, EnableGravity)) {
@@ -1406,8 +1402,8 @@ public:
             for (unsigned dimIdx = 0; dimIdx < dimWorld; ++dimIdx) {
                 solventPGrad[dimIdx] += f[dimIdx];
 
-                if (!Opm::isfinite(solventPGrad[dimIdx]))
-                    throw Opm::NumericalIssue("Non-finite potential gradient for solvent 'phase'");
+                if (!isfinite(solventPGrad[dimIdx]))
+                    throw NumericalIssue("Non-finite potential gradient for solvent 'phase'");
             }
         }
 
@@ -1434,7 +1430,7 @@ public:
         if (solventUpstreamDofIdx_ == i)
             solventVolumeFlux_ = solventPGradNormal*up.solventMobility();
         else
-            solventVolumeFlux_ = solventPGradNormal*Opm::scalarValue(up.solventMobility());
+            solventVolumeFlux_ = solventPGradNormal*scalarValue(up.solventMobility());
     }
 
     /*!
@@ -1476,7 +1472,7 @@ public:
         pressureExterior += distZ*g*rhoAvg;
 
         Evaluation pressureDiffSolvent = pressureExterior - pressureInterior;
-        if (std::abs(Opm::scalarValue(pressureDiffSolvent)) > thpres) {
+        if (std::abs(scalarValue(pressureDiffSolvent)) > thpres) {
             if (pressureDiffSolvent < 0.0)
                 pressureDiffSolvent += thpres;
             else
@@ -1512,7 +1508,7 @@ public:
                 *pressureDiffSolvent;
         else
             solventVolumeFlux_ =
-                Opm::scalarValue(up.solventMobility())
+                scalarValue(up.solventMobility())
                 *(-trans/faceArea)
                 *pressureDiffSolvent;
     }
@@ -1541,8 +1537,8 @@ private:
 template <class TypeTag>
 class BlackOilSolventExtensiveQuantities<TypeTag, false>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
 
 public:
     void updateVolumeFluxPerm(const ElementContext& elemCtx OPM_UNUSED,

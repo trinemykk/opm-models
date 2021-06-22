@@ -30,13 +30,14 @@
 
 #include "blackoilproperties.hh"
 #include "blackoilsolventmodules.hh"
+#include "blackoilextbomodules.hh"
 #include "blackoilpolymermodules.hh"
 #include "blackoilfoammodules.hh"
 #include "blackoilbrinemodules.hh"
 #include "blackoilenergymodules.hh"
+#include "blackoildiffusionmodule.hh"
 #include <opm/material/fluidstates/BlackOilFluidState.hpp>
 #include <opm/material/common/Valgrind.hpp>
-
 #include <dune/common/fmatrix.hh>
 
 #include <cstring>
@@ -52,36 +53,40 @@ namespace Opm {
  */
 template <class TypeTag>
 class BlackOilIntensiveQuantities
-    : public GET_PROP_TYPE(TypeTag, DiscIntensiveQuantities)
-    , public GET_PROP_TYPE(TypeTag, FluxModule)::FluxIntensiveQuantities
+    : public GetPropType<TypeTag, Properties::DiscIntensiveQuantities>
+    , public GetPropType<TypeTag, Properties::FluxModule>::FluxIntensiveQuantities
+    , public BlackOilDiffusionIntensiveQuantities<TypeTag, getPropValue<TypeTag, Properties::EnableDiffusion>() >
     , public BlackOilSolventIntensiveQuantities<TypeTag>
+    , public BlackOilExtboIntensiveQuantities<TypeTag>
     , public BlackOilPolymerIntensiveQuantities<TypeTag>
     , public BlackOilFoamIntensiveQuantities<TypeTag>
     , public BlackOilBrineIntensiveQuantities<TypeTag>
     , public BlackOilEnergyIntensiveQuantities<TypeTag>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, DiscIntensiveQuantities) ParentType;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) Implementation;
+    using ParentType = GetPropType<TypeTag, Properties::DiscIntensiveQuantities>;
+    using Implementation = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, MaterialLaw) MaterialLaw;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
-    typedef typename GET_PROP_TYPE(TypeTag, GridView) GridView;
-    typedef typename GET_PROP_TYPE(TypeTag, FluxModule) FluxModule;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
+    using GridView = GetPropType<TypeTag, Properties::GridView>;
+    using FluxModule = GetPropType<TypeTag, Properties::FluxModule>;
 
-    enum { numEq = GET_PROP_VALUE(TypeTag, NumEq) };
-    enum { enableSolvent = GET_PROP_VALUE(TypeTag, EnableSolvent) };
-    enum { enablePolymer = GET_PROP_VALUE(TypeTag, EnablePolymer) };
-    enum { enableFoam = GET_PROP_VALUE(TypeTag, EnableFoam) };
-    enum { enableBrine = GET_PROP_VALUE(TypeTag, EnableBrine) };
-    enum { enableTemperature = GET_PROP_VALUE(TypeTag, EnableTemperature) };
-    enum { enableEnergy = GET_PROP_VALUE(TypeTag, EnableEnergy) };
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
-    enum { numComponents = GET_PROP_VALUE(TypeTag, NumComponents) };
+    enum { numEq = getPropValue<TypeTag, Properties::NumEq>() };
+    enum { enableSolvent = getPropValue<TypeTag, Properties::EnableSolvent>() };
+    enum { enableExtbo = getPropValue<TypeTag, Properties::EnableExtbo>() };
+    enum { enablePolymer = getPropValue<TypeTag, Properties::EnablePolymer>() };
+    enum { enableFoam = getPropValue<TypeTag, Properties::EnableFoam>() };
+    enum { enableBrine = getPropValue<TypeTag, Properties::EnableBrine>() };
+    enum { enableTemperature = getPropValue<TypeTag, Properties::EnableTemperature>() };
+    enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
+    enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
+    enum { numComponents = getPropValue<TypeTag, Properties::NumComponents>() };
     enum { waterCompIdx = FluidSystem::waterCompIdx };
     enum { oilCompIdx = FluidSystem::oilCompIdx };
     enum { gasCompIdx = FluidSystem::gasCompIdx };
@@ -94,10 +99,11 @@ class BlackOilIntensiveQuantities
     static const bool compositionSwitchEnabled = Indices::gasEnabled;
     static const bool waterEnabled = Indices::waterEnabled;
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
-    typedef Dune::FieldMatrix<Scalar, dimWorld, dimWorld> DimMatrix;
-    typedef typename FluxModule::FluxIntensiveQuantities FluxIntensiveQuantities;
-    typedef Opm::BlackOilFluidState<Evaluation, FluidSystem, enableTemperature, enableEnergy, compositionSwitchEnabled,  enableBrine, Indices::numPhases > FluidState;
+    using Toolbox = MathToolbox<Evaluation>;
+    using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
+    using FluxIntensiveQuantities = typename FluxModule::FluxIntensiveQuantities;
+    using FluidState = BlackOilFluidState<Evaluation, FluidSystem, enableTemperature, enableEnergy, compositionSwitchEnabled,  enableBrine, Indices::numPhases >;
+    using DiffusionIntensiveQuantities = BlackOilDiffusionIntensiveQuantities<TypeTag, enableDiffusion>;
 
 public:
     BlackOilIntensiveQuantities()
@@ -162,8 +168,8 @@ public:
             }
         }
 
-        Opm::Valgrind::CheckDefined(Sg);
-        Opm::Valgrind::CheckDefined(Sw);
+        Valgrind::CheckDefined(Sg);
+        Valgrind::CheckDefined(Sw);
 
         Evaluation So = 1.0 - Sw - Sg;
 
@@ -205,15 +211,18 @@ public:
         // calculate relative permeabilities. note that we store the result into the
         // mobility_ class attribute. the division by the phase viscosity happens later.
         MaterialLaw::relativePermeabilities(mobility_, materialParams, fluidState_);
-        Opm::Valgrind::CheckDefined(mobility_);
+        Valgrind::CheckDefined(mobility_);
 
         // update the Saturation functions for the blackoil solvent module.
         asImp_().solventPostSatFuncUpdate_(elemCtx, dofIdx, timeIdx);
 
+        // update extBO parameters
+        asImp_().zFractionUpdate_(elemCtx, dofIdx, timeIdx);
+
         Evaluation SoMax = 0.0;
         if (FluidSystem::phaseIsActive(FluidSystem::oilPhaseIdx)) {
-            SoMax = Opm::max(fluidState_.saturation(oilPhaseIdx),
-                             elemCtx.problem().maxOilSaturation(globalSpaceIdx));
+            SoMax = max(fluidState_.saturation(oilPhaseIdx),
+                        elemCtx.problem().maxOilSaturation(globalSpaceIdx));
         }
 
         // take the meaning of the switiching primary variable into account for the gas
@@ -223,24 +232,24 @@ public:
             // we use the compositions of the gas-saturated oil and oil-saturated gas.
             if (FluidSystem::enableDissolvedGas()) {
                 Scalar RsMax = elemCtx.problem().maxGasDissolutionFactor(timeIdx, globalSpaceIdx);
-                const Evaluation& RsSat =
+                const Evaluation& RsSat = enableExtbo ? asImp_().rs() :
                     FluidSystem::saturatedDissolutionFactor(fluidState_,
                                                             oilPhaseIdx,
                                                             pvtRegionIdx,
                                                             SoMax);
-                fluidState_.setRs(Opm::min(RsMax, RsSat));
+                fluidState_.setRs(min(RsMax, RsSat));
             }
             else if (compositionSwitchEnabled)
                 fluidState_.setRs(0.0);
 
             if (FluidSystem::enableVaporizedOil()) {
                 Scalar RvMax = elemCtx.problem().maxOilVaporizationFactor(timeIdx, globalSpaceIdx);
-                const Evaluation& RvSat =
+                const Evaluation& RvSat = enableExtbo ? asImp_().rv() :
                     FluidSystem::saturatedDissolutionFactor(fluidState_,
                                                             gasPhaseIdx,
                                                             pvtRegionIdx,
                                                             SoMax);
-                fluidState_.setRv(Opm::min(RvMax, RvSat));
+                fluidState_.setRv(min(RvMax, RvSat));
             }
             else if (compositionSwitchEnabled)
                 fluidState_.setRv(0.0);
@@ -251,19 +260,19 @@ public:
 
             // oil phase, we can directly set the composition of the oil phase
             const auto& Rs = priVars.makeEvaluation(Indices::compositionSwitchIdx, timeIdx);
-            fluidState_.setRs(Opm::min(RsMax, Rs));
+            fluidState_.setRs(min(RsMax, Rs));
 
             if (FluidSystem::enableVaporizedOil()) {
                 // the gas phase is not present, but we need to compute its "composition"
                 // for the gravity correction anyway
                 Scalar RvMax = elemCtx.problem().maxOilVaporizationFactor(timeIdx, globalSpaceIdx);
-                const auto& RvSat =
+                const auto& RvSat = enableExtbo ? asImp_().rv() :
                     FluidSystem::saturatedDissolutionFactor(fluidState_,
                                                             gasPhaseIdx,
                                                             pvtRegionIdx,
                                                             SoMax);
 
-                fluidState_.setRv(Opm::min(RvMax, RvSat));
+                fluidState_.setRv(min(RvMax, RvSat));
             }
             else
                 fluidState_.setRv(0.0);
@@ -276,13 +285,13 @@ public:
                 // the oil phase is not present, but we need to compute its "composition" for
                 // the gravity correction anyway
                 Scalar RsMax = elemCtx.problem().maxGasDissolutionFactor(timeIdx, globalSpaceIdx);
-                const auto& RsSat =
+                const auto& RsSat = enableExtbo ? asImp_().rs() :
                     FluidSystem::saturatedDissolutionFactor(fluidState_,
                                                             oilPhaseIdx,
                                                             pvtRegionIdx,
                                                             SoMax);
 
-                fluidState_.setRs(Opm::min(RsMax, RsSat));
+                fluidState_.setRs(min(RsMax, RsSat));
             } else {
                 fluidState_.setRs(0.0);
             }
@@ -306,9 +315,14 @@ public:
             fluidState_.setInvB(phaseIdx, b);
 
             const auto& mu = FluidSystem::viscosity(fluidState_, paramCache, phaseIdx);
-            mobility_[phaseIdx] /= mu;
+            if (enableExtbo && phaseIdx == oilPhaseIdx)
+              mobility_[phaseIdx] /= asImp_().oilViscosity();
+            else if (enableExtbo && phaseIdx == gasPhaseIdx)
+              mobility_[phaseIdx] /= asImp_().gasViscosity();
+            else
+              mobility_[phaseIdx] /= mu;
         }
-        Opm::Valgrind::CheckDefined(mobility_);
+        Valgrind::CheckDefined(mobility_);
 
         // calculate the phase densities
         Evaluation rho;
@@ -366,6 +380,7 @@ public:
         porosity_ *= problem.template rockCompPoroMultiplier<Evaluation>(*this, globalSpaceIdx);
 
         asImp_().solventPvtUpdate_(elemCtx, dofIdx, timeIdx);
+        asImp_().zPvtUpdate_();
         asImp_().polymerPropertiesUpdate_(elemCtx, dofIdx, timeIdx);
         asImp_().updateEnergyQuantities_(elemCtx, dofIdx, timeIdx, paramCache);
         asImp_().foamPropertiesUpdate_(elemCtx, dofIdx, timeIdx);
@@ -374,20 +389,23 @@ public:
         // velocity model
         FluxIntensiveQuantities::update_(elemCtx, dofIdx, timeIdx);
 
+        // update the diffusion specific quantities of the intensive quantities
+        DiffusionIntensiveQuantities::update_(fluidState_, paramCache, elemCtx, dofIdx, timeIdx);
+
 #ifndef NDEBUG
         // some safety checks in debug mode
         for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++ phaseIdx) {
             if (!FluidSystem::phaseIsActive(phaseIdx))
                 continue;
 
-            assert(Opm::isfinite(fluidState_.density(phaseIdx)));
-            assert(Opm::isfinite(fluidState_.saturation(phaseIdx)));
-            assert(Opm::isfinite(fluidState_.temperature(phaseIdx)));
-            assert(Opm::isfinite(fluidState_.pressure(phaseIdx)));
-            assert(Opm::isfinite(fluidState_.invB(phaseIdx)));
+            assert(isfinite(fluidState_.density(phaseIdx)));
+            assert(isfinite(fluidState_.saturation(phaseIdx)));
+            assert(isfinite(fluidState_.temperature(phaseIdx)));
+            assert(isfinite(fluidState_.pressure(phaseIdx)));
+            assert(isfinite(fluidState_.invB(phaseIdx)));
         }
-        assert(Opm::isfinite(fluidState_.Rs()));
-        assert(Opm::isfinite(fluidState_.Rv()));
+        assert(isfinite(fluidState_.Rs()));
+        assert(isfinite(fluidState_.Rv()));
 #endif
     }
 
@@ -446,6 +464,7 @@ public:
 
 private:
     friend BlackOilSolventIntensiveQuantities<TypeTag>;
+    friend BlackOilExtboIntensiveQuantities<TypeTag>;
     friend BlackOilPolymerIntensiveQuantities<TypeTag>;
     friend BlackOilEnergyIntensiveQuantities<TypeTag>;
     friend BlackOilFoamIntensiveQuantities<TypeTag>;

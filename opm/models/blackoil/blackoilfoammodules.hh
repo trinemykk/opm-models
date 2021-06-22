@@ -44,7 +44,6 @@
 
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/material/common/Unused.hpp>
-#include <opm/material/common/Exceptions.hpp>
 
 #include <dune/common/fvector.hh>
 
@@ -57,34 +56,34 @@ namespace Opm {
  * \brief Contains the high level supplements required to extend the black oil
  *        model to include the effects of foam.
  */
-template <class TypeTag, bool enableFoamV = GET_PROP_VALUE(TypeTag, EnableFoam)>
+template <class TypeTag, bool enableFoamV = getPropValue<TypeTag, Properties::EnableFoam>()>
 class BlackOilFoamModule
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) IntensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ExtensiveQuantities) ExtensiveQuantities;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, Model) Model;
-    typedef typename GET_PROP_TYPE(TypeTag, Simulator) Simulator;
-    typedef typename GET_PROP_TYPE(TypeTag, EqVector) EqVector;
-    typedef typename GET_PROP_TYPE(TypeTag, RateVector) RateVector;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using IntensiveQuantities = GetPropType<TypeTag, Properties::IntensiveQuantities>;
+    using ExtensiveQuantities = GetPropType<TypeTag, Properties::ExtensiveQuantities>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using Model = GetPropType<TypeTag, Properties::Model>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using EqVector = GetPropType<TypeTag, Properties::EqVector>;
+    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
 
-    typedef Opm::MathToolbox<Evaluation> Toolbox;
+    using Toolbox = MathToolbox<Evaluation>;
 
-    typedef typename Opm::Tabulated1DFunction<Scalar> TabulatedFunction;
+    using TabulatedFunction = Tabulated1DFunction<Scalar>;
 
     static constexpr unsigned foamConcentrationIdx = Indices::foamConcentrationIdx;
     static constexpr unsigned contiFoamEqIdx = Indices::contiFoamEqIdx;
     static constexpr unsigned gasPhaseIdx = FluidSystem::gasPhaseIdx;
 
     static constexpr unsigned enableFoam = enableFoamV;
-    static constexpr bool enableVtkOutput = GET_PROP_VALUE(TypeTag, EnableVtkOutput);
+    static constexpr bool enableVtkOutput = getPropValue<TypeTag, Properties::EnableVtkOutput>();
 
-    static constexpr unsigned numEq = GET_PROP_VALUE(TypeTag, NumEq);
+    static constexpr unsigned numEq = getPropValue<TypeTag, Properties::NumEq>();
     static constexpr unsigned numPhases = FluidSystem::numPhases;
 
 public:
@@ -115,7 +114,7 @@ public:
     /*!
      * \brief Initialize all internal data structures needed by the foam module
      */
-    static void initFromState(const Opm::EclipseState& eclState)
+    static void initFromState(const EclipseState& eclState)
     {
         // some sanity checks: if foam is enabled, the FOAM keyword must be
         // present, if foam is disabled the keyword must not be present.
@@ -148,7 +147,7 @@ public:
         setNumPvtRegions(numPvtRegions);
 
         // Get and check FOAMROCK data.
-        const Opm::FoamConfig& foamConf = eclState.getInitConfig().getFoamConfig();
+        const FoamConfig& foamConf = eclState.getInitConfig().getFoamConfig();
         if (numSatRegions != foamConf.size()) {
             throw std::runtime_error("Inconsistent sizes, number of saturation regions differ from the number of elements "
                                      "in FoamConfig, which typically corresponds to the number of records in FOAMROCK.");
@@ -173,7 +172,7 @@ public:
             foamCoefficients_[satReg].ep_surf = rec.exponent();
             foamRockDensity_[satReg] = rec.rockDensity();
             foamAllowDesorption_[satReg] = rec.allowDesorption();
-            const auto& foamadsTable = foamadsTables.template getTable<Opm::FoamadsTable>(satReg);
+            const auto& foamadsTable = foamadsTables.template getTable<FoamadsTable>(satReg);
             const auto& conc = foamadsTable.getFoamConcentrationColumn();
             const auto& ads = foamadsTable.getAdsorbedFoamColumn();
             adsorbedFoamTable_[satReg].setXYContainers(conc, ads);
@@ -194,7 +193,7 @@ public:
 
         // Set data that vary with PVT region.
         for (std::size_t pvtReg = 0; pvtReg < numPvtRegions; ++pvtReg) {
-            const auto& foammobTable = foammobTables.template getTable<Opm::FoammobTable>(pvtReg);
+            const auto& foammobTable = foammobTables.template getTable<FoammobTable>(pvtReg);
             const auto& conc = foammobTable.getFoamConcentrationColumn();
             const auto& mobMult = foammobTable.getMobilityMultiplierColumn();
             gasMobilityMultiplierTable_[pvtReg].setXYContainers(conc, mobMult);
@@ -232,7 +231,7 @@ public:
             // foam has been disabled at compile time
             return;
 
-        //Opm::VtkBlackOilFoamModule<TypeTag>::registerParameters();
+        //VtkBlackOilFoamModule<TypeTag>::registerParameters();
     }
 
     /*!
@@ -246,9 +245,9 @@ public:
             return;
 
         if (enableVtkOutput) {
-            Opm::OpmLog::warning("VTK output requested, currently unsupported by the foam module.");
+            OpmLog::warning("VTK output requested, currently unsupported by the foam module.");
         }
-        //model.addOutputModule(new Opm::VtkBlackOilFoamModule<TypeTag>(simulator));
+        //model.addOutputModule(new VtkBlackOilFoamModule<TypeTag>(simulator));
     }
 
     static bool primaryVarApplies(unsigned pvIdx)
@@ -314,7 +313,7 @@ public:
             * Toolbox::template decay<LhsEval>(intQuants.porosity());
 
         // Avoid singular matrix if no gas is present.
-        surfaceVolumeFreeGas = Opm::max(surfaceVolumeFreeGas, 1e-10);
+        surfaceVolumeFreeGas = max(surfaceVolumeFreeGas, 1e-10);
 
         // Foam/surfactant in gas phase.
         const LhsEval gasFoam = surfaceVolumeFreeGas
@@ -356,8 +355,8 @@ public:
         } else {
             flux[contiFoamEqIdx] =
                 extQuants.volumeFlux(gasPhaseIdx)
-                *Opm::decay<Scalar>(up.fluidState().invB(gasPhaseIdx))
-                *Opm::decay<Scalar>(up.foamConcentration());
+                *decay<Scalar>(up.fluidState().invB(gasPhaseIdx))
+                *decay<Scalar>(up.foamConcentration());
         }
 
     }
@@ -478,22 +477,22 @@ BlackOilFoamModule<TypeTag, enableFoam>::gasMobilityMultiplierTable_;
  * \brief Provides the volumetric quantities required for the equations needed by the
  *        polymers extension of the black-oil model.
  */
-template <class TypeTag, bool enableFoam = GET_PROP_VALUE(TypeTag, EnableFoam)>
+template <class TypeTag, bool enableFoam = getPropValue<TypeTag, Properties::EnableFoam>()>
 class BlackOilFoamIntensiveQuantities
 {
-    typedef typename GET_PROP_TYPE(TypeTag, IntensiveQuantities) Implementation;
+    using Implementation = GetPropType<TypeTag, Properties::IntensiveQuantities>;
 
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, PrimaryVariables) PrimaryVariables;
-    typedef typename GET_PROP_TYPE(TypeTag, FluidSystem) FluidSystem;
-    typedef typename GET_PROP_TYPE(TypeTag, MaterialLaw) MaterialLaw;
-    typedef typename GET_PROP_TYPE(TypeTag, Indices) Indices;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
+    using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
 
-    typedef BlackOilFoamModule<TypeTag> FoamModule;
+    using FoamModule = BlackOilFoamModule<TypeTag>;
 
-    enum { numPhases = GET_PROP_VALUE(TypeTag, NumPhases) };
+    enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
     static constexpr int foamConcentrationIdx = Indices::foamConcentrationIdx;
     static constexpr unsigned waterPhaseIdx = FluidSystem::waterPhaseIdx;
     static constexpr unsigned oilPhaseIdx = FluidSystem::oilPhaseIdx;
@@ -589,9 +588,9 @@ protected:
 template <class TypeTag>
 class BlackOilFoamIntensiveQuantities<TypeTag, false>
 {
-    typedef typename GET_PROP_TYPE(TypeTag, Evaluation) Evaluation;
-    typedef typename GET_PROP_TYPE(TypeTag, ElementContext) ElementContext;
-    typedef typename GET_PROP_TYPE(TypeTag, Scalar) Scalar;
+    using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
+    using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
+    using Scalar = GetPropType<TypeTag, Properties::Scalar>;
 
 public:
     void foamPropertiesUpdate_(const ElementContext& elemCtx OPM_UNUSED,

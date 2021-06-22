@@ -51,8 +51,8 @@ namespace Linear {
  */
 class DomesticOverlapFromBCRSMatrix
 {
-    typedef Opm::Linear::ForeignOverlapFromBCRSMatrix ForeignOverlap;
-    typedef Opm::Linear::GlobalIndices<ForeignOverlap> GlobalIndices;
+    using ForeignOverlap = Opm::Linear::ForeignOverlapFromBCRSMatrix;
+    using GlobalIndices = Opm::Linear::GlobalIndices<ForeignOverlap>;
 
 public:
     // overlaps should never be copied!
@@ -444,7 +444,7 @@ protected:
         }
     }
 
-    void sendIndicesToPeer_(ProcessRank peerRank OPM_UNUSED_NOMPI)
+    void sendIndicesToPeer_([[maybe_unused]] ProcessRank peerRank)
     {
 #if HAVE_MPI
         const auto& foreignOverlap = foreignOverlap_.foreignOverlapWithPeer(peerRank);
@@ -489,7 +489,7 @@ protected:
         delete indicesSendBuffer_[peerRank];
     }
 
-    void receiveIndicesFromPeer_(ProcessRank peerRank OPM_UNUSED_NOMPI)
+    void receiveIndicesFromPeer_([[maybe_unused]] ProcessRank peerRank)
     {
 #if HAVE_MPI
         // receive the number of additional indices

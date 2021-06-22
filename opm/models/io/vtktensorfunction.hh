@@ -33,8 +33,6 @@
 #include <dune/common/fvector.hh>
 #include <dune/common/version.hh>
 
-#include <opm/material/common/Exceptions.hpp>
-
 #include <string>
 #include <limits>
 #include <vector>
@@ -48,10 +46,10 @@ template <class GridView, class Mapper>
 class VtkTensorFunction : public Dune::VTKFunction<GridView>
 {
     enum { dim = GridView::dimension };
-    typedef typename GridView::ctype ctype;
-    typedef typename GridView::template Codim<0>::Entity Element;
+    using ctype = typename GridView::ctype;
+    using Element = typename GridView::template Codim<0>::Entity;
 
-    typedef BaseOutputWriter::TensorBuffer TensorBuffer;
+    using TensorBuffer = BaseOutputWriter::TensorBuffer;
 
 public:
     VtkTensorFunction(std::string name,
