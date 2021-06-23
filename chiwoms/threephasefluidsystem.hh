@@ -59,10 +59,10 @@ template <class Scalar>
 class ThreePhaseCo2OctaneBrineFluidSystem
         : public Opm::BaseFluidSystem<Scalar, ThreePhaseCo2OctaneBrineFluidSystem<Scalar> >
 {
-    typedef ThreePhaseCo2OctaneBrineFluidSystem<Scalar> ThisType;
-    typedef Opm::BaseFluidSystem<Scalar, ThisType> Base;
-    typedef typename Opm::PengRobinson<Scalar> PengRobinson;
-    typedef typename Opm::PengRobinsonMixture<Scalar, ThisType> PengRobinsonMixture;
+    using ThisType = ThreePhaseCo2OctaneBrineFluidSystem<Scalar>;
+    using Base = Opm::BaseFluidSystem<Scalar, ThisType>;
+    using PengRobinson =  typename Opm::PengRobinson<Scalar>;
+    using PengRobinsonMixture =  typename Opm::PengRobinsonMixture<Scalar, ThisType>;
 
 public:
     //! \copydoc BaseFluidSystem::ParameterCache
@@ -124,15 +124,15 @@ public:
     static const int BrineIdx = 2;
 
     //! The component for pure oil
-    typedef Opm::Octane<Scalar> Octane;
+    using Octane = Opm::Octane<Scalar>;
 
     //! The component for pure solvent; since we have our own thermodynamic
     //! functions, we use the simple definition for the rest.
-    typedef Opm::ChiwomsCO2<Scalar> CO2;
+    using CO2 = Opm::ChiwomsCO2<Scalar>;
 
     //! The component for brine
-    typedef Opm::H2O<Scalar> PureH2O;
-    typedef Opm::ChiwomsBrine<Scalar> Brine;
+    using PureH2O = Opm::H2O<Scalar>;
+    using Brine = Opm::ChiwomsBrine<Scalar>;
 
     static void init(Scalar minT = 273.15,
                      Scalar maxT = 373.15,
@@ -283,7 +283,7 @@ public:
             return 650.;
             return EOS::oleic_density(T, p, x);
         } else if(phaseIdx == gasPhaseIdx) {
-            typedef Opm::IdealGas<Scalar> IdealGas;
+            using IdealGas = Opm::IdealGas<Scalar>;
             return IdealGas::density(LhsEval(molarMass(CO2Idx)), T, p);
         }
         else {
