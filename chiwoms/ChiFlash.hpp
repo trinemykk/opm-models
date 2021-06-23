@@ -839,7 +839,7 @@ protected:
             computeLiquidVapor_(fluidState, L, K, globalComposition);
 
             // Calculate fugacity coefficient
-            using ParameterCache = typename FluidSystem::template ParameterCache<typename FlashFluidState::Scalar>;
+            using ParamCache = typename FluidSystem::template ParameterCache<typename FlashFluidState::Scalar>;
             ParamCache paramCache;
             for (int phaseIdx=0; phaseIdx<numPhases; ++phaseIdx){
                 if (phaseIdx==waterPhaseIdx)
