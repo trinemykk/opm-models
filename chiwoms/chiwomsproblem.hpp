@@ -53,7 +53,7 @@ namespace Opm::Properties {
 
 // Create new type tags
 namespace TTag {
-struct ChiwomsProblem ;
+struct ChiwomsProblem {};
 } // end namespace TTag
 
 
