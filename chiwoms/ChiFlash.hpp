@@ -143,13 +143,14 @@ public:
                       const Dune::FieldVector<typename FluidState::Scalar, numComponents>& globalComposition,
                       Scalar tolerance = -1.0)
     {
-        typedef typename FluidState::Scalar InputEval;
-        typedef Dune::FieldMatrix<InputEval, numEq, numEq> Matrix;
-        typedef Dune::FieldVector<InputEval, numEq> Vector;
-        typedef Opm::DenseAd::Evaluation</*Scalar=*/InputEval, /*numDerivs=*/numEq> FlashEval;
-        typedef Dune::FieldVector<FlashEval, numEq> FlashDefectVector;
-        typedef Opm::CompositionalFluidState<FlashEval, FluidSystem, /*energy=*/false> FlashFluidState;
-        typedef Dune::FieldVector<typename FluidState::Scalar, numComponents> ComponentVector;
+
+        using InputEval = typename FluidState::Scalar;
+        using Matrix = Dune::FieldMatrix<InputEval, numEq, numEq>;
+        using Vetor = Dune::FieldVector<InputEval, numEq>;
+        using FlashEval = Opm::DenseAd::Evaluation</*Scalar=*/InputEval, /*numDerivs=*/numEq>;
+        using FlashDefectVector = Dune::FieldVector<FlashEval, numEq>;
+        using FlashFluidState = Opm::CompositionalFluidState<FlashEval, FluidSystem, /*energy=*/false>;
+        using ComponentVector = Dune::FieldVector<typename FluidState::Scalar, numComponents>;
 
 #if ! DUNE_VERSION_NEWER(DUNE_COMMON, 2,7)
         Dune::FMatrixPrecision<InputEval>::set_singular_limit(1e-35);
@@ -273,9 +274,9 @@ public:
                       const ComponentVector& globalMolarities,
                       Scalar tolerance = 0.0)
     {
-        typedef NullMaterialTraits<Scalar, numPhases> MaterialTraits;
-        typedef NullMaterial<MaterialTraits> MaterialLaw;
-        typedef typename MaterialLaw::Params MaterialLawParams;
+        using MaterialTraits = NullMaterialTraits<Scalar, numPhases>;
+        using MaterialLaw = NullMaterial<MaterialTraits>;
+        using MaterialLawParams = typename MaterialLaw::Params;
 
         MaterialLawParams matParams;
         solve<MaterialLaw>(fluidState, matParams, globalMolarities, tolerance);
@@ -334,7 +335,7 @@ protected:
     template <class FlashFluidState>
     static typename FlashFluidState::Scalar wilsonK_(const FlashFluidState& fluidState, int compIdx)
     {
-        typedef typename FlashFluidState::Scalar FlashEval;
+        using FlashEval = typename FlashFluidState::Scalar;
         const auto& acf = FluidSystem::acentricFactor(compIdx);
         const auto& T_crit = FluidSystem::criticalTemperature(compIdx);
         const auto& T = fluidState.temperature(0);
@@ -500,9 +501,9 @@ protected:
     template <class FlashFluidState, class ComponentVector>
     static void checkStability_(const FlashFluidState& fluidState, bool& isTrivial, ComponentVector& K, ComponentVector& xy_loc, Evaluation& S_loc, const ComponentVector& globalComposition, bool isGas)
     {
-        typedef typename FlashFluidState::Scalar FlashEval;
-        typedef ThreePhaseCo2OctaneBrineFluidSystem<Scalar> ThisType;
-        typedef typename Opm::PengRobinsonMixture<Scalar, ThisType> PengRobinsonMixture;
+        using FlashEval = typename FlashFluidState::Scalar;
+        using ThisType = ThreePhaseCo2OctaneBrineFluidSystem<Scalar>;
+        using PengRobinsonMixture = typename Opm::PengRobinsonMixture<Scalar, ThisType>;
 
         // Declarations 
         FlashFluidState fluidState_fake = fluidState;
@@ -638,8 +639,8 @@ protected:
         computeLiquidVapor_(fluidState, L, K, globalComposition);
 
         // Newton declarations
-        typedef Dune::FieldVector<Evaluation, numMiscibleComponents*numMisciblePhases+1> NewtonVector;
-        typedef Dune::FieldMatrix<Evaluation, numMiscibleComponents*numMisciblePhases+1, numMiscibleComponents*numMisciblePhases+1> NewtonMatrix;
+        using NewtonVector = Dune::FieldVector<Evaluation, numMiscibleComponents*numMisciblePhases+1>;
+        using NewtonMatrix = Dune::FieldMatrix<Evaluation, numMiscibleComponents*numMisciblePhases+1, numMiscibleComponents*numMisciblePhases+1>;
         NewtonVector newtonX;
         NewtonVector newtonB;
         NewtonMatrix newtonA;
@@ -755,7 +756,7 @@ protected:
         fluidState.setMoleFraction(gasPhaseIdx, BrineIdx, 0); /* OBS */
 
         // Compute fugacities
-        typedef typename FluidSystem::template ParameterCache<typename FluidState::Scalar> ParamCache;
+        using ParamCache = typename FluidSystem::template ParameterCache<typename FluidState::Scalar>;
         ParamCache paramCache;
         for (int phaseIdx=0; phaseIdx<numPhases; ++phaseIdx){
             if (phaseIdx==waterPhaseIdx)
@@ -838,7 +839,7 @@ protected:
             computeLiquidVapor_(fluidState, L, K, globalComposition);
 
             // Calculate fugacity coefficient
-            typedef typename FluidSystem::template ParameterCache<typename FlashFluidState::Scalar> ParamCache;
+            using ParameterCache = typename FluidSystem::template ParameterCache<typename FlashFluidState::Scalar>;
             ParamCache paramCache;
             for (int phaseIdx=0; phaseIdx<numPhases; ++phaseIdx){
                 if (phaseIdx==waterPhaseIdx)
