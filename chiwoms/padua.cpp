@@ -1,7 +1,7 @@
 #include "padua.h"
 #include <opm/material/densead/Evaluation.hpp>
 
-typedef double scalar_t;
+using scalar_t = double;
 constexpr int numPhases = 2;
 constexpr int numComponents = 3;
 constexpr int numDerivs = numPhases + numComponents;

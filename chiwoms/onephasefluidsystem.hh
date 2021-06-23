@@ -58,8 +58,8 @@ template <class Scalar>
 class OnePhaseCo2OctaneFluidSystem
     : public Opm::BaseFluidSystem<Scalar, OnePhaseCo2OctaneFluidSystem<Scalar> >
 {
-    typedef OnePhaseCo2OctaneFluidSystem<Scalar> ThisType;
-    typedef Opm::BaseFluidSystem<Scalar, ThisType> Base;
+    using ThisType = OnePhaseCo2OctaneFluidSystem<Scalar>;
+    using Base = Opm::BaseFluidSystem<Scalar, ThisType>;
 
 public:
     //! \copydoc BaseFluidSystem::ParameterCache
@@ -106,10 +106,10 @@ public:
     static const int CO2Idx = 1;
 
     //! The component for pure oil
-    typedef Opm::Octane<Scalar> Octane;
+    using Octane = Opm::Octane<Scalar>;
 
     //! The component for pure solvent
-    typedef Opm::CO2<Scalar, Scalar> CO2;
+    using CO2 = Opm::CO2<Scalar, Scalar>;
 
     //! \copydoc BaseFluidSystem::componentName
     static const char* componentName(unsigned compIdx)

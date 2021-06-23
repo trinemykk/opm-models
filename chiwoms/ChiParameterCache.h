@@ -45,10 +45,10 @@ template <class Scalar, class FluidSystem>
 class ChiParameterCache
     : public Opm::ParameterCacheBase<ChiParameterCache<Scalar, FluidSystem> >
 {
-    typedef ChiParameterCache<Scalar, FluidSystem> ThisType;
-    typedef Opm::ParameterCacheBase<ThisType> ParentType;
+    using ThisType = ChiParameterCache<Scalar, FluidSystem>;
+    using ParentType = Opm::ParameterCacheBase<ThisType>;
 
-    typedef Opm::PengRobinson<Scalar> PengRobinson;
+    using PengRobinson = Opm::PengRobinson<Scalar>;
 
     enum { numPhases = FluidSystem::numPhases };
 
@@ -58,9 +58,9 @@ class ChiParameterCache
 
 public:
     //! The cached parameters for the oil phase
-    typedef Opm::PengRobinsonParamsMixture<Scalar, FluidSystem, oilPhaseIdx, /*useChi=*/true> OilPhaseParams;
+    using OilPhaseParams = Opm::PengRobinsonParamsMixture<Scalar, FluidSystem, oilPhaseIdx, /*useChi=*/true>;
     //! The cached parameters for the gas phase
-    typedef Opm::PengRobinsonParamsMixture<Scalar, FluidSystem, gasPhaseIdx, /*useChi=*/true> GasPhaseParams;
+    using GasPhaseParams = Opm::PengRobinsonParamsMixture<Scalar, FluidSystem, gasPhaseIdx, /*useChi=*/true>;
 
     ChiParameterCache()
     {
