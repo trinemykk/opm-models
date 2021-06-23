@@ -354,8 +354,8 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
     enum { BrineIdx = FluidSystem::BrineIdx };//change to comp2
     enum { conti0EqIdx = Indices::conti0EqIdx };
     enum { contiCO2EqIdx = conti0EqIdx + CO2Idx };
-    enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>(); };
-    enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>(); };
+    enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
+    enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
 
     using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
     using RateVector = GetPropType<TypeTag, Properties::RateVector>;

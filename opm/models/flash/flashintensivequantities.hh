@@ -72,6 +72,9 @@ class FlashIntensiveQuantities
     enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
     enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
     enum { dimWorld = GridView::dimensionworld };
+    enum { pressure0Idx = Indices::pressure0Idx };
+    enum { saturation0Idx = Indices::saturation0Idx };
+    enum { waterPhaseIdx = Indices::waterPhaseIdx };
 
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
@@ -142,9 +145,6 @@ public:
                                                  flashTolerance);
 
         // calculate relative permeabilities
-        const MaterialLawParams& materialParams = problem.materialLawParams(elemCtx, dofIdx, timeIdx);
-
-        typename FluidSystem::template ParameterCache<Evaluation> paramCache;
         MaterialLaw::relativePermeabilities(relativePermeability_,
                                             materialParams, fluidState_);
         Opm::Valgrind::CheckDefined(relativePermeability_);
