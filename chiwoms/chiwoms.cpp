@@ -9,7 +9,7 @@ namespace Opm::Properties {
 // SET_TAG_PROP(ChiwomsNcpEcfvProblem, SpatialDiscretizationSplice, EcfvDiscretization);
 // SET_TAG_PROP(ChiwomsNcpEcfvProblem, LocalLinearizerSplice, AutoDiffLocalLinearizer);
 namespace TTag {
-    struct ChiwomsNcpEcfvProblem {using InheritsFrom = std::tuple<FlashModel, ChiwomsProblem>;};
+    struct ChiwomsNcpEcfvProblem {using InheritsFrom = std::tuple<ChiwomsProblem, FlashModel>;};
 
 }
 template <class TypeTag>

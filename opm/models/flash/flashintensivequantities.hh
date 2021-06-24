@@ -66,7 +66,7 @@ class FlashIntensiveQuantities
     using ThreadManager = GetPropType<TypeTag, Properties::ThreadManager>;
 
     // primary variable indices
-    enum { cTot0Idx = Indices::cTot0Idx };
+    enum { cTot0Idx = Indices::conti0EqIdx };
     enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
     enum { numComponents = getPropValue<TypeTag, Properties::NumComponents>() };
     enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
@@ -74,12 +74,14 @@ class FlashIntensiveQuantities
     enum { dimWorld = GridView::dimensionworld };
     enum { pressure0Idx = Indices::pressure0Idx };
     enum { saturation0Idx = Indices::saturation0Idx };
-    enum { waterPhaseIdx = Indices::waterPhaseIdx };
+    
 
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
     using FlashSolver = GetPropType<TypeTag, Properties::FlashSolver>;
+
+    enum { waterPhaseIdx = FluidSystem::waterPhaseIdx };
 
     using ComponentVector = Dune::FieldVector<Evaluation, numComponents>;
     using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
