@@ -255,10 +255,10 @@ public:
             return tmp;
 
         std::ostringstream oss;
-        if (Indices::conti0EqIdx <= pvIdx && pvIdx < Indices::conti0EqIdx
-                                                  + numComponents)
-            oss << "c_tot," << FluidSystem::componentName(/*compIdx=*/pvIdx
-                                                          - Indices::conti0EqIdx);
+        if (Indices::z0Idx <= pvIdx && pvIdx < Indices::z0Idx + numComponents - 1)
+            oss << "z_," << FluidSystem::componentName(/*compIdx=*/pvIdx - Indices::z0Idx);
+        else if (pvIdx==Indices::pressure0Idx)
+            oss << "pressure_" << FluidSystem::phaseName(0);
         else
             assert(false);
 

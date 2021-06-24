@@ -66,7 +66,7 @@ class FlashIntensiveQuantities
     using ThreadManager = GetPropType<TypeTag, Properties::ThreadManager>;
 
     // primary variable indices
-    enum { cTot0Idx = Indices::conti0EqIdx };
+    enum { z0Idx = Indices::z0Idx };
     enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
     enum { numComponents = getPropValue<TypeTag, Properties::NumComponents>() };
     enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
@@ -114,9 +114,13 @@ public:
         Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
 
         // extract the total molar densities of the components
-        ComponentVector cTotal;
-        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx)
-            cTotal[compIdx] = priVars.makeEvaluation(cTot0Idx + compIdx, timeIdx);
+        ComponentVector z;
+        Evaluation lastZ = 1.0;
+        for (unsigned compIdx = 0; compIdx < numComponents - 2; ++compIdx) {
+            z[compIdx] = priVars.makeEvaluation(z0Idx + compIdx, timeIdx);
+            lastZ -= z[compIdx];
+        }
+        z[numComponents - 2] = lastZ;
 
         Evaluation p = priVars.makeEvaluation(pressure0Idx, timeIdx);
         for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
@@ -124,27 +128,22 @@ public:
         Evaluation swat = priVars.makeEvaluation(saturation0Idx, timeIdx);
         fluidState_.setSaturation(waterPhaseIdx, swat);
 
-        const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
-        if (hint) {
-            // use the same fluid state as the one of the hint, but
-            // make sure that we don't overwrite the temperature
-            // specified by the primary variables
-            Evaluation T = fluidState_.temperature(/*phaseIdx=*/0);
-            fluidState_.assign(hint->fluidState());
-            fluidState_.setTemperature(T);
-        }
-        else
-            FlashSolver::guessInitial(fluidState_, cTotal);
+        // const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
+        // if (hint) {
+        //     // use the same fluid state as the one of the hint, but
+        //     // make sure that we don't overwrite the temperature
+        //     // specified by the primary variables
+        //     Evaluation T = fluidState_.temperature(/*phaseIdx=*/0);
+        //     fluidState_.assign(hint->fluidState());
+        //     fluidState_.setTemperature(T);
+        // }
+        // else
+        //     FlashSolver::guessInitial(fluidState_, cTotal);
 
         // compute the phase compositions, densities and pressures
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;
-        const MaterialLawParams& materialParams =
-            problem.materialLawParams(elemCtx, dofIdx, timeIdx);
-        FlashSolver::template solve<MaterialLaw>(fluidState_,
-                                                 materialParams,
-                                                 paramCache,
-                                                 cTotal,
-                                                 flashTolerance);
+        const MaterialLawParams& materialParams = problem.materialLawParams(elemCtx, dofIdx, timeIdx);
+        FlashSolver::solve(fluidState_, z);
 
         // calculate relative permeabilities
         MaterialLaw::relativePermeabilities(relativePermeability_,
