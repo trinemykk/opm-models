@@ -255,10 +255,10 @@ public:
             return tmp;
 
         std::ostringstream oss;
-        if (Indices::cTot0Idx <= pvIdx && pvIdx < Indices::cTot0Idx
+        if (Indices::conti0EqIdx <= pvIdx && pvIdx < Indices::conti0EqIdx
                                                   + numComponents)
             oss << "c_tot," << FluidSystem::componentName(/*compIdx=*/pvIdx
-                                                          - Indices::cTot0Idx);
+                                                          - Indices::conti0EqIdx);
         else
             assert(false);
 
@@ -295,7 +295,7 @@ public:
         if (tmp > 0)
             return tmp;
 
-        unsigned compIdx = pvIdx - Indices::cTot0Idx;
+        unsigned compIdx = pvIdx - Indices::conti0EqIdx;
 
         // make all kg equal. also, divide the weight of all total
         // compositions by 100 to make the relative errors more
