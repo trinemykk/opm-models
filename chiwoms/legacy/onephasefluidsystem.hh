@@ -52,13 +52,13 @@ namespace Opm {
 /*!
  * \ingroup Fluidsystems
  *
- * \brief A one-phase fluid system with co2 and octane as components.
+ * \brief A one-phase fluid system with Comp1=co2 and Comp1=octane as components.
  */
 template <class Scalar>
-class OnePhaseCo2OctaneFluidSystem
-    : public Opm::BaseFluidSystem<Scalar, OnePhaseCo2OctaneFluidSystem<Scalar> >
+class OnePhaseTwoComponentFluidSystem
+    : public Opm::BaseFluidSystem<Scalar, OnePhaseTwoComponentFluidSystem<Scalar> >
 {
-    using ThisType = OnePhaseCo2OctaneFluidSystem<Scalar>;
+    using ThisType = OnePhaseTwoComponentFluidSystem<Scalar>;
     using Base = Opm::BaseFluidSystem<Scalar, ThisType>;
 
 public:
@@ -100,23 +100,23 @@ public:
     static const int numComponents = 2;
 
     //! The component index of the oil; octane
-    static const int OctaneIdx = 0;
+    static const int Comp0Idx = 0;
 
     //! The component index of the solvent; co2
-    static const int CO2Idx = 1;
+    static const int Comp1Idx = 1;
 
     //! The component for pure oil
-    using Octane = Opm::Octane<Scalar>;
+    using Comp0 = Opm::Octane<Scalar>;
 
     //! The component for pure solvent
-    using CO2 = Opm::CO2<Scalar, Scalar>;
+    using Comp1 = Opm::CO2<Scalar, Scalar>;
 
     //! \copydoc BaseFluidSystem::componentName
     static const char* componentName(unsigned compIdx)
     {
         static const char* name[] = {
-            Octane::name(),
-            CO2::name()
+            Comp0::name(),
+            Comp1::name()
         };
 
         assert(0 <= compIdx && compIdx < numComponents);
@@ -126,10 +126,10 @@ public:
     //! \copydoc BaseFluidSystem::molarMass
     static Scalar molarMass(unsigned compIdx)
     {
-        return (compIdx == OctaneIdx)
-            ? Octane::molarMass()
-            : (compIdx == CO2Idx)
-            ? CO2::molarMass()
+        return (compIdx == Comp0Idx)
+            ? Comp0::molarMass()
+            : (compIdx == Comp1Idx)
+            ? Comp1::molarMass()
             : throw std::invalid_argument("Molar mass component index");
     }
 
@@ -140,10 +140,10 @@ public:
      */
     static Scalar criticalTemperature(unsigned compIdx)
     {
-        return (compIdx == OctaneIdx)
-            ? Octane::criticalTemperature()
-            : (compIdx == CO2Idx)
-            ? CO2::criticalTemperature()
+        return (compIdx == Comp0Idx)
+            ? Comp0::criticalTemperature()
+            : (compIdx == Comp1Idx)
+            ? Comp1::criticalTemperature()
             : throw std::invalid_argument("Critical temperature component index");
     }
 
@@ -154,10 +154,10 @@ public:
      */
     static Scalar criticalPressure(unsigned compIdx)
     {
-        return (compIdx == OctaneIdx)
-            ? Octane::criticalPressure()
-            : (compIdx == CO2Idx)
-            ? CO2::criticalPressure()
+        return (compIdx == Comp0Idx)
+            ? Comp0::criticalPressure()
+            : (compIdx == Comp1Idx)
+            ? Comp1::criticalPressure()
             : throw std::invalid_argument("Critical pressure component index");
     }
 
@@ -168,10 +168,10 @@ public:
      */
     static Scalar acentricFactor(unsigned compIdx)
     {
-        return (compIdx == OctaneIdx)
-            ? Octane::acentricFactor()
-            : (compIdx == CO2Idx)
-            ? CO2::acentricFactor()
+        return (compIdx == Comp0Idx)
+            ? Comp0::acentricFactor()
+            : (compIdx == Comp1Idx)
+            ? Comp1::acentricFactor()
             : throw std::invalid_argument("Acentric factor component index");
     }
 
@@ -191,7 +191,7 @@ public:
 
         const auto& T = Opm::decay<LhsEval>(fluidState.temperature(phaseIdx));
         const auto& p = Opm::decay<LhsEval>(fluidState.pressure(phaseIdx));
-        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, CO2Idx));
+        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, Comp1Idx));
 
         return EOS::oleic_density(T, p, x);
     }
@@ -206,7 +206,7 @@ public:
 
         const auto& T = Opm::decay<LhsEval>(fluidState.temperature(phaseIdx));
         const auto& p = Opm::decay<LhsEval>(fluidState.pressure(phaseIdx));
-        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, CO2Idx));
+        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, Comp1Idx));
         assert(T == (TEMPERATURE + 273.15));
 
         return EOS::oleic_viscosity(T, p, x);
@@ -220,7 +220,7 @@ public:
     {
         const auto& T = Opm::decay<LhsEval>(fluidState.temperature(phaseIdx));
         const auto& p = Opm::decay<LhsEval>(fluidState.pressure(phaseIdx));
-        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, CO2Idx));
+        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, Comp1Idx));
 
         return EOS::oleic_enthalpy(T, p, x);
     }
@@ -238,9 +238,9 @@ public:
         const auto& p = Opm::decay<LhsEval>(fluidState.pressure(phaseIdx));
 
         // thermodynamic function represented by density
-        const LhsEval rho = (compIdx == OctaneIdx ?
-                             EOS::oleic_density(T, p, LhsEval(0.)) :  // x_CO2 == 0.
-                             EOS::oleic_density(T, p, LhsEval(1.)));  // x_CO2 == 1.
+        const LhsEval rho = (compIdx == Comp0Idx ?
+                             EOS::oleic_density(T, p, LhsEval(0.)) : 
+                             EOS::oleic_density(T, p, LhsEval(1.)));
 
         // molar mass
         const Scalar M = molarMass(compIdx);
