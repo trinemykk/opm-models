@@ -13,7 +13,6 @@
 
 // note that this header must be included before anything that directly
 // or indirectly may reference DUNE headers
-#include "onephasefluidsystem.hh"
 #include "threephasefluidsystem.hh"
 #include "ChiFlash.hpp"
 
@@ -116,7 +115,7 @@ private:
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
 
 public:
-    using type = Opm::ThreePhaseCo2OctaneBrineFluidSystem<Scalar>;
+    using type = Opm::ThreePhaseThreeComponentFluidSystem<Scalar>;
 };
 
 // Set the material Law
@@ -349,11 +348,11 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
         waterPhaseIdx = FluidSystem::waterPhaseIdx,
         gasPhaseIdx = FluidSystem::gasPhaseIdx,
     };
-    enum { CO2Idx = FluidSystem::CO2Idx };//change to comp1
-    enum { OctaneIdx = FluidSystem::OctaneIdx };//change to comp0
-    enum { BrineIdx = FluidSystem::BrineIdx };//change to comp2
+    enum { Comp1Idx = FluidSystem::Comp1Idx };//change to comp1
+    enum { Comp0Idx = FluidSystem::Comp0Idx };//change to comp0
+    enum { Comp2Idx = FluidSystem::Comp2Idx };//change to comp2
     enum { conti0EqIdx = Indices::conti0EqIdx };
-    enum { contiCO2EqIdx = conti0EqIdx + CO2Idx };
+    enum { contiCO2EqIdx = conti0EqIdx + Comp1Idx };
     enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
     enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
 
@@ -381,10 +380,6 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
     // 0 is the *top-most* element, and the index increase as we move *down*
     // the column. this is opposite of the orientation of the grid in eWoms
     FieldColumn init_pres;  // oleic phase pressure; ref. pres. w/o cap. pres
-
-    // background level of CO2 and Octane that will always be present initially
-    const Scalar co2_tracer = 0.;
-    const Scalar c8_tracer = 0.;
 
     // influx on the left boundary
     Scalar rate;
@@ -740,17 +735,17 @@ private:
         fs.setPressure(gasPhaseIdx,150*1e5);
 
         // composition
-        fs.setMoleFraction(oilPhaseIdx, CO2Idx, 0.01);
-        fs.setMoleFraction(oilPhaseIdx, OctaneIdx, 0.99);
-        fs.setMoleFraction(oilPhaseIdx, BrineIdx, 0.0);
+        fs.setMoleFraction(oilPhaseIdx, Comp1Idx, 0.01);
+        fs.setMoleFraction(oilPhaseIdx, Comp0Idx, 0.99);
+        fs.setMoleFraction(oilPhaseIdx, Comp2Idx, 0.0);
 
-        fs.setMoleFraction(gasPhaseIdx, CO2Idx, 0.01);
-        fs.setMoleFraction(gasPhaseIdx, OctaneIdx, 0.99);
-        fs.setMoleFraction(gasPhaseIdx, BrineIdx, 0.0);
+        fs.setMoleFraction(gasPhaseIdx, Comp1Idx, 0.01);
+        fs.setMoleFraction(gasPhaseIdx, Comp0Idx, 0.99);
+        fs.setMoleFraction(gasPhaseIdx, Comp2Idx, 0.0);
 
-        fs.setMoleFraction(waterPhaseIdx, CO2Idx, 0.0);
-        fs.setMoleFraction(waterPhaseIdx, OctaneIdx, 0.0);
-        fs.setMoleFraction(waterPhaseIdx, BrineIdx, 1.0);
+        fs.setMoleFraction(waterPhaseIdx, Comp1Idx, 0.0);
+        fs.setMoleFraction(waterPhaseIdx, Comp0Idx, 0.0);
+        fs.setMoleFraction(waterPhaseIdx, Comp2Idx, 1.0);
 
         // temperature
         fs.setTemperature(temperature_);
