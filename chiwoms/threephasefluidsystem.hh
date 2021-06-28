@@ -278,16 +278,21 @@ public:
         const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, Comp1Idx));
         assert(T == (TEMPERATURE + 273.15));
 
-        if(phaseIdx == oilPhaseIdx) {
-            return 650.;
-            return EOS::oleic_density(T, p, x);
-        } else if(phaseIdx == gasPhaseIdx) {
-            using IdealGas = Opm::IdealGas<Scalar>;
-            return IdealGas::density(LhsEval(molarMass(Comp1Idx)), T, p);
+        // if(phaseIdx == oilPhaseIdx) {
+        if (phaseIdx == oilPhaseIdx || phaseIdx == gasPhaseIdx){
+            // paramCache.updatePhase(fluidState, phaseIdx);
+            auto dens = fluidState.averageMolarMass(phaseIdx)/paramCache.molarVolume(phaseIdx);
+            return dens;
         }
+            // return 650.;
+            // return EOS::oleic_density(T, p, x);
+        // } else if(phaseIdx == gasPhaseIdx) {
+            // using IdealGas = Opm::IdealGas<Scalar>;
+            // return IdealGas::density(LhsEval(molarMass(Comp1Idx)), T, p);
+        // }
         else {
             return 1000.;
-            return EOS::aqueous_density(T, p, x);
+            // return EOS::aqueous_density(T, p, x);
         }
     }
 
@@ -329,6 +334,27 @@ public:
             return EOS::aqueous_enthalpy(T, p, x);
         }
     }
+
+    // according to <https://srdata.nist.gov/solubility/sol_detail.aspx?sysID=38_103>
+    // the solubility of octane in aqueous phase is 2.0g/100g sln. since octane
+    // (C8H18) has a molecular weight of 114.23 g/mol and water (H2O) of 18.01528 g/mol
+    // we have a total of 2.0g/114.23 g/mol ~= 0.0175 mol of octane and
+    // (100g-2.0g)/18.01528 g/mol ~= 5.44 mol of water, for a total of 5.45 mol,
+    // of which the mole fraction of octane is 0.0175/5.45 ~= 3.2e-3
+    //constexpr static Scalar sol_aqueous_oil = 3.208e-3;  // solution of octane in brine
+
+    // the solubility of water in the oleic (octane) phase is according the same
+    // reference above, 7.3g/100g sln, giving 7.3g/18.01528 g/mol ~= 0.41 mol of
+    // water and (100g-7.3g)/114.23 g/mol ~= 0.81 mol of octane, in a 100 g solution,
+    // yielding a mole fraction of 0.41/(0.41 + 0.81) = 0.33 for water.
+    //constexpr static Scalar sol_oleic_water = sol_aqueous_oil; // 3.330e-1;
+
+    // partition coefficients when both oleic and aqueous phases are saturated with
+    // maximum dissoluted amount of the other component. these coefficients should
+    // give fugacities with maximum volatility of the component in its non-native phase
+    //constexpr static Scalar k_aqueous_oil = (1 - sol_oleic_water) / sol_aqueous_oil;  // ~200
+    //constexpr static Scalar k_oleic_water = (1 - sol_aqueous_oil) / sol_oleic_water;  // ~3
+
 
     //! \copydoc BaseFluidSystem::fugacityCoefficient
     template <class FluidState, class LhsEval = typename FluidState::Scalar, class ParamCacheEval = LhsEval>

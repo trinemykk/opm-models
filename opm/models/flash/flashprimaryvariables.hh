@@ -130,7 +130,7 @@ public:
         for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
             for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
                 Scalar tmp = fluidState.molarity(phaseIdx, compIdx) * fluidState.saturation(phaseIdx);
-                z[compIdx] += tmp;
+                z[compIdx] += Opm::max(tmp, 1e-8);
                 sumMoles += tmp;
             }
         }
