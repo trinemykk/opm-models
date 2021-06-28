@@ -279,16 +279,21 @@ public:
         const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, CO2Idx));
         assert(T == (TEMPERATURE + 273.15));
 
-        if(phaseIdx == oilPhaseIdx) {
-            return 650.;
-            return EOS::oleic_density(T, p, x);
-        } else if(phaseIdx == gasPhaseIdx) {
-            using IdealGas = Opm::IdealGas<Scalar>;
-            return IdealGas::density(LhsEval(molarMass(CO2Idx)), T, p);
+        // if(phaseIdx == oilPhaseIdx) {
+        if (phaseIdx == oilPhaseIdx || phaseIdx == gasPhaseIdx){
+            // paramCache.updatePhase(fluidState, phaseIdx);
+            auto dens = fluidState.averageMolarMass(phaseIdx)/paramCache.molarVolume(phaseIdx);
+            return dens;
         }
+            // return 650.;
+            // return EOS::oleic_density(T, p, x);
+        // } else if(phaseIdx == gasPhaseIdx) {
+            // using IdealGas = Opm::IdealGas<Scalar>;
+            // return IdealGas::density(LhsEval(molarMass(CO2Idx)), T, p);
+        // }
         else {
             return 1000.;
-            return EOS::aqueous_density(T, p, x);
+            // return EOS::aqueous_density(T, p, x);
         }
     }
 

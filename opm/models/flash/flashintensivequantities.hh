@@ -122,6 +122,13 @@ public:
         }
         z[numComponents - 2] = lastZ;
 
+        Evaluation sumz = 0.0;
+        for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
+            z[compIdx] = Opm::max(z[compIdx], 1e-8);
+            sumz +=z[compIdx];
+        }
+        z /= sumz;
+
         Evaluation p = priVars.makeEvaluation(pressure0Idx, timeIdx);
         for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
             fluidState_.setPressure(phaseIdx, p);
