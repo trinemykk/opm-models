@@ -7,16 +7,7 @@
 #include <opm/material/components/Component.hpp>
 #include <opm/material/components/SimpleCO2.hpp>
 #include <opm/material/components/CO2.hpp>
-#include <opm/material/components/Brine.hpp>
 #include <opm/material/components/H2O.hpp>
-
-#include "padua.h"
-extern struct poly2d_t co2_c8_dens;
-extern struct poly2d_t co2_c8_visc;
-extern struct poly2d_t co2_c8_enth;
-extern struct poly2d_t co2_h2o_dens;
-extern struct poly2d_t co2_h2o_visc;
-extern struct poly2d_t co2_h2o_enth;
 
 namespace Opm {
 /*!
@@ -79,32 +70,17 @@ public:
 
 struct EOS
 {
-        template<typename LhsEval>
-        static LhsEval eval(const struct poly2d_t & poly,
-                            LhsEval T, LhsEval p, LhsEval x) {
-                LhsEval val;
-                // if the linear solver overshoots and attempts to pick a solution
-                // outside of the domain, just pretend that there is no change from the
-                // boundary of the domain; hopefully the solver will regain its senses
-                // and bring us back into the domain if we don't trip it up with
-                // outlandish values.
-                LhsEval fenced_p = Opm::min(Opm::max(p, poly.lo_x), poly.up_x);
-                LhsEval fenced_x = Opm::min(Opm::max(x, poly.lo_y), poly.up_y);
-                padua_eval(&poly, 1, &fenced_p, &fenced_x, &val);
-                return val;
-        }
+        // template<typename LhsEval>
+        // static LhsEval oleic_density(LhsEval T, LhsEval p, LhsEval x) {
+        //         assert(T == (TEMPERATURE + 273.15));
+        //         return 650;
+        // }
 
-        template<typename LhsEval>
-        static LhsEval oleic_density(LhsEval T, LhsEval p, LhsEval x) {
-                assert(T == (TEMPERATURE + 273.15));
-                return 650;
-        }
-
-        template<typename LhsEval>
-        static LhsEval aqueous_density(LhsEval T, LhsEval p, LhsEval x) {
-                assert(T == (TEMPERATURE + 273.15));
-                return 1000;
-        }
+        // template<typename LhsEval>
+        // static LhsEval aqueous_density(LhsEval T, LhsEval p, LhsEval x) {
+        //         assert(T == (TEMPERATURE + 273.15));
+        //         return 1000;
+        // }
 
         template<typename LhsEval>
         static LhsEval oleic_viscosity(LhsEval T, LhsEval p, LhsEval x) {
