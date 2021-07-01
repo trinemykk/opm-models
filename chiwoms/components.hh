@@ -38,6 +38,26 @@ public:
 };
 
 template <class Scalar>
+class NDekane : public Opm::Component<Scalar, NDekane<Scalar> >
+{
+public:
+        /// Chemical name
+        static const char* name() { return "C10"; }
+
+        /// Molar mass in \f$\mathrm{[kg/mol]}\f$
+        static Scalar molarMass() { return 0.1423; }
+
+        /// Critical temperature in \f$\mathrm[K]}\f$
+    static Scalar criticalTemperature() { return 617.7; }
+
+        /// Critical pressure in \f$\mathrm[Pa]}\f$
+    static Scalar criticalPressure() { return 2.103e6; }
+
+        /// Acentric factor
+        static Scalar acentricFactor() { return 0.4884; }
+};
+
+template <class Scalar>
 class ChiwomsCO2 : public Opm::SimpleCO2<Scalar>
 {
 public:
