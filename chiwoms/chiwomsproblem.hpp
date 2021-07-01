@@ -18,13 +18,9 @@
 
 #include <opm/models/utils/propertysystem.hh>
 #include <opm/models/utils/start.hh>
-
 #include <opm/models/io/structuredgridvanguard.hh>
-
-//#include <ewoms/models/ncp/ncpmodel.hh>
 #include <opm/models/flash/flashmodel.hh>
 #include <opm/models/immiscible/immisciblemodel.hh>
-
 #include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
 
 #include  <opm/simulators/linalg/parallelamgbackend.hh>
@@ -60,7 +56,6 @@ template<class TypeTag>
 struct Grid<TypeTag, TTag::ChiwomsProblem>
 { using type = Dune::YaspGrid<2>; };
 
-//SET_TYPE_PROP(ChiwomsProblem, Grid, Dune::YaspGrid<2>);
 
 // declare the CO2 finger problem specific property tags
 template<class TypeTag, class MyTypeTag>
@@ -411,15 +406,8 @@ public:
     void finishInit()
     {
         ParentType::finishInit();
-
-        // set seed so that any random number generated is reused next run
-        rand_gen.seed(SEED);
-
         // initialize fixed parameters; temperature, permeability, porosity
         initPetrophysics();
-
-        // initialize two-phase unsaturated zone functions
-        initHydrology();
 
     }
 
@@ -553,8 +541,8 @@ public:
      * \copydoc FvBaseMultiPhaseProblem::materialLawParams
      */
     template <class Context>
-    const MaterialLawParams& materialLawParams(const Context& context,
-                                               unsigned spaceIdx, unsigned timeIdx) const
+    const MaterialLawParams& materialLawParams(const Context& context OPM_UNUSED,
+                                               unsigned spaceIdx OPM_UNUSED, unsigned timeIdx OPM_UNUSED) const
     {
         return this->mat_;
     }
@@ -615,8 +603,6 @@ private:
     void initialFs(FluidState& fs, const Context& context, unsigned spaceIdx,
                  unsigned timeIdx) const
     {
-        const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
-
         // get capillary pressure
         Scalar pC[numPhases];
         const auto& matParams = this->materialLawParams(context, spaceIdx, timeIdx);
@@ -628,12 +614,12 @@ private:
         fs.setPressure(gasPhaseIdx,150*1e5);
 
         // composition
-        fs.setMoleFraction(oilPhaseIdx, Comp1Idx, 0.01);
         fs.setMoleFraction(oilPhaseIdx, Comp0Idx, 0.99);
+        fs.setMoleFraction(oilPhaseIdx, Comp1Idx, 0.01);
         fs.setMoleFraction(oilPhaseIdx, Comp2Idx, 0.0);
 
-        fs.setMoleFraction(gasPhaseIdx, Comp1Idx, 0.01);
         fs.setMoleFraction(gasPhaseIdx, Comp0Idx, 0.99);
+        fs.setMoleFraction(gasPhaseIdx, Comp1Idx, 0.01);
         fs.setMoleFraction(gasPhaseIdx, Comp2Idx, 0.0);
 
         fs.setMoleFraction(waterPhaseIdx, Comp1Idx, 0.0);
