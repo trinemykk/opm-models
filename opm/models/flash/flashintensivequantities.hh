@@ -112,6 +112,7 @@ public:
         const auto& priVars = elemCtx.primaryVars(dofIdx, timeIdx);
         const auto& problem = elemCtx.problem();
         Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
+        int flashVerbosity = EWOMS_GET_PARAM(TypeTag, int, FlashVerbosity);
 
         // extract the total molar densities of the components
         ComponentVector z;
@@ -150,7 +151,7 @@ public:
         // compute the phase compositions, densities and pressures
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;
         const MaterialLawParams& materialParams = problem.materialLawParams(elemCtx, dofIdx, timeIdx);
-        FlashSolver::solve(fluidState_, z);
+        FlashSolver::solve(fluidState_, z, flashVerbosity);
 
         // calculate relative permeabilities
         MaterialLaw::relativePermeabilities(relativePermeability_,
