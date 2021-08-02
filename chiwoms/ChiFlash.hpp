@@ -86,6 +86,7 @@ public:
     template <class FluidState>
     static void solve(FluidState& fluidState,
                       const Dune::FieldVector<typename FluidState::Scalar, numComponents>& globalComposition,
+                      int flashVerbosity,
                       Scalar tolerance = -1.0)
     {
 
@@ -138,13 +139,15 @@ public:
             K[compIdx] = wilsonK_(fluidState, compIdx);
         }
 
-        std::cout << "K : " << K << std::endl;
-        std::cout << "global composition : " << globalComposition << std::endl;
+        if (flashVerbosity > 0) {
+            std::cout << "K : " << K << std::endl;
+            std::cout << "global composition : " << globalComposition << std::endl;
 
-        std::cout << " +++++++++++++++++++++++++++++" << std::endl;
-        std::cout << " ++++++++ START FLASH ++++++++" << std::endl;
-        std::cout << " +++++++++++++++++++++++++++++" << std::endl;
-        
+            std::cout << " +++++++++++++++++++++++++++++" << std::endl;
+            std::cout << " ++++++++ START FLASH ++++++++" << std::endl;
+            std::cout << " +++++++++++++++++++++++++++++" << std::endl;
+        }
+
         // Some declarations
         bool isStable = false;
         InputEval L;

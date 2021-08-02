@@ -84,6 +84,10 @@ struct FlashTolerance<TypeTag, TTag::FlashModel>
     static constexpr type value = -1.0;
 };
 
+// Flash solver verbosity
+template<class TypeTag>
+struct FlashVerbosity<TypeTag, TTag::FlashModel> { static constexpr int value = 0; };
+
 //! the Model property
 template<class TypeTag>
 struct Model<TypeTag, TTag::FlashModel> { using type = Opm::FlashModel<TypeTag>; };
@@ -237,6 +241,8 @@ public:
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, FlashTolerance,
                              "The maximum tolerance for the flash solver to "
                              "consider the solution converged");
+        EWOMS_REGISTER_PARAM(TypeTag, int, FlashVerbosity,
+                             "Flash solver verbosity level");
     }
 
     /*!
