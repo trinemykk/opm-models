@@ -156,7 +156,7 @@ public:
                 if (verbosity == 1) {
                     std::cout << "********" << std::endl;
                     std::cout << "Cell is two-phase; solve using Newton!" << std::endl;
-                    std::cout << "Initial variables: K = [" << K[Comp0Idx] << " " << K[Comp1Idx] << "] and z = [" << globalComposition[Comp0Idx] << " " << globalComposition[Comp1Idx] <<"]" << std::endl;
+                    std::cout << "Initial variables: K = [" << K[Comp0Idx] << " " << K[Comp1Idx] << "], z = [" << globalComposition[Comp0Idx] << " " << globalComposition[Comp1Idx] <<"], and L = " << L << std::endl;
                 }
                 newtonCompositionUpdate_(K, L, fluidState, globalComposition, verbosity);
                 if (verbosity == 1) {
@@ -167,7 +167,7 @@ public:
                 if (verbosity == 1) {
                     std::cout << "********" << std::endl;
                     std::cout << "Cell is two-phase; solve using Succcessive Substitution!" << std::endl;
-                    std::cout << "Initial variables: K = [" << K[Comp0Idx] << " " << K[Comp1Idx] << "] and z = [" << globalComposition[Comp0Idx] << " " << globalComposition[Comp1Idx] <<"]" << std::endl;
+                    std::cout << "Initial variables: K = [" << K[Comp0Idx] << " " << K[Comp1Idx] << "], z = [" << globalComposition[Comp0Idx] << " " << globalComposition[Comp1Idx] <<"], and L = " << L << std::endl;
                 }
                 successiveSubstitutionComposition_(K, L, fluidState, globalComposition, /*standAlone=*/true, verbosity);
                 if (verbosity == 1) {
@@ -335,7 +335,7 @@ protected:
             }
         }
         // Throw error if Rachford-Rice fails
-        throw std::runtime_error("Rachford-Rice did not converge within maximum number of iterations" );
+        throw std::runtime_error(" Rachford-Rice did not converge within maximum number of iterations" );
     }
 
     template <class Vector>
@@ -514,7 +514,7 @@ protected:
             //todo: make sure that no molefraction is smaller than 1e-8 ?
             //todo: take care of water!
         }
-        throw std::runtime_error("stability test did not converge");
+        throw std::runtime_error(" Stability test did not converge");
     }//end checkStability
 
     template <class FlashFluidState, class ComponentVector>
@@ -626,7 +626,7 @@ protected:
                 updateCurrentSol_(newtonX, newtonDelta);
             }
         }
-        throw std::runtime_error("Newton composition update did not converge within maxIterations");
+        throw std::runtime_error(" Newton composition update did not converge within maxIterations");
     }
 
     template <class DefectVector>
