@@ -88,7 +88,8 @@ public:
     static void solve(FluidState& fluidState,
                       const Dune::FieldVector<typename FluidState::Scalar, numComponents>& globalComposition,
                       int verbosity,
-                      Scalar tolerance = -1.0)
+                      std::string twoPhaseMethod,
+                      Scalar tolerance)
     {
 
         using InputEval = typename FluidState::Scalar;
@@ -150,9 +151,8 @@ public:
         L = solveRachfordRice_g_(K, globalComposition);
         
         // Update the composition using Newton's method if cell is two-phase
-        bool useNewton = true;
         if (isStable == false) {
-            if (useNewton == true){
+            if (twoPhaseMethod == "newton"){
                 if (verbosity == 1) {
                     std::cout << "********" << std::endl;
                     std::cout << "Cell is two-phase; solve using Newton!" << std::endl;
@@ -163,7 +163,7 @@ public:
                     std::cout << "********" << std::endl;
                 }
             }
-            else{
+            else if (twoPhaseMethod == "ssi"){
                 if (verbosity == 1) {
                     std::cout << "********" << std::endl;
                     std::cout << "Cell is two-phase; solve using Succcessive Substitution!" << std::endl;
