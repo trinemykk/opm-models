@@ -549,8 +549,8 @@ protected:
                                          int verbosity)
     {
         // Newton declarations
-        using NewtonVector = Dune::FieldVector<Evaluation, numMiscibleComponents+1>;
-        using NewtonMatrix = Dune::FieldMatrix<Evaluation, numMiscibleComponents+1, numMiscibleComponents+1>;
+        using NewtonVector = Dune::FieldVector<Evaluation, numMisciblePhases*numMiscibleComponents+1>;
+        using NewtonMatrix = Dune::FieldMatrix<Evaluation, numMisciblePhases*numMiscibleComponents+1, numMisciblePhases*numMiscibleComponents+1>;
         NewtonVector newtonX;
         NewtonVector newtonB;
         NewtonMatrix newtonA;
@@ -561,13 +561,17 @@ protected:
             std::cout << std::setw(10) << "Iteration" << std::setw(16) << "Norm2(step)" << std::setw(16) << "Norm2(Residual)" << std::endl;
         }
 
-        // Assign primary variables (K and L)
+        // Compute x and y from K, L and Z
+        computeLiquidVapor_(fluidState, L, K, globalComposition);
+
+        // Assign primary variables (x, y and L)
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == Comp2Idx)
                 continue;
-            newtonX[compIdx] = K[compIdx];
+            newtonX[compIdx] = Opm::getValue(fluidState.moleFraction(oilPhaseIdx, compIdx));
+            newtonX[compIdx + numMiscibleComponents] = Opm::getValue(fluidState.moleFraction(gasPhaseIdx, compIdx));
         }
-        newtonX[numMiscibleComponents] = Opm::getValue(L);
+        newtonX[numMiscibleComponents*numMiscibleComponents] = Opm::getValue(L);
 
         // 
         // Main Newton loop
@@ -592,17 +596,15 @@ protected:
 
             // If convergence have been met, we abort; else we update step and loop once more
             if (convFug == true) {
-                // Extract K and L
+                // Extract x, y and L together with calculation of K
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
                     if (compIdx == Comp2Idx)
                         continue;
-                    K[compIdx] = newtonX[compIdx];
-
+                    fluidState.setMoleFraction(oilPhaseIdx, compIdx, newtonX[compIdx]);
+                    fluidState.setMoleFraction(gasPhaseIdx, compIdx, newtonX[compIdx + numMiscibleComponents]);
+                    K[compIdx] = newtonX[compIdx + numMiscibleComponents] / newtonX[compIdx];
                 }
-                L = newtonX[numMiscibleComponents];
-
-                // Set x and y from K, L and z
-                computeLiquidVapor_(fluidState, L, K, globalComposition);
+                L = newtonX[numMiscibleComponents*numMiscibleComponents];
 
                 // Print info
                 if (verbosity == 1) {
@@ -619,8 +621,8 @@ protected:
                 // Calculate Jacobian (newtonA)
                 evalJacobian_(newtonA, newtonX, fluidState, globalComposition);
                 
-                // Solve system newtonA*newtonX = newtonB to get next step (newtonDelta) 
-                newtonA.solve(newtonDelta, newtonB);
+                // Solve system J * x = -r (or newtonA*newtonX = -newtonB) to get next step (newtonDelta) 
+                newtonA.solve(newtonDelta, -newtonB);
 
                 // Update current solution (newtonX) with simple relaxation method (percentage of step applied)
                 updateCurrentSol_(newtonX, newtonDelta);
@@ -632,26 +634,16 @@ protected:
     template <class DefectVector>
     static void updateCurrentSol_(DefectVector& x, DefectVector& d)
     {
-        // Loop over the solution vector and apply the new step, BUT make sure the to keep the update in the range [0, 1]
+        // Find smallest percentage update
+        Scalar w = 1.0;
         for (int i=0; i<x.size(); ++i){
-            // // Upper limit
-            if (i == numMiscibleComponents){
-                if (Opm::getValue(x[i] - d[i]) > 1.){
-                    x[i] = 1.0;
-                }
+            Scalar w_tmp = Opm::getValue(Opm::min(Opm::max(x[i] + d[i], 0.0), 1.0) - x[i]) / Opm::getValue(d[i]);
+            w = Opm::min(w, w_tmp);
+        }
 
-                // Lower limit
-                else if (Opm::getValue(x[i] - d[i]) < 0.){
-                    x[i] = 0.0;
-                
-                // Normal step within (0, 1)
-                }
-                else {
-                    x[i] -= d[i];
-                }          
-            }
-            else
-                x[i] -= d[i];
+        // Loop over the solution vector and apply the smallest percentage update
+        for (int i=0; i<x.size(); ++i){
+            x[i] += w*d[i];
         }
     }
 
@@ -666,10 +658,10 @@ protected:
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == Comp2Idx)
                 continue;
-            fugVec[compIdx] = b[compIdx];
+            fugVec[compIdx] = 0.0;
+            fugVec[compIdx+numMiscibleComponents] = b[compIdx+numMiscibleComponents];
         }
-        // Last entry in b is Rachford-Rice residual, no fugacity ratios
-        fugVec[numMiscibleComponents] = 0.0;
+        fugVec[numMiscibleComponents*numMisciblePhases] = 0.0;
         
         // Check if norm(fugVec) is less than tolerance
         bool conv = fugVec.two_norm() < 1e-6;
@@ -682,18 +674,17 @@ protected:
                             const FluidState& fluidStateIn,
                             const ComponentVector& globalComposition)
     {
-        // Extract K and L from x for mole fraction calculations
+        // Put x and y in a FluidState instance for fugacity calculations
         FluidState fluidState(fluidStateIn);
         ComponentVector K;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == Comp2Idx)
                 continue;
-            K[compIdx] = x[compIdx];
+            fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
+            fluidState.setMoleFraction(gasPhaseIdx, compIdx, x[compIdx + numMiscibleComponents]);
         }
-        Evaluation L = x[numMiscibleComponents];
-
-        // Set mole fractions based on K and L
-        computeLiquidVapor_(fluidState, L, K, globalComposition);
+        
+        // Ensure water mole fractions are 0.0
         fluidState.setMoleFraction(oilPhaseIdx, Comp2Idx, 0.0); /* OBS */
         fluidState.setMoleFraction(gasPhaseIdx, Comp2Idx, 0.0); /* OBS */
 
@@ -712,17 +703,24 @@ protected:
             }
         }
 
-        // Compute residuals for Newton update:
-        // Primary variables are: K and L
+        // Compute residuals for Newton update. Primary variables are: x, y, and L
         // TODO: Make this AD
+        // Extract L
+        Evaluation L = x[numMiscibleComponents*numMisciblePhases];
+        
+        // Residuals
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == Comp2Idx)
                 continue;
-            // f_vapor - f_liquid = 0
-            b[compIdx] = (fluidState.fugacity(oilPhaseIdx, compIdx) / fluidState.fugacity(gasPhaseIdx, compIdx)) - 1.0;
+            // z - L*x - (1-L) * y
+            b[compIdx] = globalComposition[compIdx] - L*x[compIdx] - (1-L)*x[compIdx + numMiscibleComponents];
+            
+            // (f_liquid/f_vapor) - 1 = 0
+            b[compIdx + numMiscibleComponents] = (fluidState.fugacity(oilPhaseIdx, compIdx) / fluidState.fugacity(gasPhaseIdx, compIdx)) - 1.0;
+        
+            // sum(x) - sum(y) = 0
+            b[numMiscibleComponents*numMisciblePhases] += x[compIdx] - x[compIdx + numMiscibleComponents];
         }
-        // Rachford-Rice residual
-        b[numMiscibleComponents] = rachfordRice_g_(K, L, globalComposition);
     }//end valDefect
 
     template <class FluidState, class DefectVector, class DefectMatrix, class ComponentVector>
