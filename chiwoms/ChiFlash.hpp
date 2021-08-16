@@ -588,7 +588,7 @@ protected:
                 evalJacobian_(newtonA, newtonX, fluidState, globalComposition);
                 
                 // Solve system J * x = -r (or newtonA*newtonX = -newtonB) to get next step (newtonDelta) 
-                newtonA.solve(newtonDelta, -newtonB);
+                newtonA.solve(newtonDelta, newtonB);
 
                 // Update current solution (newtonX) with simple relaxation method (percentage of step applied)
                 updateCurrentSol_(newtonX, newtonDelta);

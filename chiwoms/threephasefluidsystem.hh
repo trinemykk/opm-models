@@ -30,7 +30,7 @@ namespace Opm {
  * \ingroup Fluidsystems
  *
  * \brief A two-phase fluid system with brine and octane as the main components
- * in each their phase, and CO2 as solvent in both.
+ * in each their phase, and CO2 as solvent in both. EDIT THIS
  */
 template <class Scalar>
 class ThreePhaseThreeComponentFluidSystem
@@ -76,7 +76,7 @@ public:
         if (phaseIdx == oilPhaseIdx)
             return false;
 
-        // CO2 have associative effects, both with octane and with brine
+        // CO2 have associative effects
         return true;
     }
 
@@ -86,26 +86,26 @@ public:
          ****************************************/
 
     //! \copydoc BaseFluidSystem::numComponents
-    static const int numComponents = 3;  // octane, co2 and brine
+    static const int numComponents = 3;  // methane, co2 andn-decane
 
-    //! The component index of the oil; octane
+    //! The component index of the methane; 
     static const int Comp0Idx = 0;
 
-    //! The component index of the solvent; co2
+    //! The component index of the co2
     static const int Comp1Idx = 1;
 
-    //! The component index of the other main component; h2o + salts
+    //! The component index of n-dekane
     static const int Comp2Idx = 2;
 
     //! The component for pure oil
-    using Comp0 = Opm::Octane<Scalar>;
+    using Comp0 = Opm::Methane<Scalar>;
 
     //! The component for pure solvent; since we have our own thermodynamic
     //! functions, we use the simple definition for the rest.
     using Comp1 = Opm::ChiwomsCO2<Scalar>;
 
     //! The component for brine
-    using Comp2 = Opm::ChiwomsBrine<Scalar>;
+    using Comp2 = Opm::NDekane<Scalar>;
 
     static void init(Scalar minT = 273.15,
                      Scalar maxT = 373.15,
