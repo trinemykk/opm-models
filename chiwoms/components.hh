@@ -28,10 +28,10 @@ public:
         static Scalar molarMass() { return 0.11423; }
 
         /// Critical temperature in \f$\mathrm[K]}\f$
-    static Scalar criticalTemperature() { return 568.7; }
+        static Scalar criticalTemperature() { return 568.7; }
 
         /// Critical pressure in \f$\mathrm[Pa]}\f$
-    static Scalar criticalPressure() { return 2.49e6; }
+        static Scalar criticalPressure() { return 2.49e6; }
 
         /// Acentric factor
         static Scalar acentricFactor() { return 0.398; }
@@ -48,13 +48,33 @@ public:
         static Scalar molarMass() { return 0.1423; }
 
         /// Critical temperature in \f$\mathrm[K]}\f$
-    static Scalar criticalTemperature() { return 617.7; }
+        static Scalar criticalTemperature() { return 617.7; }
 
         /// Critical pressure in \f$\mathrm[Pa]}\f$
-    static Scalar criticalPressure() { return 2.103e6; }
+        static Scalar criticalPressure() { return 2.103e6; }
 
         /// Acentric factor
         static Scalar acentricFactor() { return 0.4884; }
+};
+
+template <class Scalar>
+class Methane : public Opm::Component<Scalar, Methane<Scalar> >
+{
+public:
+        /// Chemical name
+        static const char* name() { return "CH4"; }
+
+        /// Molar mass in \f$\mathrm{[kg/mol]}\f$
+        static Scalar molarMass() { return 0.0160; }
+
+        /// Critical temperature in \f$\mathrm[K]}\f$
+        static Scalar criticalTemperature() { return 190.5640; }
+
+        /// Critical pressure in \f$\mathrm[Pa]}\f$
+        static Scalar criticalPressure() { return 4.599e6; }
+
+        /// Acentric factor
+        static Scalar acentricFactor() { return 0.0114; }
 };
 
 
