@@ -621,8 +621,8 @@ protected:
                 // Calculate Jacobian (newtonA)
                 evalJacobian_(newtonA, newtonX, fluidState, globalComposition);
                 
-                // Solve system J * x = -r (or newtonA*newtonX = -newtonB) to get next step (newtonDelta) 
-                newtonA.solve(newtonDelta, -newtonB);
+                // Solve system J * x = -r, which in our case is newtonA*newtonX = newtonB, to get next step (newtonDelta) 
+                newtonA.solve(newtonDelta, newtonB);
 
                 // Update current solution (newtonX) with simple relaxation method (percentage of step applied)
                 updateCurrentSol_(newtonX, newtonDelta);
@@ -709,17 +709,18 @@ protected:
         Evaluation L = x[numMiscibleComponents*numMisciblePhases];
         
         // Residuals
+        // OBS: the residuals are negative in the newton system!
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             if (compIdx == Comp2Idx)
                 continue;
             // z - L*x - (1-L) * y
-            b[compIdx] = globalComposition[compIdx] - L*x[compIdx] - (1-L)*x[compIdx + numMiscibleComponents];
+            b[compIdx] = -globalComposition[compIdx] + L*x[compIdx] + (1-L)*x[compIdx + numMiscibleComponents];
             
             // (f_liquid/f_vapor) - 1 = 0
-            b[compIdx + numMiscibleComponents] = (fluidState.fugacity(oilPhaseIdx, compIdx) / fluidState.fugacity(gasPhaseIdx, compIdx)) - 1.0;
+            b[compIdx + numMiscibleComponents] = -(fluidState.fugacity(oilPhaseIdx, compIdx) / fluidState.fugacity(gasPhaseIdx, compIdx)) + 1.0;
         
             // sum(x) - sum(y) = 0
-            b[numMiscibleComponents*numMisciblePhases] += x[compIdx] - x[compIdx + numMiscibleComponents];
+            b[numMiscibleComponents*numMisciblePhases] += -x[compIdx] + x[compIdx + numMiscibleComponents];
         }
     }//end valDefect
 
