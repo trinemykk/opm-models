@@ -118,14 +118,14 @@ public:
         // extract the total molar densities of the components
         ComponentVector z;
         Evaluation lastZ = 1.0;
-        for (unsigned compIdx = 0; compIdx < numComponents - 2; ++compIdx) {
+        for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
             z[compIdx] = priVars.makeEvaluation(z0Idx + compIdx, timeIdx);
             lastZ -= z[compIdx];
         }
-        z[numComponents - 2] = lastZ;
+        z[numComponents - 1] = lastZ;
 
         Evaluation sumz = 0.0;
-        for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
+        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
             z[compIdx] = Opm::max(z[compIdx], 1e-8);
             sumz +=z[compIdx];
         }
@@ -136,18 +136,6 @@ public:
             fluidState_.setPressure(phaseIdx, p);
         Evaluation swat = priVars.makeEvaluation(saturation0Idx, timeIdx);
         fluidState_.setSaturation(waterPhaseIdx, swat);
-
-        // const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
-        // if (hint) {
-        //     // use the same fluid state as the one of the hint, but
-        //     // make sure that we don't overwrite the temperature
-        //     // specified by the primary variables
-        //     Evaluation T = fluidState_.temperature(/*phaseIdx=*/0);
-        //     fluidState_.assign(hint->fluidState());
-        //     fluidState_.setTemperature(T);
-        // }
-        // else
-        //     FlashSolver::guessInitial(fluidState_, cTotal);
 
         // compute the phase compositions, densities and pressures
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;
