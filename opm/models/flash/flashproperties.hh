@@ -43,6 +43,12 @@ struct FlashSolver { using type = UndefinedProperty; };
 //! The maximum accepted error of the flash solver
 template<class TypeTag, class MyTypeTag>
 struct FlashTolerance { using type = UndefinedProperty; };
+//! The verbosity level of the flash solver
+template<class TypeTag, class MyTypeTag>
+struct FlashVerbosity { using type = UndefinedProperty; };
+//! Two-phase flash method
+template<class TypeTag, class MyTypeTag>
+struct FlashTwoPhaseMethod { using type = UndefinedProperty; };
 
 } // namespace Opm::Properties
 
