@@ -587,6 +587,8 @@ protected:
                 // Calculate Jacobian (newtonA)
                 evalJacobian_(newtonA, newtonX, fluidState, globalComposition);
                 
+
+              
                 // Solve system J * x = -r, which in our case is newtonA*newtonX = newtonB, to get next step (newtonDelta) 
                 newtonA.solve(newtonDelta, newtonB);
 
