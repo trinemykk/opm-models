@@ -214,9 +214,6 @@ public:
         fluidState.setDensity(oilPhaseIdx, FluidSystem::density(fluidState, paramCache, oilPhaseIdx));
         fluidState.setDensity(gasPhaseIdx, FluidSystem::density(fluidState, paramCache, gasPhaseIdx));
         fluidState.setDensity(waterPhaseIdx, FluidSystem::density(fluidState, paramCache, waterPhaseIdx));
-
-        // Update water mole fraction
-        fluidState.setMoleFraction(waterPhaseIdx, Comp2Idx, 1.0);
     }//end solve
 
     /*!
@@ -586,8 +583,6 @@ protected:
             else {
                 // Calculate Jacobian (newtonA)
                 evalJacobian_(newtonA, newtonX, fluidState, globalComposition);
-                
-
               
                 // Solve system J * x = -r, which in our case is newtonA*newtonX = newtonB, to get next step (newtonDelta) 
                 newtonA.solve(newtonDelta, newtonB);
@@ -648,9 +643,6 @@ protected:
             fluidState.setMoleFraction(gasPhaseIdx, compIdx, x[compIdx + numMiscibleComponents]);
         }
         
-        // Ensure water mole fractions are 0.0
-        fluidState.setMoleFraction(oilPhaseIdx, Comp2Idx, 0.0); /* OBS */
-        fluidState.setMoleFraction(gasPhaseIdx, Comp2Idx, 0.0); /* OBS */
 
         // Compute fugacities
         using ParamCache = typename FluidSystem::template ParameterCache<typename FluidState::Scalar>;
