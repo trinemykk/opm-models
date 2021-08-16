@@ -135,8 +135,6 @@ public:
         // Initial guess for the K value using Wilson's formula
         ComponentVector K;
         for (int compIdx = 0; compIdx<numComponents; ++compIdx) {
-            if (compIdx == Comp2Idx)
-                continue;
             K[compIdx] = wilsonK_(fluidState, compIdx);
         }
 
@@ -262,8 +260,6 @@ protected:
     {
         typename Vector::field_type g=0;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            if (compIdx == Comp2Idx)
-                continue;
             g += (globalComposition[compIdx]*(K[compIdx]-1))/(K[compIdx]-L*(K[compIdx]-1));
         }
         return g;
@@ -274,8 +270,6 @@ protected:
     {
         typename Vector::field_type dg=0;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            if (compIdx == Comp2Idx)
-                continue;
             dg += (globalComposition[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((K[compIdx]-L*(K[compIdx]-1))*(K[compIdx]-L*(K[compIdx]-1)));
         }
         return dg;
@@ -289,8 +283,6 @@ protected:
         Evaluation Kmin = K[0];
         Evaluation Kmax = K[0];
         for (int compIdx=1; compIdx<numComponents; ++compIdx){
-            if (compIdx == Comp2Idx)
-                continue;
             if (K[compIdx] < Kmin)
                 Kmin = K[compIdx];
             else if (K[compIdx] >= Kmax)
@@ -393,8 +385,6 @@ protected:
             // Single phase, i.e. phase composition is equivalent to the global composition
             // Update fluidstate with mole fration
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                if (compIdx == Comp2Idx)
-                    continue;
                 fluidState.setMoleFraction(gasPhaseIdx, compIdx, globalComposition[compIdx]);
                 fluidState.setMoleFraction(oilPhaseIdx, compIdx, globalComposition[compIdx]);
             }
@@ -402,8 +392,6 @@ protected:
         // If it is not stable, we use the mole fractions from the Michelsen test to calculate a new K
         else {
             for (int compIdx = 0; compIdx<numComponents; ++compIdx) {
-                if (compIdx == Comp2Idx)
-                    continue;
                 K[compIdx] = y[compIdx] / x[compIdx];
             }
             // std::cout << "K = " << K << std::endl;
@@ -437,14 +425,10 @@ protected:
             }
             else {
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                    if (compIdx == Comp2Idx)
-                        continue;
                     xy_loc[compIdx] = globalComposition[compIdx]/K[compIdx];
                     S_loc += xy_loc[compIdx];
                 }
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                    if (compIdx == Comp2Idx)
-                        continue;
                     xy_loc[compIdx] /= S_loc;
                     fluidState_fake.setMoleFraction(oilPhaseIdx, compIdx, xy_loc[compIdx]);
                 }
@@ -452,8 +436,6 @@ protected:
 
             int phaseIdx = (isGas?gasPhaseIdx:oilPhaseIdx);
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                if (compIdx == Comp2Idx)
-                    continue;
                 fluidState_global.setMoleFraction(phaseIdx, compIdx, globalComposition[compIdx]);
             }
 
@@ -465,8 +447,6 @@ protected:
 
             //fugacity for fake phases each component
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                if (compIdx == Comp2Idx)
-                    continue;
                 auto phiFake = PengRobinsonMixture::computeFugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
                 auto phiGlobal = PengRobinsonMixture::computeFugacityCoefficient(fluidState_global, paramCache_global, phaseIdx, compIdx);
 
@@ -477,8 +457,6 @@ protected:
            
             ComponentVector R;
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                if (compIdx == Comp2Idx)
-                    continue;
                 if (isGas){
                     auto fug_fake = fluidState_fake.fugacity(gasPhaseIdx, compIdx);
                     auto fug_global = fluidState_global.fugacity(gasPhaseIdx, compIdx);
@@ -494,15 +472,11 @@ protected:
             }
 
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                if (compIdx == Comp2Idx)
-                    continue;
                 K[compIdx] *= R[compIdx];
             }
             Scalar R_norm = 0.0;
             Scalar K_norm = 0.0;
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                if (compIdx == Comp2Idx)
-                    continue;
                 auto a = Opm::getValue(R[compIdx]) - 1.0;
                 auto b = Opm::log(Opm::getValue(K[compIdx]));
                 R_norm += a*a;
@@ -526,8 +500,6 @@ protected:
         Evaluation sumx=0;
         Evaluation sumy=0;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            if (compIdx == Comp2Idx)
-                continue;
             x[compIdx] = globalComposition[compIdx]/(L + (1-L)*K[compIdx]);
             sumx += x[compIdx];
             y[compIdx] = (K[compIdx]*globalComposition[compIdx])/(L + (1-L)*K[compIdx]);
@@ -537,8 +509,6 @@ protected:
         y /= sumy;
 
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            if (compIdx == Comp2Idx)
-                continue;
             fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
             fluidState.setMoleFraction(gasPhaseIdx, compIdx, y[compIdx]);
         }
@@ -566,8 +536,6 @@ protected:
 
         // Assign primary variables (x, y and L)
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            if (compIdx == Comp2Idx)
-                continue;
             newtonX[compIdx] = Opm::getValue(fluidState.moleFraction(oilPhaseIdx, compIdx));
             newtonX[compIdx + numMiscibleComponents] = Opm::getValue(fluidState.moleFraction(gasPhaseIdx, compIdx));
         }
@@ -598,8 +566,6 @@ protected:
             if (convFug == true) {
                 // Extract x, y and L together with calculation of K
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                    if (compIdx == Comp2Idx)
-                        continue;
                     fluidState.setMoleFraction(oilPhaseIdx, compIdx, newtonX[compIdx]);
                     fluidState.setMoleFraction(gasPhaseIdx, compIdx, newtonX[compIdx + numMiscibleComponents]);
                     K[compIdx] = newtonX[compIdx + numMiscibleComponents] / newtonX[compIdx];
@@ -656,8 +622,6 @@ protected:
         // Loop over b and find the fugacity equilibrium
         // OBS: If the equations in b changes in evalDefect_ then you have to change here as well!
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            if (compIdx == Comp2Idx)
-                continue;
             fugVec[compIdx] = 0.0;
             fugVec[compIdx+numMiscibleComponents] = b[compIdx+numMiscibleComponents];
         }
@@ -678,8 +642,6 @@ protected:
         FluidState fluidState(fluidStateIn);
         ComponentVector K;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            if (compIdx == Comp2Idx)
-                continue;
             fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
             fluidState.setMoleFraction(gasPhaseIdx, compIdx, x[compIdx + numMiscibleComponents]);
         }
@@ -696,8 +658,6 @@ protected:
                 continue;
             paramCache.updatePhase(fluidState, phaseIdx);
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                if (compIdx == Comp2Idx)
-                    continue;
                 Evaluation phi = FluidSystem::fugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx);
                 fluidState.setFugacityCoefficient(phaseIdx, compIdx, phi);
             }
@@ -710,8 +670,6 @@ protected:
         
         // Residuals
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            if (compIdx == Comp2Idx)
-                continue;
             // z - L*x - (1-L) * y
             b[compIdx] = globalComposition[compIdx] - L*x[compIdx] - (1-L)*x[compIdx + numMiscibleComponents];
             
@@ -785,8 +743,6 @@ protected:
                     continue;
                 paramCache.updatePhase(fluidState, phaseIdx);
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                    if (compIdx == Comp2Idx)
-                        continue;
                     Evaluation phi = FluidSystem::fugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx);
                     fluidState.setFugacityCoefficient(phaseIdx, compIdx, phi);
                 }
@@ -795,10 +751,6 @@ protected:
             // Calculate fugacity ratio
             ComponentVector fugRatio;
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                if (compIdx == Comp2Idx){
-                    fugRatio[compIdx] = 0.0;
-                    continue;
-                    }
                 fugRatio[compIdx] = (fluidState.fugacity(oilPhaseIdx, compIdx)/fluidState.fugacity(gasPhaseIdx, compIdx)) - 1.0;
             }
 

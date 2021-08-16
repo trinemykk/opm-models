@@ -317,7 +317,7 @@ public:
         assert(0 <= phaseIdx && phaseIdx < numPhases);
         assert(0 <= compIdx && compIdx < numComponents);
 
-        if (phaseIdx == waterPhaseIdx || compIdx == Comp2Idx)
+        if (phaseIdx == waterPhaseIdx)
             return 1.0;
         else {
             Scalar phi = Opm::getValue(PengRobinsonMixture::computeFugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx));
