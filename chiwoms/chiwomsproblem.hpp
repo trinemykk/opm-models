@@ -613,17 +613,17 @@ private:
         fs.setPressure(gasPhaseIdx,150*1e5);
 
         // composition
-        fs.setMoleFraction(oilPhaseIdx, Comp0Idx, 0.99);
-        fs.setMoleFraction(oilPhaseIdx, Comp1Idx, 0.01);
-        fs.setMoleFraction(oilPhaseIdx, Comp2Idx, 0.0);
+        fs.setMoleFraction(oilPhaseIdx, Comp0Idx, 0.3); //methane
+        fs.setMoleFraction(oilPhaseIdx, Comp1Idx, 0.1); //co2
+        fs.setMoleFraction(oilPhaseIdx, Comp2Idx, 0.6); //n-decane
 
-        fs.setMoleFraction(gasPhaseIdx, Comp0Idx, 0.99);
-        fs.setMoleFraction(gasPhaseIdx, Comp1Idx, 0.01);
-        fs.setMoleFraction(gasPhaseIdx, Comp2Idx, 0.0);
+        fs.setMoleFraction(gasPhaseIdx, Comp0Idx, 0.3); //methane
+        fs.setMoleFraction(gasPhaseIdx, Comp1Idx, 0.1); //co2
+        fs.setMoleFraction(gasPhaseIdx, Comp2Idx, 0.6);  //n-dekane
         
-        fs.setMoleFraction(waterPhaseIdx, Comp0Idx, 0.0);
+        fs.setMoleFraction(waterPhaseIdx, Comp0Idx, 1.0);
         fs.setMoleFraction(waterPhaseIdx, Comp1Idx, 0.0);
-        fs.setMoleFraction(waterPhaseIdx, Comp2Idx, 1.0);
+        fs.setMoleFraction(waterPhaseIdx, Comp2Idx, 0.0);
 
         // temperature
         fs.setTemperature(temperature_);
