@@ -68,8 +68,6 @@ class FlashPrimaryVariables : public FvBasePrimaryVariables<TypeTag>
     // primary variable indices
     enum { z0Idx = Indices::z0Idx };
     enum { pressure0Idx = Indices::pressure0Idx };
-    enum { saturation0Idx = Indices::saturation0Idx };
-
 
     enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
     enum { numComponents = getPropValue<TypeTag, Properties::NumComponents>() };
