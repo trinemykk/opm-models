@@ -196,8 +196,8 @@ public:
 
         // Update saturation
         Evaluation So = (L*Z_L/(L*Z_L+(1-L)*Z_V));
-        //Evaluation Sg = 1-So;
-        Evaluation Sg = (1-L)*Z_V/(L*Z_L+(1-L)*Z_V);
+        Evaluation Sg = 1-So;
+        //Evaluation Sg = (1-L)*Z_V/(L*Z_L+(1-L)*Z_V);
         fluidState.setSaturation(oilPhaseIdx, So);
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
@@ -205,7 +205,6 @@ public:
         if (verbosity >= 2) {
             std::cout << "So = " << So <<std::endl;
             std::cout << "Sg = " << Sg <<std::endl;
-            std::cout << "Sw = " << Sw <<std::endl;
         }
 
         // Update densities
