@@ -61,7 +61,6 @@ class ChiFlash
     enum { Comp2Idx = FluidSystem::Comp2Idx }; //rename for generic ?
     enum { Comp0Idx = FluidSystem::Comp0Idx }; //rename for generic ?
     enum { Comp1Idx = FluidSystem::Comp1Idx }; //rename for generic ?
-    enum { waterPhaseIdx = FluidSystem::waterPhaseIdx};
     enum { oilPhaseIdx = FluidSystem::oilPhaseIdx};
     enum { gasPhaseIdx = FluidSystem::gasPhaseIdx};
     enum { numMiscibleComponents = 2}; //octane, co2
@@ -196,10 +195,9 @@ public:
                 (R * fluidState.temperature(gasPhaseIdx));
 
         // Update saturation
-        // Evaluation Sw = 0.0; //todo: include water from conservation eq
-        Evaluation Sw = fluidState.saturation(waterPhaseIdx); //todo: include water from conservation eq
-        Evaluation So = (1-Sw)*(L*Z_L/(L*Z_L+(1-L)*Z_V));
-        Evaluation Sg = 1-So-Sw;
+        Evaluation So = (L*Z_L/(L*Z_L+(1-L)*Z_V));
+        //Evaluation Sg = 1-So;
+        Evaluation Sg = (1-L)*Z_V/(L*Z_L+(1-L)*Z_V);
         fluidState.setSaturation(oilPhaseIdx, So);
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
@@ -213,7 +211,6 @@ public:
         // Update densities
         fluidState.setDensity(oilPhaseIdx, FluidSystem::density(fluidState, paramCache, oilPhaseIdx));
         fluidState.setDensity(gasPhaseIdx, FluidSystem::density(fluidState, paramCache, gasPhaseIdx));
-        fluidState.setDensity(waterPhaseIdx, FluidSystem::density(fluidState, paramCache, waterPhaseIdx));
     }//end solve
 
     /*!
@@ -399,7 +396,7 @@ protected:
     static void checkStability_(const FlashFluidState& fluidState, bool& isTrivial, ComponentVector& K, ComponentVector& xy_loc, Evaluation& S_loc, const ComponentVector& globalComposition, bool isGas)
     {
         using FlashEval = typename FlashFluidState::Scalar;
-        using ThisType = ThreePhaseThreeComponentFluidSystem<Scalar>;
+        using ThisType = TwoPhaseThreeComponentFluidSystem<Scalar>;
         using PengRobinsonMixture = typename Opm::PengRobinsonMixture<Scalar, ThisType>;
 
         // Declarations 
@@ -648,8 +645,6 @@ protected:
         using ParamCache = typename FluidSystem::template ParameterCache<typename FluidState::Scalar>;
         ParamCache paramCache;
         for (int phaseIdx=0; phaseIdx<numPhases; ++phaseIdx){
-            if (phaseIdx==waterPhaseIdx)
-                continue;
             paramCache.updatePhase(fluidState, phaseIdx);
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
                 Evaluation phi = FluidSystem::fugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx);
@@ -734,8 +729,6 @@ protected:
             using ParamCache = typename FluidSystem::template ParameterCache<typename FlashFluidState::Scalar>;
             ParamCache paramCache;
             for (int phaseIdx=0; phaseIdx<numPhases; ++phaseIdx){
-                if (phaseIdx==waterPhaseIdx)
-                    continue;
                 paramCache.updatePhase(fluidState, phaseIdx);
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
                     Evaluation phi = FluidSystem::fugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx);

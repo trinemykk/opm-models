@@ -13,7 +13,7 @@
 
 // note that this header must be included before anything that directly
 // or indirectly may reference DUNE headers
-#include "threephasefluidsystem.hh"
+#include "twophasefluidsystem.hh"
 #include "ChiFlash.hpp"
 
 #include <opm/models/utils/propertysystem.hh>
@@ -112,7 +112,7 @@ private:
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
 
 public:
-    using type = Opm::ThreePhaseThreeComponentFluidSystem<Scalar>;
+    using type = Opm::TwoPhaseThreeComponentFluidSystem<Scalar>;
 };
 
 // Set the material Law
@@ -123,13 +123,12 @@ private:
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
     enum {
         oilPhaseIdx = FluidSystem::oilPhaseIdx,
-        waterPhaseIdx = FluidSystem::waterPhaseIdx,
         gasPhaseIdx = FluidSystem::gasPhaseIdx,
     };
 
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
-    using Traits = Opm::ThreePhaseMaterialTraits<Scalar,
-                                               /*wettingPhaseIdx=*/FluidSystem::waterPhaseIdx,
+    using Traits = Opm::TwoPhaseMaterialTraits<Scalar,
+                                           //    /*wettingPhaseIdx=*/FluidSystem::waterPhaseIdx, TODO
                                                /*nonWettingPhaseIdx=*/FluidSystem::oilPhaseIdx,
                                                /*gasPhaseIdx=*/ FluidSystem::gasPhaseIdx>;
 
@@ -342,7 +341,6 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
     enum { numPhases = FluidSystem::numPhases };
     enum {
         oilPhaseIdx = FluidSystem::oilPhaseIdx,
-        waterPhaseIdx = FluidSystem::waterPhaseIdx,
         gasPhaseIdx = FluidSystem::gasPhaseIdx,
     };
     enum { Comp1Idx = FluidSystem::Comp1Idx };//change to comp1
@@ -486,13 +484,13 @@ public:
         // Calculate storage terms
         PrimaryVariables storageO, storageW;
         this->model().globalPhaseStorage(storageO, oilPhaseIdx);
-        this->model().globalPhaseStorage(storageW, waterPhaseIdx);
+       // this->model().globalPhaseStorage(storageW, waterPhaseIdx);
 
         // Write mass balance information for rank 0
-        if (this->gridView().comm().rank() == 0) {
-	        std::cout << "Storage: oleic = [" << storageO << "], "
-	                  << "aqueous = [" << storageW << "]" << std::endl << std::flush;
-        }
+      //  if (this->gridView().comm().rank() == 0) {
+	  //      std::cout << "Storage: oleic = [" << storageO << "], "
+	  //                << "aqueous = [" << storageW << "]" << std::endl << std::flush;
+      //  }
     }
 
     /*!
@@ -608,7 +606,7 @@ private:
         MaterialLaw::capillaryPressures(pC, matParams, fs);
 
         // pressure; oleic phase is the reference
-        fs.setPressure(waterPhaseIdx, 150*1e5);
+       // fs.setPressure(waterPhaseIdx, 150*1e5);
         fs.setPressure(oilPhaseIdx, 150*1e5);
         fs.setPressure(gasPhaseIdx,150*1e5);
 
@@ -621,16 +619,16 @@ private:
         fs.setMoleFraction(gasPhaseIdx, Comp1Idx, 0.1); //co2
         fs.setMoleFraction(gasPhaseIdx, Comp2Idx, 0.6);  //n-dekane
         
-        fs.setMoleFraction(waterPhaseIdx, Comp0Idx, 1.0);
-        fs.setMoleFraction(waterPhaseIdx, Comp1Idx, 0.0);
-        fs.setMoleFraction(waterPhaseIdx, Comp2Idx, 0.0);
+       // fs.setMoleFraction(waterPhaseIdx, Comp0Idx, 1.0);
+       // fs.setMoleFraction(waterPhaseIdx, Comp1Idx, 0.0);
+       // fs.setMoleFraction(waterPhaseIdx, Comp2Idx, 0.0);
 
         // temperature
         fs.setTemperature(temperature_);
 
         // saturation, oil-filled
         fs.setSaturation(FluidSystem::oilPhaseIdx, 1.0);
-        fs.setSaturation(FluidSystem::waterPhaseIdx, 0.0);
+       // fs.setSaturation(FluidSystem::waterPhaseIdx, 0.0);
         fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
 
 
