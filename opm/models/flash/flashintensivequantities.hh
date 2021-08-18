@@ -81,8 +81,6 @@ class FlashIntensiveQuantities
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
     using FlashSolver = GetPropType<TypeTag, Properties::FlashSolver>;
 
-    enum { waterPhaseIdx = FluidSystem::waterPhaseIdx };
-
     using ComponentVector = Dune::FieldVector<Evaluation, numComponents>;
     using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
 
@@ -134,8 +132,6 @@ public:
         Evaluation p = priVars.makeEvaluation(pressure0Idx, timeIdx);
         for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
             fluidState_.setPressure(phaseIdx, p);
-        Evaluation swat = priVars.makeEvaluation(saturation0Idx, timeIdx);
-        fluidState_.setSaturation(waterPhaseIdx, swat);
 
         // compute the phase compositions, densities and pressures
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;

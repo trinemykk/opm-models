@@ -279,10 +279,7 @@ public:
             auto dens = fluidState.averageMolarMass(phaseIdx) / paramCache.molarVolume(phaseIdx);
             return dens;
         }
-        else {
-            //return 1000.;
-            return EOS::aqueous_density(T, p, x);
-        }
+
         }
 
         //! \copydoc BaseFluidSystem::viscosity
