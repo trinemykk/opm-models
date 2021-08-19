@@ -120,14 +120,10 @@ public:
         //! third comp idx
         static const int Comp2Idx = 2;
 
-        //! The component for pure oil TODO
-        using Comp0 = Opm::Octane<Scalar>;
-
-        //! The component for co2 
+       // TODO: make this a loop over choises in chiwoms.hh
+        using Comp0 = Opm::Methane<Scalar>;
         using Comp1 = Opm::ChiwomsCO2<Scalar>;
-
-        //! The component for brine TODO
-        using Comp2 = Opm::ChiwomsBrine<Scalar>;
+        using Comp2 = Opm::NDekane<Scalar>;
 
     static void init(Scalar minT = 273.15,
                      Scalar maxT = 373.15,
@@ -351,8 +347,7 @@ public:
 
     /*!
      * \brief Returns the interaction coefficient for two components.
-     *
-     * The values are given by the SPE5 paper.
+     *.
      */
     static Scalar interactionCoefficient(unsigned comp1Idx, unsigned comp2Idx)
     {
@@ -361,11 +356,11 @@ public:
         unsigned j = std::max(comp1Idx, comp2Idx);
         #warning interactionCoefficients from Ivar
         if (i == Comp0Idx && j == Comp1Idx)   //octane-co2TOD= generic
-            return 0.1089;
+            return 0.0;//0.1089;
         else if (i == Comp0Idx && j == Comp2Idx) //octane-brine TODO generic
-            return 1.1290;
+            return 0.0;//1.1290;
         else if (i == Comp1Idx && j == Comp2Idx) //co2 - brine TODO generic
-            return -0.0736;
+            return 0.0;//-0.0736;
         return 0;
     }
 

@@ -254,7 +254,7 @@ template<class TypeTag>
 struct DomainSizeX<TypeTag, TTag::ChiwomsProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = (X_SIZE / 100.);
+    static constexpr type value = (X_SIZE / 100.);//scale to meter
 };
 template<class TypeTag>
 struct CellsX<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = NX; };
@@ -262,7 +262,7 @@ template<class TypeTag>
 struct DomainSizeY<TypeTag, TTag::ChiwomsProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = (Y_SIZE / 100.);
+    static constexpr type value = (Y_SIZE / 100.);//scale to meter
 };
 template<class TypeTag>
 struct CellsY<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = NY; };
@@ -611,13 +611,13 @@ private:
         fs.setPressure(gasPhaseIdx,150*1e5);
 
         // composition
-        fs.setMoleFraction(oilPhaseIdx, Comp0Idx, 0.3); //methane
-        fs.setMoleFraction(oilPhaseIdx, Comp1Idx, 0.1); //co2
-        fs.setMoleFraction(oilPhaseIdx, Comp2Idx, 0.6); //n-decane
+        fs.setMoleFraction(oilPhaseIdx, Comp0Idx, MFCOMP0);
+        fs.setMoleFraction(oilPhaseIdx, Comp1Idx, MFCOMP1); 
+        fs.setMoleFraction(oilPhaseIdx, Comp2Idx, MFCOMP2);
 
-        fs.setMoleFraction(gasPhaseIdx, Comp0Idx, 0.3); //methane
-        fs.setMoleFraction(gasPhaseIdx, Comp1Idx, 0.1); //co2
-        fs.setMoleFraction(gasPhaseIdx, Comp2Idx, 0.6);  //n-dekane
+        fs.setMoleFraction(gasPhaseIdx, Comp0Idx, MFCOMP0);
+        fs.setMoleFraction(gasPhaseIdx, Comp1Idx, MFCOMP1);
+        fs.setMoleFraction(gasPhaseIdx, Comp2Idx, MFCOMP2);
         
        // fs.setMoleFraction(waterPhaseIdx, Comp0Idx, 1.0);
        // fs.setMoleFraction(waterPhaseIdx, Comp1Idx, 0.0);
