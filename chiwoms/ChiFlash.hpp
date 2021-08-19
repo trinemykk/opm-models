@@ -86,6 +86,7 @@ public:
     template <class FluidState>
     static void solve(FluidState& fluidState,
                       const Dune::FieldVector<typename FluidState::Scalar, numComponents>& globalComposition,
+                      int spatialIdx,
                       int verbosity,
                       std::string twoPhaseMethod,
                       Scalar tolerance)
@@ -137,49 +138,58 @@ public:
             K[compIdx] = wilsonK_(fluidState, compIdx);
         }
 
-        // Some declarations
-        bool isStable = false;
-        InputEval L;
+        // Print header
+        if (verbosity >= 1) {
+            std::cout << "********" << std::endl;
+            std::cout << "Flash calculations on Cell " << spatialIdx << std::endl;
+            std::cout << "Stability test with K = [" << K << "] and z = [" << globalComposition << "]" << std::endl;
+        }
+
         // First we do stability test to check if cell is single-phase. If so, we do not need to do Newton update
         // Phase stability test
-        phaseStabilityTest_(isStable, K, fluidState, globalComposition);
-        
+        bool isStable = false;
+        phaseStabilityTest_(isStable, K, fluidState, globalComposition, verbosity);
+
         // Rachford Rice equation
-        L = solveRachfordRice_g_(K, globalComposition);
+        // Print
+        if (verbosity >= 1) {
+            std::cout << "Rachford-Rice with K = [" << K << "] and z = [" << globalComposition << "]" << std::endl;
+        }
+        InputEval L;
+        L = solveRachfordRice_g_(K, globalComposition, verbosity);
         
-        // Update the composition using Newton's method if cell is two-phase
+        // Update the composition if cell is two-phase
         if (isStable == false) {
             if (twoPhaseMethod == "newton"){
-                if (verbosity == 1) {
-                    std::cout << "********" << std::endl;
-                    std::cout << "Cell is two-phase; solve using Newton!" << std::endl;
-                    std::cout << "Initial variables: K = [" << K[Comp0Idx] << " " << K[Comp1Idx] << "], z = [" << globalComposition[Comp0Idx] << " " << globalComposition[Comp1Idx] <<"], and L = " << L << std::endl;
+                if (verbosity >= 1) {
+                    std::cout << "Cell is two-phase! Get composition using Newton." << std::endl;
+                    std::cout << "Initial guess: K = [" << K << "], z = [" << globalComposition << "], and L = " << L << std::endl;
                 }
                 newtonCompositionUpdate_(K, L, fluidState, globalComposition, verbosity);
-                if (verbosity == 1) {
-                    std::cout << "********" << std::endl;
-                }
+                
             }
             else if (twoPhaseMethod == "ssi"){
-                if (verbosity == 1) {
-                    std::cout << "********" << std::endl;
-                    std::cout << "Cell is two-phase; solve using Succcessive Substitution!" << std::endl;
-                    std::cout << "Initial variables: K = [" << K[Comp0Idx] << " " << K[Comp1Idx] << "], z = [" << globalComposition[Comp0Idx] << " " << globalComposition[Comp1Idx] <<"], and L = " << L << std::endl;
+                if (verbosity >= 1) {
+                    std::cout << "Cell is two-phase! Get composition using Succcessive Substitution." << std::endl;
+                    std::cout << "Initial guess: K = [" << K << "], z = [" << globalComposition << "], and L = " << L << std::endl;
                 }
                 successiveSubstitutionComposition_(K, L, fluidState, globalComposition, /*standAlone=*/true, verbosity);
-                if (verbosity == 1) {
-                    std::cout << "********" << std::endl;
-                }
             }
         }
+
+        // Cell is one-phase. Make sure L is either 1 or 0.
         else{
-            // Cell is one-phase. Make sure L is either 1 or 0.
             if (L > 0.5)
-                L = 1.0;
-                if (verbosity >= 2) {std::cout << "Cell is pure liquid (L == 1.0)." << std::endl;}
+                InputEval L = 1.0;
+                if (verbosity >= 1) {std::cout << "Cell is single-phase, liquid (L == 1.0)!" << std::endl;}
             else if (L <= 0.5)
-                L = 0.0;
-                if (verbosity >= 2) {std::cout << "Cell is pure vapor (L == 0.0)." << std::endl;}
+                InputEval L = 0.0;
+                if (verbosity >= 1) {std::cout << "Cell is single-phase, vapor (L == 0.0)!" << std::endl;}
+        }
+
+        // Print footer
+        if (verbosity >= 1) {
+            std::cout << "********" << std::endl;
         }
 
         // Update phases
@@ -201,8 +211,8 @@ public:
         fluidState.setSaturation(oilPhaseIdx, So);
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
-        // Print info
-        if (verbosity >= 2) {
+        // Print saturation
+        if (verbosity >= 5) {
             std::cout << "So = " << So <<std::endl;
             std::cout << "Sg = " << Sg <<std::endl;
         }
@@ -269,7 +279,7 @@ protected:
     }
 
     template <class Vector>
-    static typename Vector::field_type solveRachfordRice_g_(const Vector& K, const Vector& globalComposition)
+    static typename Vector::field_type solveRachfordRice_g_(const Vector& K, const Vector& globalComposition, int verbosity)
     {
         // Find min and max K. Have to do a laborious for loop to avoid water component (where K=0)
         // TODO: Replace loop with Dune::min_value() and Dune::max_value() when water component is properly handled
@@ -281,6 +291,7 @@ protected:
             else if (K[compIdx] >= Kmax)
                 Kmax = K[compIdx];
         }
+
         // Lower and upper bound for solution
         Evaluation Lmin = (Kmin / (Kmin - 1));
         Evaluation Lmax = Kmax / (Kmax - 1);
@@ -296,8 +307,14 @@ protected:
         // Initial guess
         Evaluation L = (Lmin + Lmax)/2;
 
-        // Newton-Rahpson loop
-        for (int iteration=0; iteration<200; ++iteration){
+        // Print initial guess and header
+        if (verbosity == 3 || verbosity == 4) {
+            std::cout << "Initial guess: L = " << L << " and [Lmin, Lmax] = [" << Lmin << ", " << Lmax << "]" << std::endl;
+            std::cout << std::setw(10) << "Iteration" << std::setw(16) << "abs(step)" << std::setw(16) << "L" << std::endl;
+        }
+
+        // Newton-Raphson loop
+        for (int iteration=1; iteration<100; ++iteration){
             // Calculate function and derivative values
             Evaluation g = rachfordRice_g_(K, L, globalComposition);
             Evaluation dg_dL = rachfordRice_dg_dL_(K, L, globalComposition);
@@ -309,13 +326,37 @@ protected:
             // Check if L is within the bounds, and if not, we apply bisection method
             if (L < Lmin || L > Lmax)
                 {
-                    L = bisection_g_(K, Lmin, Lmax, globalComposition);
+                    // Print info
+                    if (verbosity == 3 || verbosity == 4) {
+                        std::cout << "L is not within the the range [Lmin, Lmax], solve using Bisection method!" << std::endl;
+                    }
+
+                    // Run bisection
+                    L = bisection_g_(K, Lmin, Lmax, globalComposition, verbosity);
+        
+                    // Ensure that L is in the range (0, 1)
+                    L = Opm::min(Opm::max(L, 0.0), 1.0);
+
+                    // Print final result
+                    if (verbosity >= 1) {
+                        std::cout << "Rachford-Rice (Bisection) converged to final solution L = " << L << std::endl;
+                    }
                     return L;
                 }
 
+            // Print iteration info
+            if (verbosity == 3 || verbosity == 4) {
+                std::cout << std::setw(10) << iteration << std::setw(16) << Opm::abs(delta) << std::setw(16) << L << std::endl;
+            }
             // Check for convergence
             if ( Opm::abs(delta) < 1e-10 ) {
-                L = Opm::min(Opm::max(L, 0), 1);
+                // Ensure that L is in the range (0, 1)
+                L = Opm::min(Opm::max(L, 0.0), 1.0);
+
+                // Print final result
+                if (verbosity >= 1) {
+                    std::cout << "Rachford-Rice converged to final solution L = " << L << std::endl;
+                }
                 return L;
             }
         }
@@ -324,25 +365,33 @@ protected:
     }
 
     template <class Vector>
-    static typename Vector::field_type bisection_g_(const Vector& K, Evaluation Lmin, Evaluation Lmax, const Vector& globalComposition)
+    static typename Vector::field_type bisection_g_(const Vector& K, Evaluation Lmin, Evaluation Lmax, const Vector& globalComposition, int verbosity)
     {
         // Check if g(Lmin) and g(Lmax) have opposite sign
         Evaluation gLmin = rachfordRice_g_(K, Lmin, globalComposition);
         Evaluation gLmax = rachfordRice_g_(K, Lmax, globalComposition);
-        if (Dune::sign(gLmin) == Dune::sign(gLmax))
-        {
+        if (Dune::sign(gLmin) == Dune::sign(gLmax)) {
             throw std::runtime_error("Lmin and Lmax are incorrect for bisection");
+        }
+
+        // Print new header
+        if (verbosity == 3 || verbosity == 4) {
+                std::cout << std::setw(10) << "Iteration" << std::setw(16) << "g(Lmid)" << std::setw(16) << "L" << std::endl;
         }
             
         // Bisection loop
-        for (int iteration=0; iteration<200; ++iteration){
+        for (int iteration=1; iteration<100; ++iteration){
             // New midpoint
             Evaluation L = (Lmin + Lmax) / 2;
             Evaluation gMid = rachfordRice_g_(K, L, globalComposition);
+            if (verbosity == 3 || verbosity == 4) {
+                std::cout << std::setw(10) << iteration << std::setw(16) << gMid << std::setw(16) << L << std::endl;
+            }
 
             // Check if midpoint fulfills g=0 or L - Lmin is sufficiently small
-            if (Opm::abs(gMid) < 1e-10 || Opm::abs((Lmax - Lmin) / 2) < 1e-10)
+            if (Opm::abs(gMid) < 1e-10 || Opm::abs((Lmax - Lmin) / 2) < 1e-10){
                 return L;
+            }
             
             // Else we repeat with midpoint being either Lmin og Lmax (depending on the signs)
             else if (Dune::sign(gMid) != Dune::sign(gLmin))
@@ -354,8 +403,9 @@ protected:
     }
 
     template <class FlashFluidState, class ComponentVector>
-    static void phaseStabilityTest_(bool& isStable, ComponentVector& K, FlashFluidState& fluidState, const ComponentVector& globalComposition)
+    static void phaseStabilityTest_(bool& isStable, ComponentVector& K, FlashFluidState& fluidState, const ComponentVector& globalComposition, int verbosity)
     {
+        // Declarations
         bool isTrivialL, isTrivialV;
         ComponentVector K_l, K_v, x, y;
         Evaluation S_l, S_v;
@@ -365,11 +415,17 @@ protected:
         K_v = K;
 
         // Check for vapour instable phase
-        checkStability_(fluidState, isTrivialV, K_v, y, S_v, globalComposition, /*isGas=*/true);
+        if (verbosity == 3 || verbosity == 4) {
+            std::cout << "Stability test for vapor phase:" << std::endl;
+        }
+        checkStability_(fluidState, isTrivialV, K_v, y, S_v, globalComposition, /*isGas=*/true, verbosity);
         bool V_unstable = (S_v < (1.0 + 1e-5)) || isTrivialV;
 
         // Check for liquids stable phase
-        checkStability_(fluidState, isTrivialL, K_l, x, S_l, globalComposition, /*isGas=*/false);
+        if (verbosity == 3 || verbosity == 4) {
+            std::cout << "Stability test for liquid phase:" << std::endl;
+        }
+        checkStability_(fluidState, isTrivialL, K_l, x, S_l, globalComposition, /*isGas=*/false, verbosity);
         bool L_stable = (S_l < (1.0 + 1e-5)) || isTrivialL;
 
         // L-stable means success in making liquid, V-unstable means no success in making vapour
@@ -387,12 +443,11 @@ protected:
             for (int compIdx = 0; compIdx<numComponents; ++compIdx) {
                 K[compIdx] = y[compIdx] / x[compIdx];
             }
-            // std::cout << "K = " << K << std::endl;
         }
     }
 
     template <class FlashFluidState, class ComponentVector>
-    static void checkStability_(const FlashFluidState& fluidState, bool& isTrivial, ComponentVector& K, ComponentVector& xy_loc, Evaluation& S_loc, const ComponentVector& globalComposition, bool isGas)
+    static void checkStability_(const FlashFluidState& fluidState, bool& isTrivial, ComponentVector& K, ComponentVector& xy_loc, Evaluation& S_loc, const ComponentVector& globalComposition, bool isGas, int verbosity)
     {
         using FlashEval = typename FlashFluidState::Scalar;
         using ThisType = TwoPhaseThreeComponentFluidSystem<Scalar>;
@@ -401,6 +456,11 @@ protected:
         // Declarations 
         FlashFluidState fluidState_fake = fluidState;
         FlashFluidState fluidState_global = fluidState;
+
+        // Setup output
+        if (verbosity == 3 || verbosity == 4) {
+            std::cout << std::setw(10) << "Iteration" << std::setw(16) << "K-Norm" << std::setw(16) << "R-Norm" << std::endl;
+        }
 
         // Michelsens stability test.
         // Make two fake phases "inside" one phase and check for positive volume
@@ -475,6 +535,13 @@ protected:
                 R_norm += a*a;
                 K_norm += b*b;
             }
+
+            // Print iteration info
+            if (verbosity == 3 || verbosity == 4) {
+                std::cout << std::setw(10) << i << std::setw(16) << K_norm << std::setw(16) << R_norm << std::endl;
+            }
+
+            // Check convergence
             isTrivial = (K_norm < 1e-5);
             if (isTrivial || R_norm < 1e-10)
                 return;
@@ -519,8 +586,8 @@ protected:
         NewtonMatrix newtonA;
         NewtonVector newtonDelta;
 
-        // Header for information output
-        if (verbosity == 1) {
+        // Print header
+        if (verbosity == 2 || verbosity == 4) {
             std::cout << std::setw(10) << "Iteration" << std::setw(16) << "Norm2(step)" << std::setw(16) << "Norm2(Residual)" << std::endl;
         }
 
@@ -543,7 +610,7 @@ protected:
             evalDefect_(newtonB, newtonX, fluidState, globalComposition);
 
             // Print iteration info
-            if (verbosity == 1) {
+            if (verbosity == 2 || verbosity == 4) {
                 if (i == 0) {
                     std::cout << std::setw(10) << i << std::setw(16) << "N/A" << std::setw(16)  << newtonB.two_norm() << std::endl;
                 }
@@ -566,12 +633,25 @@ protected:
                 L = newtonX[numMiscibleComponents*numMiscibleComponents];
 
                 // Print info
-                if (verbosity == 1) {
+                if (verbosity >= 1) {
                     std::cout << "Solution converged to the following result :" << std::endl;
-                    std::cout << std::setw(10) << "Variable" << std::setw(16) << "Comp. 0" << std::setw(16) << "Comp. 1" << std::endl;
-                    std::cout << std::setw(10) << "x" <<  std::setw(16) << fluidState.moleFraction(oilPhaseIdx, Comp1Idx) << std::setw(16) << fluidState.moleFraction(oilPhaseIdx, Comp0Idx) << std::endl;
-                    std::cout << std::setw(10) << "y" << std::setw(16) << fluidState.moleFraction(gasPhaseIdx, Comp1Idx) << std::setw(16) << fluidState.moleFraction(gasPhaseIdx, Comp0Idx) << std::endl; 
-                    std::cout << std::setw(10) << "K" << std::setw(16) << K[Comp0Idx] << std::setw(16) << K[Comp1Idx] << std::endl;
+                    std::cout << "x = [";
+                    for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                        if (compIdx < numComponents - 1)
+                            std::cout << newtonX[compIdx] << " ";
+                        else
+                            std::cout << newtonX[compIdx];
+                    }
+                    std::cout << "]" << std::endl;
+                    std::cout << "y = [";
+                    for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                        if (compIdx < numComponents - 1)
+                            std::cout << newtonX[compIdx + numMiscibleComponents] << " ";
+                        else
+                            std::cout << newtonX[compIdx + numMiscibleComponents];
+                    }
+                    std::cout << "]" << std::endl;
+                    std::cout << "K = [" << K << "]" << std::endl;
                     std::cout << "L = " << L << std::endl;
                 }
                 return;
@@ -744,12 +824,25 @@ protected:
             // Check convergence
             if (fugRatio.two_norm() < 1e-6){
                 // Print info
-                if (verbosity == 1) {
+                if (verbosity >= 1) {
                     std::cout << "Solution converged to the following result :" << std::endl;
-                    std::cout << std::setw(10) << "Variable" << std::setw(16) << "Comp. 0" << std::setw(16) << "Comp. 1" << std::endl;
-                    std::cout << std::setw(10) << "x" <<  std::setw(16) << fluidState.moleFraction(oilPhaseIdx, Comp1Idx) << std::setw(16) << fluidState.moleFraction(oilPhaseIdx, Comp0Idx) << std::endl;
-                    std::cout << std::setw(10) << "y" << std::setw(16) << fluidState.moleFraction(gasPhaseIdx, Comp1Idx) << std::setw(16) << fluidState.moleFraction(gasPhaseIdx, Comp0Idx) << std::endl; 
-                    std::cout << std::setw(10) << "K" << std::setw(16) << K[Comp0Idx] << std::setw(16) << K[Comp1Idx] << std::endl;
+                    std::cout << "x = [";
+                    for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                        if (compIdx < numComponents - 1)
+                            std::cout << fluidState.moleFraction(oilPhaseIdx, compIdx) << " ";
+                        else
+                            std::cout << fluidState.moleFraction(oilPhaseIdx, compIdx);
+                    }
+                    std::cout << "]" << std::endl;
+                    std::cout << "y = [";
+                    for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                        if (compIdx < numComponents - 1)
+                            std::cout << fluidState.moleFraction(gasPhaseIdx, compIdx) << " ";
+                        else
+                            std::cout << fluidState.moleFraction(gasPhaseIdx, compIdx);
+                    }
+                    std::cout << "]" << std::endl;
+                    std::cout << "K = [" << K << "]" << std::endl;
                     std::cout << "L = " << L << std::endl;
                 }
                 return;
@@ -763,7 +856,7 @@ protected:
                 }
 
                 // Solve Rachford-Rice to get L from updated K
-                L = solveRachfordRice_g_(K, globalComposition);
+                L = solveRachfordRice_g_(K, globalComposition, 0);
             }
 
         }
