@@ -182,12 +182,14 @@ public:
 
         // Cell is one-phase. Make sure L is either 1 or 0.
         else{
-            if (L > 0.5)
-                InputEval L = 1.0;
+            if (L > 0.5){
+                L = 1.0;
                 if (verbosity >= 1) {std::cout << "Cell is single-phase, liquid (L == 1.0)!" << std::endl;}
-            else if (L <= 0.5)
-                InputEval L = 0.0;
+            }
+            else{
+                L = 0.0;
                 if (verbosity >= 1) {std::cout << "Cell is single-phase, vapor (L == 0.0)!" << std::endl;}
+            }
         }
 
         // Print footer
