@@ -332,6 +332,113 @@ public:
         porosity_ = POROSITY;
     }
 
+    //readded
+    // find pressure at the bottom of a cell
+    Scalar bottomPressure(Scalar pres_top, unsigned phaseIdx) {
+	    Scalar grav = -this->gravity()[YDIM];
+	    Scalar tiny = std::numeric_limits<double>::epsilon();
+	    Scalar comp = 0.; // non-solvent filled, either oil or brine but not CO2
+
+	    // since we have a regular grid, then we can find the height of each
+	    // cell outside of the loop. divide by hundred to get to SI unit.
+	    Scalar cell_height = (Y_SIZE / 100.) / NY;
+
+	    // find density at the top, using top pressure, use this as the
+	    // average of the cell initially.
+        Scalar rho_top = (phaseIdx == oilPhaseIdx)
+		    ? EOS::oleic_density(temperature_, pres_top, comp)
+		    : EOS::aqueous_density(temperature_, pres_top, comp);
+
+	    Scalar rho_avg = rho_top;
+
+	    Scalar pres_btm = 0.0, rho_btm = 0.0, rho_old = 0.0;
+	    while(std::fabs(rho_old - rho_avg) > tiny) {
+		    // save for comparison next step
+		    rho_old = rho_avg;
+
+		    // estimate bottom boundary pressure by the height of this
+		    // cell and the density
+		    pres_btm = pres_top + cell_height * grav * rho_avg;
+
+		    // get the density at the bottom, using its pressure. the
+		    // cell still has the same mole fraction
+            rho_btm = (phaseIdx == oilPhaseIdx)
+			    ? EOS::oleic_density(temperature_, pres_top, comp)
+			    : EOS::aqueous_density(temperature_, pres_top, comp);
+
+		    // calculate new average density for the cell
+		    rho_avg = (rho_top + rho_btm) / 2.;
+	    }
+	    return pres_btm;
+    }
+
+    void initPressure() {
+        // start at the top of each column, working downwards calculating the
+        // pressure based on the weight above
+        Scalar topResvPres = EWOMS_GET_PARAM(TypeTag, Scalar, TopResvPres);
+        Scalar pres_top = topResvPres;
+        for(unsigned j = 0; j < NY; ++j) {
+	        Scalar pres_btm = bottomPressure(pres_top, oilPhaseIdx);
+	        // at this point we have a stable average density; now let's
+	        // turn this into an average pressure for the cell
+	        init_pres[j] = (pres_btm + pres_top) / 2.;
+	        // prepare for the next iteration; one cell lower
+	        pres_top = pres_btm;
+        }
+    }
+
+    void initRate() {
+	    // always the same temperature in isothermal model
+	    Scalar temp = EWOMS_GET_PARAM(TypeTag, Scalar, Temperature);
+
+	    // get the pressure condition at the site; ignore that the pressure
+	    // increase downwards, as we don't want spatially varying rate
+	    Scalar pres = EWOMS_GET_PARAM(TypeTag, Scalar, TopResvPres);
+
+	    // look up viscosity at this pressure
+	    Scalar co2_visc = EOS::oleic_viscosity(temp, pres, 1.); // x_CO2 = 1., x_C8 = 0.
+	    Scalar c8_visc = EOS::oleic_viscosity(temp, pres, 0.); // x_CO2 = 0., x_C8 = 1.
+
+	    // mobility ratio of co2 going into octane
+	    Scalar mob_rate = c8_visc / co2_visc;
+
+	    // critical wavelength for fingers to appear. we set this to 1/10 of
+	    // the *height* of the domain; distance across the inflow vertical
+	    // boundary.
+	    Scalar wav_len = EWOMS_GET_PARAM(TypeTag, Scalar, WaveLength);
+	    Scalar lambda_c = (this->boundingBoxMax()[YDIM] -
+	                       this->boundingBoxMin()[YDIM]) * wav_len;
+
+	    // velocity is u_x - u_c, where u_c is the critical flux, which we
+	    // here set to zero
+	    Scalar velo = 4. * M_PI * (mob_rate + 1.) / (mob_rate - 1.) *
+		    DIFFUSIVITY / lambda_c;
+
+	    // look up density at this pressure
+	    Scalar co2_dens = EOS::oleic_density(temp, pres, 1.); // x_CO2 = 1.
+
+	    // influx
+	    this->rate = velo * co2_dens; // [m/s * kg/m3 = kg/(s * m^2)
+
+	    // show rate as distance from a well with known injection rate
+	    // of 1 Mt/yr (Snohvit is 0.7 Mt/yr)
+	    Scalar inj = 1; /* Mt/yr */
+	    Scalar scale = 1.e9 /* kg/Mt */ / (365.25 * 24. * 60. * 60.) /* secs/yr */;
+	    Scalar height = Y_SIZE / 100.; /* meter high plume tongue */
+	    Scalar radius = (inj * scale / rate) / (2. * M_PI * height);
+	    if(this->simulator().gridView().comm().rank() == 0) {
+		    std::cout << "Rate is equivalent to the front of a "
+		              << boost::format("%4.2f") % height << " m thick plume "
+		              << "from a " << boost::format("%1.0f") % inj << " Mt/yr well "
+		              << "at " << boost::format("%4.0f") % radius << " m distance."
+		              << std::endl;
+	    }
+    }
+
+    void initHydrology() {
+	    this->mat_.finalize();
+    }
+
     /*!
      * \copydoc FvBaseProblem::finishInit
      */
@@ -342,6 +449,15 @@ public:
 
         // initialize fixed parameters; temperature, permeability, porosity
         initPetrophysics();
+
+                // initialize two-phase unsaturated zone functions
+        initHydrology();
+
+        // initialize column with hydrostatic pressure
+        initPressure();
+
+        // calculate rate up front; we don't vary it with time and place
+        initRate();
     }
 
     /*!
