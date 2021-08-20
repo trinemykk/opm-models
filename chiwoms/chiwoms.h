@@ -7,7 +7,7 @@
 // The Netherlands.
 
 constexpr double TEMPERATURE = 80;   /* degree Celsius */
-const double MIN_PRES = 75;     /* bars */
+constexpr double MIN_PRES = 75;     /* bars */
 const double MAX_PRES = 220;     /* bars */
 constexpr double SIM_TIME = 1;      /* days */
 constexpr double X_SIZE = 100;        /* centimeter */
@@ -23,6 +23,7 @@ constexpr double WAVE_LENGTH = 0.1;  /* critical wavelength fraction of height *
 const double MFCOMP0 = 0.3;
 const double MFCOMP1 = 0.1;
 const double MFCOMP2 = 0.6;
+constexpr double INFLOW_RATE = -1e-4; /* unit kg/s ? */
 
 /* "random" fields will be equal as long as this is set the same */
 const double SEED = 5163166242092481088;
