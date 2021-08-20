@@ -68,6 +68,12 @@ struct SimulationName{ using type = UndefinedProperty; };
 template<class TypeTag, class MyTypeTag>
 struct EpisodeLength{ using type = UndefinedProperty; };
 
+template<class TypeTag, class MyTypeTag>
+struct Inflowrate{ using type = UndefinedProperty; };
+
+template<class TypeTag, class MyTypeTag>
+struct Initialpressure{ using type = UndefinedProperty; };
+
 // Set the problem property
 template<class TypeTag>
 struct Problem<TypeTag, TTag::ChiwomsProblem> { using type = Opm::ChiwomsProblem<TypeTag>; };
