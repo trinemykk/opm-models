@@ -137,6 +137,20 @@ struct Temperature<TypeTag, TTag::ChiwomsProblem>
     static constexpr type value = 273.15 + TEMPERATURE;
 };
 
+template<class TypeTag>
+struct Inflowrate<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = INFLOW_RATE;
+};
+
+template<class TypeTag>
+struct Initialpressure<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = MIN_PRES;
+};
+
 
 template<class TypeTag>
 struct SimulationName<TypeTag, TTag::ChiwomsProblem>
@@ -353,6 +367,10 @@ public:
 
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, Temperature,
                              "The temperature [K] in the reservoir");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Inflowrate,
+                             "The inflow rate [?] on the left boundary of the reservoir");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Initialpressure,
+                             "The initial pressure [Pa s] in the reservoir");
         EWOMS_REGISTER_PARAM(TypeTag, std::string, SimulationName,
                              "The name of the simulation used for the output "
                              "files");
@@ -483,7 +501,7 @@ public:
         {
 		    // assign rate to the CO2 component of the inflow
 		    RateVector massRate(0.);
-            massRate[contiCO2EqIdx] = -1e-4;// -1e-7;
+            massRate[contiCO2EqIdx] = INFLOW_RATE;// -1e-7;
 		    values.setMassRate(massRate);
         } 
         else if((pos[XDIM] > this->boundingBoxMax()[XDIM] - eps))
@@ -526,8 +544,8 @@ private:
 
         // pressure; oleic phase is the reference
        // fs.setPressure(waterPhaseIdx, 150*1e5);
-        fs.setPressure(oilPhaseIdx, 75*1e5);
-        fs.setPressure(gasPhaseIdx, 75*1e5);
+        fs.setPressure(oilPhaseIdx, MIN_PRES*1e5);
+        fs.setPressure(gasPhaseIdx, MIN_PRES*1e5);
 
         // composition
         fs.setMoleFraction(oilPhaseIdx, Comp0Idx, MFCOMP0);
