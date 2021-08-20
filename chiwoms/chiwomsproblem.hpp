@@ -59,10 +59,6 @@ template<class TypeTag>
 struct Grid<TypeTag, TTag::ChiwomsProblem>
 { using type = Dune::YaspGrid<2>; };
 
-// declare the CO2 finger problem specific property tags
-template<class TypeTag, class MyTypeTag>
-struct TopResvPres{ using type = UndefinedProperty; };
-
 template<class TypeTag, class MyTypeTag>
 struct Temperature{ using type = UndefinedProperty; };
 
@@ -71,22 +67,6 @@ struct SimulationName{ using type = UndefinedProperty; };
 
 template<class TypeTag, class MyTypeTag>
 struct EpisodeLength{ using type = UndefinedProperty; };
-
-template<class TypeTag, class MyTypeTag>
-struct WaveLength{ using type = UndefinedProperty; };
-
-template<class TypeTag, class MyTypeTag>
-struct ConnateWater{ using type = UndefinedProperty; };
-
-template<class TypeTag, class MyTypeTag>
-struct ResidualOil{ using type = UndefinedProperty; };
-
-template<class TypeTag, class MyTypeTag>
-struct EntryPressure{ using type = UndefinedProperty; };
-
-template<class TypeTag, class MyTypeTag>
-struct PoreSizeDist{ using type = UndefinedProperty; };
-
 
 // Set the problem property
 template<class TypeTag>
@@ -149,14 +129,6 @@ struct NewtonWriteConvergence<TypeTag, TTag::ChiwomsProblem> { static constexpr 
 // Enable gravity
 template<class TypeTag>
 struct EnableGravity<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
-
-// set the defaults for the problem specific properties
-template<class TypeTag>
-struct TopResvPres<TypeTag, TTag::ChiwomsProblem>
-{
-    using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 200 * 1.e5;
-};
 
 template<class TypeTag>
 struct Temperature<TypeTag, TTag::ChiwomsProblem>
@@ -275,45 +247,9 @@ struct DomainSizeZ<TypeTag, TTag::ChiwomsProblem>
 template<class TypeTag>
 struct CellsZ<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = 1; };
 
-
 // compositional, with diffusion
 template<class TypeTag>
 struct EnableEnergy<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
-
-// injection rate parameter
-template<class TypeTag>
-struct WaveLength<TypeTag, TTag::ChiwomsProblem>
-{
-    using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = WAVE_LENGTH;
-};
-
-// default hydrology: almost (but not quite) Snohvit-like Brooks-Corey
-template<class TypeTag>
-struct ConnateWater<TypeTag, TTag::ChiwomsProblem>
-{
-    using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 0.15;
-};
-template<class TypeTag>
-struct ResidualOil<TypeTag, TTag::ChiwomsProblem>
-{
-    using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 0.10;
-};
-template<class TypeTag>
-struct EntryPressure<TypeTag, TTag::ChiwomsProblem>
-{
-    using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 1.5e4 /* [Pa] */;
-};
-template<class TypeTag>
-struct PoreSizeDist<TypeTag, TTag::ChiwomsProblem>
-{
-    using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 2.0;
-};
-
 }// namespace Opm::Properties
 
 namespace Opm {
@@ -417,23 +353,11 @@ public:
 
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, Temperature,
                              "The temperature [K] in the reservoir");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, TopResvPres,
-                             "Pressure [Pa] at the top of the reservoir");
         EWOMS_REGISTER_PARAM(TypeTag, std::string, SimulationName,
                              "The name of the simulation used for the output "
                              "files");
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, EpisodeLength,
                              "Time interval [s] for episode length");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, WaveLength,
-                             "Instill critical wavelength for this fraction of domain height");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, ConnateWater,
-                             "Saturation of water that cannot be removed once there");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, ResidualOil,
-                             "Saturation of oil that cannot be removed once there");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, EntryPressure,
-                             "Extra pressure required for oil to enter water-filled pore");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, PoreSizeDist,
-                             "Distribution parameter for pore size");
     }
 
     /*!
@@ -559,7 +483,7 @@ public:
         {
 		    // assign rate to the CO2 component of the inflow
 		    RateVector massRate(0.);
-            massRate[contiCO2EqIdx] = -1e-3;// -1e-7;
+            massRate[contiCO2EqIdx] = -1e-4;// -1e-7;
 		    values.setMassRate(massRate);
         } 
         else if((pos[XDIM] > this->boundingBoxMax()[XDIM] - eps))
@@ -587,12 +511,7 @@ private:
     Scalar porosity_;
     Scalar temperature_;
     MaterialLawParams mat_;
-
-    // initialize a random sequence that will return some normal distributed
-    // number with up to 99% probability within the pertubation interval
-    // random sources can be mutable; we expect them to behave erratically!
-    mutable std::mt19937 rand_gen;
-    mutable std::normal_distribution<double> norm_dist{0., PERTUBATION / 3.};
+    
     /*!
      * \copydoc FvBaseProblem::initial
      */
@@ -607,8 +526,8 @@ private:
 
         // pressure; oleic phase is the reference
        // fs.setPressure(waterPhaseIdx, 150*1e5);
-        fs.setPressure(oilPhaseIdx, 150*1e5);
-        fs.setPressure(gasPhaseIdx,150*1e5);
+        fs.setPressure(oilPhaseIdx, 75*1e5);
+        fs.setPressure(gasPhaseIdx, 75*1e5);
 
         // composition
         fs.setMoleFraction(oilPhaseIdx, Comp0Idx, MFCOMP0);
