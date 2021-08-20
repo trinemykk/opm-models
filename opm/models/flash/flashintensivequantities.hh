@@ -73,8 +73,6 @@ class FlashIntensiveQuantities
     enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
     enum { dimWorld = GridView::dimensionworld };
     enum { pressure0Idx = Indices::pressure0Idx };
-    enum { saturation0Idx = Indices::saturation0Idx };
-    
 
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
@@ -112,7 +110,7 @@ public:
         Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
         int flashVerbosity = EWOMS_GET_PARAM(TypeTag, int, FlashVerbosity);
         std::string flashTwoPhaseMethod = EWOMS_GET_PARAM(TypeTag, std::string, FlashTwoPhaseMethod);
-
+        
         // extract the total molar densities of the components
         ComponentVector z;
         Evaluation lastZ = 1.0;
@@ -133,10 +131,17 @@ public:
         for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
             fluidState_.setPressure(phaseIdx, p);
 
-        // compute the phase compositions, densities and pressures
+        /////////////
+        // Compute the phase compositions and densities 
+        /////////////
+        int spatialIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
+        FlashSolver::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+        
+        /////////////
+        // Compute rel. perm and viscosities
+        /////////////
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;
         const MaterialLawParams& materialParams = problem.materialLawParams(elemCtx, dofIdx, timeIdx);
-        FlashSolver::solve(fluidState_, z, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
 
         // calculate relative permeabilities
         MaterialLaw::relativePermeabilities(relativePermeability_,
@@ -155,7 +160,7 @@ public:
         }
 
         /////////////
-        // calculate the remaining quantities
+        // Compute the remaining quantities
         /////////////
 
         // porosity
