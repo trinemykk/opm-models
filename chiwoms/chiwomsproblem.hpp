@@ -506,8 +506,9 @@ public:
 	    if((pos[XDIM] < this->boundingBoxMin()[XDIM] + eps) )
         {
 		    // assign rate to the CO2 component of the inflow
+            Scalar inflowrate = EWOMS_GET_PARAM(TypeTag, Scalar, Inflowrate);
 		    RateVector massRate(0.);
-            massRate[contiCO2EqIdx] = INFLOW_RATE;// -1e-7;
+            massRate[contiCO2EqIdx] = inflowrate;// -1e-7;
 		    values.setMassRate(massRate);
         } 
         else if((pos[XDIM] > this->boundingBoxMax()[XDIM] - eps))
@@ -549,9 +550,10 @@ private:
         MaterialLaw::capillaryPressures(pC, matParams, fs);
 
         // pressure; oleic phase is the reference
+        Scalar init_pressure = EWOMS_GET_PARAM(TypeTag, Scalar, Initialpressure);
        // fs.setPressure(waterPhaseIdx, 150*1e5);
-        fs.setPressure(oilPhaseIdx, MIN_PRES*1e5);
-        fs.setPressure(gasPhaseIdx, MIN_PRES*1e5);
+        fs.setPressure(oilPhaseIdx, init_pressure*1e5);
+        fs.setPressure(gasPhaseIdx, init_pressure*1e5);
 
         // composition
         fs.setMoleFraction(oilPhaseIdx, Comp0Idx, MFCOMP0);
