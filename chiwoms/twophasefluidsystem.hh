@@ -234,6 +234,22 @@ public:
         }
 
         /*!
+         * \brief Critical volume of a component [m3].
+         *
+         * \copydetails Doxygen::compIdxParam
+         */
+        static Scalar criticalVolume(unsigned compIdx)
+        {
+                return (compIdx == Comp0Idx)
+                        ? Comp0::criticalVolume()
+                        : (compIdx == Comp1Idx)
+                        ? Comp1::criticalVolume()
+                        : (compIdx == Comp2Idx)
+                        ? Comp2::criticalVolume()
+                        : throw std::invalid_argument("Critical volume component index");
+        }
+
+        /*!
          * \brief The acentric factor of a component [].
          *
          * \copydetails Doxygen::compIdxParam

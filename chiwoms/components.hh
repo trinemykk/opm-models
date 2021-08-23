@@ -55,6 +55,9 @@ public:
 
         /// Acentric factor
         static Scalar acentricFactor() { return 0.4884; }
+
+        // Critical volume
+        static Scalar criticalVolume() {return 6.0976e-4; }
 };
 
 template <class Scalar>
@@ -75,6 +78,9 @@ public:
 
         /// Acentric factor
         static Scalar acentricFactor() { return 0.0114; }
+
+        // Critical volume
+        static Scalar criticalVolume() {return 9.8628e-5; }
 };
 
 
@@ -156,6 +162,9 @@ public:
 
         /// Acentric factor
         static Scalar acentricFactor() { return 0.225; }
+
+        // Critical volume
+        static Scalar criticalVolume() {return 9.4118e-5; }
 };
 
 template <class Scalar>
