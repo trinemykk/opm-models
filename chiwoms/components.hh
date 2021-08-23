@@ -79,6 +79,66 @@ public:
 
 
 template <class Scalar>
+class Hydrogen : public Opm::Component<Scalar, Hydrogen<Scalar> >
+{
+public:
+         /// Chemical name
+        static const char* name() { return "H2"; }
+
+        /// Molar mass in \f$\mathrm{[kg/mol]}\f$
+        static Scalar molarMass() { return 0.0020156; }
+
+        /// Critical temperature in \f$\mathrm[K]}\f$
+        static Scalar criticalTemperature() { return 33.2; }
+
+        /// Critical pressure in \f$\mathrm[Pa]}\f$
+        static Scalar criticalPressure() { return 1.297e6; }
+
+        /// Acentric factor
+        static Scalar acentricFactor() { return -0.22; }
+};
+
+template <class Scalar>
+class Nitrogen : public Opm::Component<Scalar, Nitrogen<Scalar> >
+{
+public:
+         /// Chemical name
+        static const char* name() { return "N2"; }
+
+        /// Molar mass in \f$\mathrm{[kg/mol]}\f$
+        static Scalar molarMass() { return 0.0280134; }
+
+        /// Critical temperature in \f$\mathrm[K]}\f$
+        static Scalar criticalTemperature() { return 126.192; }
+
+        /// Critical pressure in \f$\mathrm[Pa]}\f$
+        static Scalar criticalPressure() { return 3.3958e6; }
+
+        /// Acentric factor
+        static Scalar acentricFactor() { return 0.039; }
+};
+
+template <class Scalar>
+class Water : public Opm::Component<Scalar, Water<Scalar> >
+{
+public:
+         /// Chemical name
+        static const char* name() { return "H20"; }
+
+        /// Molar mass in \f$\mathrm{[kg/mol]}\f$
+        static Scalar molarMass() { return 0.01801528; }
+
+        /// Critical temperature in \f$\mathrm[K]}\f$
+        static Scalar criticalTemperature() { return 647; }
+
+        /// Critical pressure in \f$\mathrm[Pa]}\f$
+        static Scalar criticalPressure() { return 22.064e6; }
+
+        /// Acentric factor
+        static Scalar acentricFactor() { return 0.344; }
+};
+
+template <class Scalar>
 class ChiwomsCO2 : public Opm::SimpleCO2<Scalar>
 {
 public:
