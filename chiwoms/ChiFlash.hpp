@@ -142,51 +142,50 @@ public:
         if (verbosity >= 1) {
             std::cout << "********" << std::endl;
             std::cout << "Flash calculations on Cell " << spatialIdx << std::endl;
-            std::cout << "Stability test with K = [" << K << "] and z = [" << globalComposition << "]" << std::endl;
+            std::cout << "Stability test with K = [" << K << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
         }
 
         // First we do stability test to check if cell is single-phase. If so, we do not need to do Newton update
         // Phase stability test
         bool isStable = false;
         phaseStabilityTest_(isStable, K, fluidState, globalComposition, verbosity);
-
-        // Rachford Rice equation
-        // Print
-        if (verbosity >= 1) {
-            std::cout << "Rachford-Rice with K = [" << K << "] and z = [" << globalComposition << "]" << std::endl;
-        }
-        InputEval L;
-        L = solveRachfordRice_g_(K, globalComposition, verbosity);
         
         // Update the composition if cell is two-phase
+        InputEval L;
         if (isStable == false) {
+            
+            // Print info
+            if (verbosity >= 1) {
+                std::cout << "Cell is two-phase! Solve Rachford-Rice with K = [" << K << "] and z = [" << globalComposition << "]" << std::endl;
+            }
+
+            // Rachford Rice equation to get initial L for composition solver
+            L = solveRachfordRice_g_(K, globalComposition, verbosity);
+
+            // Calculate composition using nonlinear solver
+            // Newton
             if (twoPhaseMethod == "newton"){
                 if (verbosity >= 1) {
-                    std::cout << "Cell is two-phase! Get composition using Newton." << std::endl;
+                    std::cout << "Calculate composition using Newton." << std::endl;
                     std::cout << "Initial guess: K = [" << K << "], z = [" << globalComposition << "], and L = " << L << std::endl;
                 }
                 newtonCompositionUpdate_(K, L, fluidState, globalComposition, verbosity);
                 
             }
+
+            // Successive substitution
             else if (twoPhaseMethod == "ssi"){
                 if (verbosity >= 1) {
-                    std::cout << "Cell is two-phase! Get composition using Succcessive Substitution." << std::endl;
+                    std::cout << "Calculate composition using Succcessive Substitution." << std::endl;
                     std::cout << "Initial guess: K = [" << K << "], z = [" << globalComposition << "], and L = " << L << std::endl;
                 }
                 successiveSubstitutionComposition_(K, L, fluidState, globalComposition, /*standAlone=*/true, verbosity);
             }
         }
 
-        // Cell is one-phase. Make sure L is either 1 or 0.
+        // Cell is one-phase. Use Li's phase labeling method to see if it's liquid or vapor
         else{
-            if (L > 0.5){
-                L = 1.0;
-                if (verbosity >= 1) {std::cout << "Cell is single-phase, liquid (L == 1.0)!" << std::endl;}
-            }
-            else{
-                L = 0.0;
-                if (verbosity >= 1) {std::cout << "Cell is single-phase, vapor (L == 0.0)!" << std::endl;}
-            }
+            L = li_single_phase_label_(fluidState, globalComposition, verbosity);
         }
 
         // Print footer
@@ -214,7 +213,7 @@ public:
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
         // Print saturation
-        if (verbosity >= 5) {
+        if (verbosity == 5) {
             std::cout << "So = " << So <<std::endl;
             std::cout << "Sg = " << Sg <<std::endl;
         }
@@ -258,6 +257,58 @@ protected:
 
         const auto& tmp = Opm::exp(5.3727 * (1+acf) * (1-T_crit/T)) * (p_crit/p);
         return tmp;
+    }
+
+    template <class Vector, class FlashFluidState>
+    static typename Vector::field_type li_single_phase_label_(const FlashFluidState& fluidState, const Vector& globalComposition, int verbosity)
+    {
+        // Calculate intermediate sum
+        typename Vector::field_type sumVz = 0.0;
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            // Get component information
+            const auto& V_crit = FluidSystem::criticalVolume(compIdx);
+
+            // Sum calculation
+            sumVz += (V_crit * globalComposition[compIdx]);
+        }
+
+        // Calculate approximate (pseudo) critical temperature using Li's method
+        typename Vector::field_type Tc_est = 0.0;
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            // Get component information
+            const auto& V_crit = FluidSystem::criticalVolume(compIdx);
+            const auto& T_crit = FluidSystem::criticalTemperature(compIdx);
+
+            // Sum calculation
+            Tc_est += (V_crit * T_crit * globalComposition[compIdx] / sumVz);
+        }
+
+        // Get temperature
+        const auto& T = fluidState.temperature(0);
+        
+        // If temperature is below estimated critical temperature --> phase = liquid; else vapor
+        Evaluation L;
+        if (T < Tc_est) {
+            // Liquid
+            L = 1.0;
+
+            // Print
+            if (verbosity == 3 || verbosity == 4) {
+                std::cout << "Cell is single-phase, liquid (L = 1.0) due to Li's phase labeling method giving T < Tc_est (" << T << " < " << Tc_est << ")!" << std::endl;
+            }
+        }
+        else {
+            // Vapor
+            L = 0.0;
+            
+            // Print
+            if (verbosity == 3 || verbosity == 4) {
+                std::cout << "Cell is single-phase, vapor (L = 0.0) due to Li's phase labeling method giving T >= Tc_est (" << T << " >= " << Tc_est << ")!" << std::endl;
+            }
+        }
+        
+
+        return L;
     }
 
     template <class Vector>
@@ -466,7 +517,7 @@ protected:
 
         // Michelsens stability test.
         // Make two fake phases "inside" one phase and check for positive volume
-        for (int i = 0; i < 19000; ++i) {
+        for (int i = 0; i < 200; ++i) {
             S_loc = 0.0;
             if (isGas) {
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
