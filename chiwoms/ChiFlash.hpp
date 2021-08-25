@@ -420,13 +420,9 @@ protected:
     template <class Vector>
     static typename Vector::field_type bisection_g_(const Vector& K, Evaluation Lmin, Evaluation Lmax, const Vector& globalComposition, int verbosity)
     {
-        // Check if g(Lmin) and g(Lmax) have opposite sign
+        // Calculate for g(Lmin) for first comparison with gMid = g(L)
         Evaluation gLmin = rachfordRice_g_(K, Lmin, globalComposition);
-        Evaluation gLmax = rachfordRice_g_(K, Lmax, globalComposition);
-        if (Dune::sign(gLmin) == Dune::sign(gLmax)) {
-            throw std::runtime_error("Lmin and Lmax are incorrect for bisection");
-        }
-
+      
         // Print new header
         if (verbosity == 3 || verbosity == 4) {
                 std::cout << std::setw(10) << "Iteration" << std::setw(16) << "g(Lmid)" << std::setw(16) << "L" << std::endl;
@@ -446,13 +442,18 @@ protected:
                 return L;
             }
             
-            // Else we repeat with midpoint being either Lmin og Lmax (depending on the signs)
-            else if (Dune::sign(gMid) != Dune::sign(gLmin))
+            // Else we repeat with midpoint being either Lmin og Lmax (depending on the signs).
+            else if (Dune::sign(gMid) != Dune::sign(gLmin)) {
+                // gMid has same sign as gLmax, so we set L as the new Lmax
                 Lmax = L; 
-            else
+            }
+            else {
+                // gMid and gLmin have same sign so we set L as the new Lmin 
                 Lmin = L;
+                gLmin = gMid;
+            }
         }
-        throw std::runtime_error("Rachford-Rice with bisection failed!");
+        throw std::runtime_error(" Rachford-Rice with bisection failed!");
     }
 
     template <class FlashFluidState, class ComponentVector>
@@ -517,7 +518,7 @@ protected:
 
         // Michelsens stability test.
         // Make two fake phases "inside" one phase and check for positive volume
-        for (int i = 0; i < 200; ++i) {
+        for (int i = 0; i < 20000; ++i) {
             S_loc = 0.0;
             if (isGas) {
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
