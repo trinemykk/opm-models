@@ -502,24 +502,22 @@ public:
         const Scalar eps = std::numeric_limits<double>::epsilon();
 	    const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
 
-        // left side has a fixed inflow rate
-	    if((pos[XDIM] < this->boundingBoxMin()[XDIM] + eps) )
-        {
-		    // assign rate to the CO2 component of the inflow
+        if (onLeftBoundary_(pos)) {
             Scalar inflowrate = EWOMS_GET_PARAM(TypeTag, Scalar, Inflowrate);
-		    RateVector massRate(0.);
-            massRate[contiCO2EqIdx] = inflowrate;// -1e-7;
-		    values.setMassRate(massRate);
-        } 
-        else if((pos[XDIM] > this->boundingBoxMax()[XDIM] - eps))
-        {
+            RateVector massRate(0.0);
+            massRate = 0.0;
+            massRate[contiCO2EqIdx] = inflowrate; // kg / (m^2 * s)
+
+            values.setMassRate(massRate);
+        }
+        else if (onRightBoundary_(pos)) {
             Opm::CompositionalFluidState<Scalar, FluidSystem> fs;
             initialFs(fs, context, spaceIdx, timeIdx);
             values.setFreeFlow(context, spaceIdx, timeIdx, fs);
-        } 
-	    else {
+        }
+        else
             values.setNoFlow();// closed on top and bottom
-	    }
+
     }
 
     // No source terms
@@ -532,6 +530,17 @@ public:
     }
 
 private:
+    bool onLeftBoundary_(const GlobalPosition& pos) const
+    { return pos[0] < 1e-6; }
+
+    bool onRightBoundary_(const GlobalPosition& pos) const
+    { return pos[0] > this->boundingBoxMax()[0] - 1e-6; }
+
+    bool onLowerBoundary_(const GlobalPosition& pos) const
+    { return pos[1] < 1e-6; }
+
+    bool onUpperBoundary_(const GlobalPosition& pos) const
+    { return pos[1] > this->boundingBoxMax()[1] - 1e-6; }
     DimMatrix K_;
     Scalar porosity_;
     Scalar temperature_;
