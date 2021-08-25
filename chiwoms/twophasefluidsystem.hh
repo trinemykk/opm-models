@@ -3,6 +3,7 @@
 
 #include "components.hh"
 #include "chiwoms.h"
+#include "LBCviscosity.hpp"
 
 #include <iostream>
 #include <cassert>
@@ -62,6 +63,7 @@ class TwoPhaseThreeComponentFluidSystem
     using Base = Opm::BaseFluidSystem<Scalar, ThisType>;
     using PengRobinson = typename Opm::PengRobinson<Scalar>;
     using PengRobinsonMixture = typename Opm::PengRobinsonMixture<Scalar, ThisType>;
+    using LBCviscosity = typename Opm::LBCviscosity<Scalar, ThisType>;
 
 public:
         //! \copydoc BaseFluidSystem::ParameterCache
@@ -297,22 +299,13 @@ public:
         //! \copydoc BaseFluidSystem::viscosity
         template <class FluidState, class LhsEval = typename FluidState::Scalar, class ParamCacheEval = LhsEval>
         static LhsEval viscosity(const FluidState& fluidState,
-                                 const ParameterCache<ParamCacheEval>& /*paramCache*/,
+                                 const ParameterCache<ParamCacheEval>& paramCache,
                                  unsigned phaseIdx)
         {
-                assert(0 <= phaseIdx && phaseIdx < numPhases);
+            // Use LBC method to calculate viscosity
+            LhsEval mu = LBCviscosity::LBC(fluidState, paramCache, phaseIdx);
+            return mu;
 
-                const auto& T = Opm::decay<LhsEval>(fluidState.temperature(phaseIdx));
-                const auto& p = Opm::decay<LhsEval>(fluidState.pressure(phaseIdx));
-                const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, Comp1Idx));
-                assert(T == (TEMPERATURE + 273.15));
-
-        if(phaseIdx == oilPhaseIdx) {
-                        return EOS::oleic_viscosity(T, p, x); //TODO
-                }
-                else {
-                        return EOS::aqueous_viscosity(T, p, x); //TODO
-                }
         }
 
         //! \copydoc BaseFluidSystem::enthalpy
