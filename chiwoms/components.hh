@@ -180,39 +180,13 @@ public:
 
 struct EOS
 {
-        // template<typename LhsEval>
-        // static LhsEval oleic_density(LhsEval T, LhsEval p, LhsEval x) {
-        //         assert(T == (TEMPERATURE + 273.15));
-        //         return 650;
-        // }
-
-        // template<typename LhsEval>
-        // static LhsEval aqueous_density(LhsEval T, LhsEval p, LhsEval x) {
-        //         assert(T == (TEMPERATURE + 273.15));
-        //         return 1000;
-        // }
-
-        template<typename LhsEval>
-        static LhsEval oleic_viscosity(LhsEval T, LhsEval p, LhsEval x) {
-                assert(T == (TEMPERATURE + 273.15));
-                return 5e-3;
-        }
-
-        template<typename LhsEval>
-        static LhsEval aqueous_viscosity(LhsEval T, LhsEval p, LhsEval x) {
-                assert(T == (TEMPERATURE + 273.15));
-                return 1e-3;
-        }
-
         template<typename LhsEval>
         static LhsEval oleic_enthalpy(LhsEval T, LhsEval p, LhsEval x) {
-                assert(T == (TEMPERATURE + 273.15));
                 return 0;
         }
 
         template<typename LhsEval>
         static LhsEval aqueous_enthalpy(LhsEval T, LhsEval p, LhsEval x) {
-                assert(T == (TEMPERATURE + 273.15));
                 return 0;
         }
 };
