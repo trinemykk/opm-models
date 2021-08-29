@@ -22,6 +22,7 @@
 #include <opm/material/components/SimpleCO2.hpp>
 #include <opm/material/components/CO2.hpp>
 #include <opm/material/components/Brine.hpp>
+#include <opm/material/components/SimpleH2O.hpp>
 #include <opm/material/eos/PengRobinsonMixture.hpp>
 #include <opm/material/eos/PengRobinsonParamsMixture.hpp>
 #include "ChiParameterCache.hpp"
@@ -64,6 +65,8 @@ class TwoPhaseThreeComponentFluidSystem
     using PengRobinson = typename Opm::PengRobinson<Scalar>;
     using PengRobinsonMixture = typename Opm::PengRobinsonMixture<Scalar, ThisType>;
     using LBCviscosity = typename Opm::LBCviscosity<Scalar, ThisType>;
+    using H2O = typename Opm::H2O<Scalar>;
+    using Brine = typename Opm::Brine<Scalar, H2O>;
 
 public:
         //! \copydoc BaseFluidSystem::ParameterCache
@@ -111,7 +114,7 @@ public:
          ****************************************/
 
         //! \copydoc BaseFluidSystem::numComponents
-        static const int numComponents = 3;  // Comp0, Comp1 and Comp2
+        static const int numComponents = 2;  // Comp0, Comp1 and Comp2
 
         //! first comp idx
         static const int Comp0Idx = 0;
@@ -123,7 +126,8 @@ public:
         static const int Comp2Idx = 2;
 
        // TODO: make this a loop over choises in chiwoms.hh
-        using Comp0 = Opm::Methane<Scalar>;
+        // using Comp0 = Opm::Methane<Scalar>;
+        using Comp0 = Opm::ChiwomsBrine<Scalar>;
         using Comp1 = Opm::ChiwomsCO2<Scalar>;
         using Comp2 = Opm::NDekane<Scalar>;
 
@@ -279,20 +283,13 @@ public:
                            const ParameterCache<ParamCacheEval>& paramCache,
                                unsigned phaseIdx)
         {
-                assert(0 <= phaseIdx && phaseIdx < numPhases);
-
-        //return fluidState.averageMolarMass(phaseIdx)/paramCache.molarVolume(phaseIdx);
-
-        const auto& T = Opm::decay<LhsEval>(fluidState.temperature(phaseIdx));
-        const auto& p = Opm::decay<LhsEval>(fluidState.pressure(phaseIdx));
-        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, Comp1Idx));
-        assert(T == (TEMPERATURE + 273.15));
-
-        if (phaseIdx == oilPhaseIdx || phaseIdx == gasPhaseIdx) {
-            // paramCache.updatePhase(fluidState, phaseIdx);
-            auto dens = fluidState.averageMolarMass(phaseIdx) / paramCache.molarVolume(phaseIdx);
+        
+            LhsEval dens;
+            if (phaseIdx == oilPhaseIdx || phaseIdx == gasPhaseIdx) {
+                // paramCache.updatePhase(fluidState, phaseIdx);
+                dens = fluidState.averageMolarMass(phaseIdx) / paramCache.molarVolume(phaseIdx);
+            }
             return dens;
-        }
 
         }
 
@@ -303,7 +300,15 @@ public:
                                  unsigned phaseIdx)
         {
             // Use LBC method to calculate viscosity
-            LhsEval mu = LBCviscosity::LBC(fluidState, paramCache, phaseIdx);
+            LhsEval mu;
+            if (phaseIdx == gasPhaseIdx) {
+                mu = LBCviscosity::LBCmod(fluidState, paramCache, phaseIdx);
+            }
+            else {
+                const auto& T = Opm::decay<LhsEval>(fluidState.temperature(phaseIdx));
+                const auto& p = Opm::decay<LhsEval>(fluidState.pressure(0));
+                mu = Brine::liquidViscosity(T, p);
+            }
             return mu;
 
         }
