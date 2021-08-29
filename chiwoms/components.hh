@@ -35,6 +35,9 @@ public:
 
         /// Acentric factor
         static Scalar acentricFactor() { return 0.398; }
+
+        // Critical volume [m3/kmol]
+        static Scalar criticalVolume() {return 4.92e-7; }
 };
 
 template <class Scalar>
@@ -56,8 +59,8 @@ public:
         /// Acentric factor
         static Scalar acentricFactor() { return 0.4884; }
 
-        // Critical volume
-        static Scalar criticalVolume() {return 6.0976e-4; }
+        // Critical volume [m3/kmol]
+        static Scalar criticalVolume() {return 6.0976e-7; }
 };
 
 template <class Scalar>
@@ -79,8 +82,8 @@ public:
         /// Acentric factor
         static Scalar acentricFactor() { return 0.0114; }
 
-        // Critical volume
-        static Scalar criticalVolume() {return 9.8628e-5; }
+        // Critical volume [m3/kmol]
+        static Scalar criticalVolume() {return 9.8628e-8; }
 };
 
 
@@ -102,6 +105,10 @@ public:
 
         /// Acentric factor
         static Scalar acentricFactor() { return -0.22; }
+
+        // Critical volume [m3/kmol]
+        static Scalar criticalVolume() {return 6.45e-8; }
+
 };
 
 template <class Scalar>
@@ -122,6 +129,9 @@ public:
 
         /// Acentric factor
         static Scalar acentricFactor() { return 0.039; }
+
+        // Critical volume [m3/kmol]
+        static Scalar criticalVolume() {return 8.94e-8; }
 };
 
 template <class Scalar>
@@ -142,6 +152,9 @@ public:
 
         /// Acentric factor
         static Scalar acentricFactor() { return 0.344; }
+
+        // Critical volume [m3/kmol]
+        static Scalar criticalVolume() {return 5.595e-8; }
 };
 
 template <class Scalar>
@@ -163,19 +176,31 @@ public:
         /// Acentric factor
         static Scalar acentricFactor() { return 0.225; }
 
-        // Critical volume
-        static Scalar criticalVolume() {return 9.4118e-5; }
+        // Critical volume [m3/kmol]
+        static Scalar criticalVolume() {return 9.4118e-8; }
 };
 
 template <class Scalar>
 class ChiwomsBrine : public Opm::H2O<Scalar>
 {
 public:
+        /// Chemical name
+        static const char* name() { return "H20-NaCl"; }
+
         /// Molar mass in \f$\mathrm{[kg/mol]}\f$
         static Scalar molarMass() { return 0.0180158; }
 
+        /// Critical temperature in \f$\mathrm[K]}\f$
+        static Scalar criticalTemperature() { return 647.096; }
+
+        /// Critical pressure in \f$\mathrm[Pa]}\f$
+        static Scalar criticalPressure() { return 2.21e7; }
+
         /// Acentric factor
         static Scalar acentricFactor() { return 0.344; }
+
+        // Critical volume [m3/kmol]
+        static Scalar criticalVolume() {return 5.595e-8; }
 };
 
 struct EOS
