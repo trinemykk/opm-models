@@ -57,7 +57,7 @@ struct ChiwomsProblem {};
 
 template<class TypeTag>
 struct Grid<TypeTag, TTag::ChiwomsProblem>
-{ using type = Dune::YaspGrid<2>; };
+{ using type = Dune::YaspGrid<3>; };
 
 template<class TypeTag, class MyTypeTag>
 struct Temperature{ using type = UndefinedProperty; };
@@ -134,7 +134,7 @@ struct NewtonWriteConvergence<TypeTag, TTag::ChiwomsProblem> { static constexpr 
 
 // Enable gravity
 template<class TypeTag>
-struct EnableGravity<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
+struct EnableGravity<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
 
 template<class TypeTag>
 struct Temperature<TypeTag, TTag::ChiwomsProblem>
@@ -246,7 +246,7 @@ template<class TypeTag>
 struct DomainSizeX<TypeTag, TTag::ChiwomsProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = (X_SIZE / 100.);//scale to meter
+    static constexpr type value = X_SIZE;  // meter
 };
 template<class TypeTag>
 struct CellsX<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = NX; };
@@ -254,7 +254,7 @@ template<class TypeTag>
 struct DomainSizeY<TypeTag, TTag::ChiwomsProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = (Y_SIZE / 100.);//scale to meter
+    static constexpr type value = Y_SIZE;  // meter
 };
 template<class TypeTag>
 struct CellsY<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = NY; };
@@ -262,10 +262,10 @@ template<class TypeTag>
 struct DomainSizeZ<TypeTag, TTag::ChiwomsProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 1.;
+    static constexpr type value = Z_SIZE;  //meter
 };
 template<class TypeTag>
-struct CellsZ<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = 1; };
+struct CellsZ<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = NZ; };
 
 // compositional, with diffusion
 template<class TypeTag>
@@ -324,6 +324,7 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
 
     const unsigned XDIM = 0;
     const unsigned YDIM = 1;
+    const unsigned ZDIM = 2;
 
     // we need to layout the initial state from top to down, so fill
     // a full matrix with that now and access it (possibly) randomly later
@@ -496,9 +497,6 @@ public:
     void boundary(BoundaryRateVector& values, const Context& context,
                   unsigned spaceIdx, unsigned timeIdx) const
     {
-        //values.setNoFlow();
-        //return;
-
         const Scalar eps = std::numeric_limits<double>::epsilon();
 	    const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
 
@@ -516,7 +514,7 @@ public:
             values.setFreeFlow(context, spaceIdx, timeIdx, fs);
         }
         else
-            values.setNoFlow();// closed on top and bottom
+            values.setNoFlow();  // closed on top and bottom
 
     }
 
@@ -531,16 +529,16 @@ public:
 
 private:
     bool onLeftBoundary_(const GlobalPosition& pos) const
-    { return pos[0] < 1e-6; }
+    { return pos[XDIM] < 1e-6; }
 
     bool onRightBoundary_(const GlobalPosition& pos) const
-    { return pos[0] > this->boundingBoxMax()[0] - 1e-6; }
+    { return pos[XDIM] > this->boundingBoxMax()[XDIM] - 1e-6; }
 
     bool onLowerBoundary_(const GlobalPosition& pos) const
-    { return pos[1] < 1e-6; }
+    { return pos[ZDIM] < 1e-6; }
 
     bool onUpperBoundary_(const GlobalPosition& pos) const
-    { return pos[1] > this->boundingBoxMax()[1] - 1e-6; }
+    { return pos[ZDIM] > this->boundingBoxMax()[ZDIM] - 1e-6; }
     DimMatrix K_;
     Scalar porosity_;
     Scalar temperature_;
@@ -558,11 +556,15 @@ private:
         const auto& matParams = this->materialLawParams(context, spaceIdx, timeIdx);
         MaterialLaw::capillaryPressures(pC, matParams, fs);
 
-        // pressure; oleic phase is the reference
+        // pressure; set simple hydrostatic pressure initially.
+        // OBS: If horizontal (NZ = 1), then h = Z_SIZE/2 since boundingBoxMax is cell edge
         Scalar init_pressure = EWOMS_GET_PARAM(TypeTag, Scalar, Initialpressure);
-       // fs.setPressure(waterPhaseIdx, 150*1e5);
-        fs.setPressure(oilPhaseIdx, init_pressure*1e5);
-        fs.setPressure(gasPhaseIdx, init_pressure*1e5);
+        Scalar densityW = 1000.;
+        const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
+        Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
+        Scalar p_hydrostatic = (init_pressure*1e5) + densityW * h * 9.81;
+        fs.setPressure(oilPhaseIdx, p_hydrostatic);
+        fs.setPressure(gasPhaseIdx, p_hydrostatic);
 
         // composition
         fs.setMoleFraction(oilPhaseIdx, Comp0Idx, MFCOMP0);
@@ -582,18 +584,17 @@ private:
 
         // saturation, oil-filled
         fs.setSaturation(FluidSystem::oilPhaseIdx, 1.0);
-       // fs.setSaturation(FluidSystem::waterPhaseIdx, 0.0);
         fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
 
 
         // fill in viscosity and enthalpy based on the state set above
-        // and the fluid system defined in this class
+        // and the fluid system defined in this class. Oleic phase is the reference        
         typename FluidSystem::template ParameterCache<Scalar> paramCache;
                 using CFRP = Opm::ComputeFromReferencePhase<Scalar, FluidSystem>;
         CFRP::solve(fs, paramCache,
                     /*refPhaseIdx=*/oilPhaseIdx,
                     /*setViscosity=*/true,
-                    /*setEnthalpy=*/true);
+                    /*setEnthalpy=*/false);
 
     }
 };
