@@ -549,9 +549,8 @@ public:
         Opm::CompositionalFluidState<Scalar, FluidSystem> fs;
         initialFs(fs, context, spaceIdx, timeIdx);
         values.assignNaive(fs);
-
-    //std::cout << "primary variables for cell " << context.globalSpaceIndex(spaceIdx, timeIdx) << ": " << values << "\n";
     }
+
 
     // Constant temperature
     template <class Context>
@@ -671,6 +670,10 @@ private:
         fs.setSaturation(FluidSystem::oilPhaseIdx, 1.0);
        // fs.setSaturation(FluidSystem::waterPhaseIdx, 0.0);
         fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
+
+        // K from wilson and L=-1 initially
+        fs.setKvalue(Comp0Idx, true, 0.0);
+        fs.setLvalue(-1.0);
 
 
         // fill in viscosity and enthalpy based on the state set above
