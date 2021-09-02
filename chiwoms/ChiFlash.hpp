@@ -107,51 +107,28 @@ public:
         if (tolerance <= 0)
             tolerance = std::min<Scalar>(1e-3, 1e8*std::numeric_limits<Scalar>::epsilon());
 
-        // PSEUDOCODE for what the code does:
-        // for two-phase --> go directly to flash (TODO)
-        // TODO: if two-phase, go directly to flash -> IMPLEMENT ??
-        // "cells that are two-phase can be flashed directly"
-        // EDIT: cells that are two-phase (skip below)
-        // twoPhase = getTwoPhaseFlag(state)
-        // if single-phase
-            // check if it stays single phase (P, T, globalComp, K)
-            // --> x0, y0, updatedSingle
-            // K0(updatedSingle) = y0(updatedSingle)./x0(updatedSingle);
-            // solveRachfordRice (L0, Ko, z);
-            // --> new L0
-            // calculate Si_L, Si_V, A_L, A_V, B_L, B_B, Bi
-            // calculate ZO_L, ZO_V
-        // end if single-phase
-
-            // for "active" cells
-            // newtonCompositionUpdate(P, T, z, K, L);
-            // --> x, y, K, Z_L, Z_V, L
-
-
-        // for single-phase : DO STABILITYTEST --> initial K0 (TODO)
-        // solve Rachford Rice (using K0, L0, z) for stabilityTest showing that singlePhase --> twoPhase --> L0 (TODO)
-        // newtonCompositionUpdate using p, T, z, K and L
-
-        // Initial guess for the K value using Wilson's formula
-        ComponentVector K;
-        for (int compIdx = 0; compIdx<numComponents; ++compIdx) {
-            K[compIdx] = wilsonK_(fluidState, compIdx);
-        }
-
+        InputEval L;
+        L = fluidState.saturation(oilPhaseIdx);
         // Print header
         if (verbosity >= 1) {
             std::cout << "********" << std::endl;
             std::cout << "Flash calculations on Cell " << spatialIdx << std::endl;
-            std::cout << "Stability test with K = [" << K << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
+            //std::cout << "Stability test with K = [" << K << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
         }
 
-        // First we do stability test to check if cell is single-phase. If so, we do not need to do Newton update
-        // Phase stability test
+        // Do a stability test to check if cell is single-phase (do for all cells the first time).
         bool isStable = false;
-        phaseStabilityTest_(isStable, K, fluidState, globalComposition, verbosity);
-        
+        // K from previous time-step, 
+        ComponentVector K;
+        for (int compIdx=0; compIdx<numComponents; ++compIdx) {
+            K = fluidState.Kvalue(compIdx);
+        }
+
+        if ( L <= 0 || L == 1 ) {
+            phaseStabilityTest_(isStable, K, fluidState, globalComposition, verbosity);
+        }
+
         // Update the composition if cell is two-phase
-        InputEval L;
         if (isStable == false) {
             
             // Print info
@@ -212,6 +189,12 @@ public:
         fluidState.setSaturation(oilPhaseIdx, So);
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
+        //save L and K for the next flash
+        for(int compIdx=0; compIdx<numComponents; ++compIdx){
+            fluidState.setKvalue(compIdx,false,K[compIdx]);
+        }
+        fluidState.setLvalue(L);
+
         // Print saturation
         if (verbosity == 5) {
             std::cout << "So = " << So <<std::endl;
@@ -245,19 +228,6 @@ public:
 
 
 protected:
-    template <class FlashFluidState>
-    static typename FlashFluidState::Scalar wilsonK_(const FlashFluidState& fluidState, int compIdx)
-    {
-        using FlashEval = typename FlashFluidState::Scalar;
-        const auto& acf = FluidSystem::acentricFactor(compIdx);
-        const auto& T_crit = FluidSystem::criticalTemperature(compIdx);
-        const auto& T = fluidState.temperature(0);
-        const auto& p_crit = FluidSystem::criticalPressure(compIdx);
-        const auto& p = fluidState.pressure(0); //for now assume no capillary pressure
-
-        const auto& tmp = Opm::exp(5.3727 * (1+acf) * (1-T_crit/T)) * (p_crit/p);
-        return tmp;
-    }
 
     template <class Vector, class FlashFluidState>
     static typename Vector::field_type li_single_phase_label_(const FlashFluidState& fluidState, const Vector& globalComposition, int verbosity)
@@ -461,25 +431,21 @@ protected:
     {
         // Declarations
         bool isTrivialL, isTrivialV;
-        ComponentVector K_l, K_v, x, y;
+        ComponentVector x, y;
         Evaluation S_l, S_v;
-
-        // Use equilibrium constants made with Wilson's formula
-        K_l = K;
-        K_v = K;
 
         // Check for vapour instable phase
         if (verbosity == 3 || verbosity == 4) {
             std::cout << "Stability test for vapor phase:" << std::endl;
         }
-        checkStability_(fluidState, isTrivialV, K_v, y, S_v, globalComposition, /*isGas=*/true, verbosity);
+        checkStability_(fluidState, isTrivialV, K, y, S_v, globalComposition, /*isGas=*/true, verbosity);
         bool V_unstable = (S_v < (1.0 + 1e-5)) || isTrivialV;
 
         // Check for liquids stable phase
         if (verbosity == 3 || verbosity == 4) {
             std::cout << "Stability test for liquid phase:" << std::endl;
         }
-        checkStability_(fluidState, isTrivialL, K_l, x, S_l, globalComposition, /*isGas=*/false, verbosity);
+        checkStability_(fluidState, isTrivialL, K, x, S_l, globalComposition, /*isGas=*/false, verbosity);
         bool L_stable = (S_l < (1.0 + 1e-5)) || isTrivialL;
 
         // L-stable means success in making liquid, V-unstable means no success in making vapour
@@ -492,7 +458,7 @@ protected:
                 fluidState.setMoleFraction(oilPhaseIdx, compIdx, globalComposition[compIdx]);
             }
         }
-        // If it is not stable, we use the mole fractions from the Michelsen test to calculate a new K
+        // If not stable: use the mole fractions from Michelsen's test to update K
         else {
             for (int compIdx = 0; compIdx<numComponents; ++compIdx) {
                 K[compIdx] = y[compIdx] / x[compIdx];
@@ -625,6 +591,8 @@ protected:
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
             fluidState.setMoleFraction(gasPhaseIdx, compIdx, y[compIdx]);
+            //SET k ??
+
         }
     }
 
