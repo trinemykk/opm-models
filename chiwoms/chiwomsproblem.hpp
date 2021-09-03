@@ -585,7 +585,9 @@ private:
         fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
 
         // K from wilson and L=-1 initially
-        fs.setKvalue(Comp0Idx, true, 0.0);
+        fs.setKwilson(Comp0Idx);
+        fs.setKwilson(Comp1Idx);
+        fs.setKwilson(Comp2Idx);
         fs.setLvalue(-1.0);
 
 

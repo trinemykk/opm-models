@@ -108,25 +108,28 @@ public:
             tolerance = std::min<Scalar>(1e-3, 1e8*std::numeric_limits<Scalar>::epsilon());
 
         InputEval L;
-        L = fluidState.saturation(oilPhaseIdx);
+        //L = fluidState.Lvalue();
+        
+        // K from previous time-step (wilson first time), 
+        ComponentVector K;
+        for (int compIdx=0; compIdx<numComponents; ++compIdx) {
+            K[compIdx] = fluidState.K(compIdx);
+           //K[compIdx] = wilsonK_(fluidState, compIdx);
+        }
+        
+
         // Print header
         if (verbosity >= 1) {
             std::cout << "********" << std::endl;
             std::cout << "Flash calculations on Cell " << spatialIdx << std::endl;
-            //std::cout << "Stability test with K = [" << K << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
+            std::cout << "Stability test with K = [" << K << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
         }
-
+       
         // Do a stability test to check if cell is single-phase (do for all cells the first time).
         bool isStable = false;
-        // K from previous time-step, 
-        ComponentVector K;
-        for (int compIdx=0; compIdx<numComponents; ++compIdx) {
-            K = fluidState.Kvalue(compIdx);
-        }
-
-        if ( L <= 0 || L == 1 ) {
+        //if ( L <= 0 || L == 1 ) {
             phaseStabilityTest_(isStable, K, fluidState, globalComposition, verbosity);
-        }
+        //}
 
         // Update the composition if cell is two-phase
         if (isStable == false) {
@@ -190,10 +193,10 @@ public:
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
         //save L and K for the next flash
-        for(int compIdx=0; compIdx<numComponents; ++compIdx){
-            fluidState.setKvalue(compIdx,false,K[compIdx]);
-        }
-        fluidState.setLvalue(L);
+        //for(int compIdx=0; compIdx<numComponents; ++compIdx){
+         //   fluidState.setKvalue(compIdx,K[compIdx]);
+        //}
+        //fluidState.setLvalue(L);
 
         // Print saturation
         if (verbosity == 5) {
@@ -228,6 +231,20 @@ public:
 
 
 protected:
+
+    template <class FlashFluidState>
+    static typename FlashFluidState::Scalar wilsonK_(const FlashFluidState& fluidState, int compIdx)
+    {
+        using FlashEval = typename FlashFluidState::Scalar;
+        const auto& acf = FluidSystem::acentricFactor(compIdx);
+        const auto& T_crit = FluidSystem::criticalTemperature(compIdx);
+        const auto& T = fluidState.temperature(0);
+        const auto& p_crit = FluidSystem::criticalPressure(compIdx);
+        const auto& p = fluidState.pressure(0); //for now assume no capillary pressure
+
+        const auto& tmp = Opm::exp(5.3727 * (1+acf) * (1-T_crit/T)) * (p_crit/p);
+        return tmp;
+    }
 
     template <class Vector, class FlashFluidState>
     static typename Vector::field_type li_single_phase_label_(const FlashFluidState& fluidState, const Vector& globalComposition, int verbosity)
