@@ -584,13 +584,6 @@ private:
        // fs.setSaturation(FluidSystem::waterPhaseIdx, 0.0);
         fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
 
-        // K from wilson and L=-1 initially
-        fs.setKwilson(Comp0Idx);
-        fs.setKwilson(Comp1Idx);
-        fs.setKwilson(Comp2Idx);
-        fs.setLvalue(-1.0);
-
-
         // fill in viscosity and enthalpy based on the state set above
         // and the fluid system defined in this class
         typename FluidSystem::template ParameterCache<Scalar> paramCache;

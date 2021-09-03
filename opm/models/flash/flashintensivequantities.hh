@@ -135,7 +135,7 @@ public:
         // Compute the phase compositions and densities 
         /////////////
         int spatialIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
-        FlashSolver::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+        FlashSolver::solve(fluidState_, z, spatialIdx, timeIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
         
         /////////////
         // Compute rel. perm and viscosities

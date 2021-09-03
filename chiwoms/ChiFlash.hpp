@@ -87,6 +87,7 @@ public:
     static void solve(FluidState& fluidState,
                       const Dune::FieldVector<typename FluidState::Scalar, numComponents>& globalComposition,
                       int spatialIdx,
+                      int timeIdx,
                       int verbosity,
                       std::string twoPhaseMethod,
                       Scalar tolerance)
@@ -106,23 +107,27 @@ public:
 
         if (tolerance <= 0)
             tolerance = std::min<Scalar>(1e-3, 1e8*std::numeric_limits<Scalar>::epsilon());
-
-        InputEval L;
-        //L = fluidState.Lvalue();
-        
-        // K from previous time-step (wilson first time), 
         ComponentVector K;
-        for (int compIdx=0; compIdx<numComponents; ++compIdx) {
-            K[compIdx] = fluidState.K(compIdx);
-           //K[compIdx] = wilsonK_(fluidState, compIdx);
+        InputEval L;
+        if (timeIdx==0) {
+            for (int compIdx=0; compIdx<numComponents; ++compIdx) {
+                K[compIdx] = wilsonK_(fluidState, compIdx);
+            }
+            L = -1;
         }
-        
+        else {
+            for (int compIdx=0; compIdx<numComponents; ++compIdx) {
+                K[compIdx] = fluidState.K(compIdx);
+            }
+            //L = fluidState.L();
+
+        }
 
         // Print header
         if (verbosity >= 1) {
             std::cout << "********" << std::endl;
-            std::cout << "Flash calculations on Cell " << spatialIdx << std::endl;
-            std::cout << "Stability test with K = [" << K << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
+            std::cout << "Flash calculations on Cell " << spatialIdx << ", time " << timeIdx << std::endl;
+            std::cout << "Stability test with K = [" << K << "], L = [" << L << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
         }
        
         // Do a stability test to check if cell is single-phase (do for all cells the first time).
@@ -193,10 +198,12 @@ public:
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
         //save L and K for the next flash
-        //for(int compIdx=0; compIdx<numComponents; ++compIdx){
-         //   fluidState.setKvalue(compIdx,K[compIdx]);
-        //}
-        //fluidState.setLvalue(L);
+        
+        for(int compIdx=0; compIdx<numComponents; ++compIdx){
+            fluidState.setKvalue(compIdx,K[compIdx]);
+        }
+        fluidState.setLvalue(L);
+
 
         // Print saturation
         if (verbosity == 5) {
