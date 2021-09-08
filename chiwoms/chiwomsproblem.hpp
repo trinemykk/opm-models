@@ -281,44 +281,39 @@ template <class TypeTag>
 class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
 {
     using ParentType = GetPropType<TypeTag, Properties::BaseProblem>;
-
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
     using GridView = GetPropType<TypeTag, Properties::GridView>;
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
     using MaterialLawParams = GetPropType<TypeTag, Properties::MaterialLawParams>;
-
-
-    enum { dim = GridView::dimension };
-    enum { dimWorld = GridView::dimensionworld };
-
-    // copy some indices for convenience
     using Indices = GetPropType<TypeTag, Properties::Indices>;
-    enum { numPhases = FluidSystem::numPhases };
-    enum {
-        oilPhaseIdx = FluidSystem::oilPhaseIdx,
-        gasPhaseIdx = FluidSystem::gasPhaseIdx,
-    };
-    enum { Comp1Idx = FluidSystem::Comp1Idx };//change to comp1
-    enum { Comp0Idx = FluidSystem::Comp0Idx };//change to comp0
-    enum { Comp2Idx = FluidSystem::Comp2Idx };//change to comp2
-    enum { conti0EqIdx = Indices::conti0EqIdx };
-    enum { contiCO2EqIdx = conti0EqIdx + Comp1Idx };
-    enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
-    enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
-
     using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
     using RateVector = GetPropType<TypeTag, Properties::RateVector>;
     using BoundaryRateVector = GetPropType<TypeTag, Properties::BoundaryRateVector>;
-
+    using Toolbox = Opm::MathToolbox<Evaluation>;
+    using CoordScalar = typename GridView::ctype;
     using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
     using Simulator = GetPropType<TypeTag, Properties::Simulator>;
     using Model = GetPropType<TypeTag, Properties::Model>;
 
-    using Toolbox = Opm::MathToolbox<Evaluation>;
-    using CoordScalar = typename GridView::ctype;
+    enum { dim = GridView::dimension };
+    enum { dimWorld = GridView::dimensionworld };
+    enum { numPhases = FluidSystem::numPhases };
+    enum { oilPhaseIdx = FluidSystem::oilPhaseIdx };
+    enum { gasPhaseIdx = FluidSystem::gasPhaseIdx };
+    enum { Comp1Idx = FluidSystem::Comp1Idx };
+    enum { Comp0Idx = FluidSystem::Comp0Idx };
+    enum { Comp2Idx = FluidSystem::Comp2Idx };
+    enum { conti0EqIdx = Indices::conti0EqIdx };
+    enum { contiCO2EqIdx = conti0EqIdx + Comp1Idx };
+    enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
+    enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
+    enum { numComponents = FluidSystem::numComponents };
+
     using GlobalPosition = Dune::FieldVector<CoordScalar, dimWorld>;
     using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
+    using KvalueMatrix = Dune::FieldMatrix<Scalar, dimWorld, numComponents>;
+    using LvalueVector = Dune::FieldVector<Scalar, dimWorld>;
     using FullField = Dune::FieldMatrix<Scalar, NX, NY>;//    typedef Dune::FieldMatrix<Scalar, NX, NY> FullField;
     using FieldColumn = Dune::FieldVector<Scalar, NY>;//typedef Dune::FieldVector<Scalar, NY> FieldColumn;
 
@@ -358,8 +353,6 @@ public:
     void finishInit()
     {
         ParentType::finishInit();
-
-
         // initialize fixed parameters; temperature, permeability, porosity
         initPetrophysics();
     }
@@ -383,11 +376,6 @@ public:
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, EpisodeLength,
                              "Time interval [s] for episode length");
     }
-
-    /*!
-     * \name Problem parameters
-     */
-    //! \{
 
     /*!
      * \copydoc FvBaseProblem::name
@@ -451,6 +439,13 @@ public:
         Opm::CompositionalFluidState<Scalar, FluidSystem> fs;
         initialFs(fs, context, spaceIdx, timeIdx);
         values.assignNaive(fs);
+
+        //
+        int spatialIdx = context.globalSpaceIndex(spaceIdx, timeIdx);
+        for(int compIdx = 0; compIdx < numComponents; ++compIdx){
+            Kvalue_[spatialIdx][compIdx]=wilsonK_(fs, compIdx);
+        }
+        Lvalue_[spatialIdx]=setLvalue(spatialIdx,-1);
     }
 
 
@@ -495,9 +490,6 @@ public:
     void boundary(BoundaryRateVector& values, const Context& context,
                   unsigned spaceIdx, unsigned timeIdx) const
     {
-        //values.setNoFlow();
-        //return;
-
         const Scalar eps = std::numeric_limits<double>::epsilon();
 	    const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
 
@@ -528,6 +520,48 @@ public:
         rate = Scalar(0.0);
     }
 
+    // K and L value availible to flash
+    const Scalar Kvalue(unsigned compIdx, unsigned spatialIdx) const
+    { 
+         return Kvalue_[spatialIdx][compIdx];      
+    }
+
+     /*!
+      * \brief Set the K value of a component [-]
+      */
+     void setKvalue(unsigned compIdx, unsigned spatialIdx, const Scalar& value)
+     { 
+             Kvalue_[spatialIdx][compIdx] = value;
+     }
+
+      /*!
+       * \brief The L value of a composition [-]
+       */
+      const LvalueVector& Lvalue(unsigned spatialIdx) const
+      { 
+          return Lvalue_[spatialIdx]; 
+        }
+
+      /*!
+       * \brief Set the L value [-]
+       */
+      void setLvalue(unsigned spatialIdx, const Scalar& value)
+      { Lvalue_[spatialIdx] = value; }
+
+
+    template <class FluidState>
+    static typename FluidState::Scalar wilsonK_(const FluidState& fluidState, int compIdx)
+    {
+        const auto& acf = FluidSystem::acentricFactor(compIdx);
+        const auto& T_crit = FluidSystem::criticalTemperature(compIdx);
+        const auto& T = fluidState.temperature(0);
+        const auto& p_crit = FluidSystem::criticalPressure(compIdx);
+        const auto& p = fluidState.pressure(0); //for now assume no capillary pressure
+
+        const auto& tmp = Opm::exp(5.3727 * (1+acf) * (1-T_crit/T)) * (p_crit/p);
+        return tmp;
+    }
+
 private:
     bool onLeftBoundary_(const GlobalPosition& pos) const
     { return pos[0] < 1e-6; }
@@ -540,11 +574,14 @@ private:
 
     bool onUpperBoundary_(const GlobalPosition& pos) const
     { return pos[1] > this->boundingBoxMax()[1] - 1e-6; }
+
     DimMatrix K_;
     Scalar porosity_;
     Scalar temperature_;
     MaterialLawParams mat_;
-    
+    KvalueMatrix Kvalue_;
+    LvalueVector Lvalue_;
+
     /*!
      * \copydoc FvBaseProblem::initial
      */

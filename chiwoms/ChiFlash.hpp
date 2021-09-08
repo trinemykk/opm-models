@@ -56,6 +56,7 @@ namespace Opm {
 template <class Scalar, class Evaluation, class FluidSystem>
 class ChiFlash
 {
+    //using Problem = GetPropType<TypeTag, Properties::Problem>;
     enum { numPhases = FluidSystem::numPhases };
     enum { numComponents = FluidSystem::numComponents };
     enum { Comp2Idx = FluidSystem::Comp2Idx }; //rename for generic ?
@@ -83,11 +84,11 @@ public:
      * \brief Calculates the fluid state from the global mole fractions of the components and the phase pressures
      *
      */
-    template <class FluidState>
+    template <class FluidState, class Problem>
     static void solve(FluidState& fluidState,
                       const Dune::FieldVector<typename FluidState::Scalar, numComponents>& globalComposition,
                       int spatialIdx,
-                      int timeIdx,
+                      const Problem& problem,
                       int verbosity,
                       std::string twoPhaseMethod,
                       Scalar tolerance)
@@ -99,6 +100,7 @@ public:
         using FlashEval = Opm::DenseAd::Evaluation</*Scalar=*/InputEval, /*numDerivs=*/numEq>;
         using FlashDefectVector = Dune::FieldVector<FlashEval, numEq>;
         using FlashFluidState = Opm::CompositionalFluidState<FlashEval, FluidSystem, /*energy=*/false>;
+        
         using ComponentVector = Dune::FieldVector<typename FluidState::Scalar, numComponents>;
 
 #if ! DUNE_VERSION_NEWER(DUNE_COMMON, 2,7)
@@ -107,34 +109,27 @@ public:
 
         if (tolerance <= 0)
             tolerance = std::min<Scalar>(1e-3, 1e8*std::numeric_limits<Scalar>::epsilon());
+        
+        //K and L from previous timestep (wilson and -1 initially)
         ComponentVector K;
-        InputEval L;
-        if (timeIdx==0) {
-            for (int compIdx=0; compIdx<numComponents; ++compIdx) {
-                K[compIdx] = wilsonK_(fluidState, compIdx);
-            }
-            L = -1;
+        for(int compIdx = 0; compIdx < numComponents; ++compIdx) {
+            K[compIdx] = problem.Kvalue_(compIdx, spatialIdx);
         }
-        else {
-            for (int compIdx=0; compIdx<numComponents; ++compIdx) {
-                K[compIdx] = fluidState.K(compIdx);
-            }
-            //L = fluidState.L();
-
-        }
+        Scalar L;
+        L = problem.Lvalue_(spatialIdx);
 
         // Print header
         if (verbosity >= 1) {
             std::cout << "********" << std::endl;
-            std::cout << "Flash calculations on Cell " << spatialIdx << ", time " << timeIdx << std::endl;
+            std::cout << "Flash calculations on Cell " << spatialIdx << std::endl;
             std::cout << "Stability test with K = [" << K << "], L = [" << L << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
         }
        
         // Do a stability test to check if cell is single-phase (do for all cells the first time).
         bool isStable = false;
-        //if ( L <= 0 || L == 1 ) {
+        if ( L <= 0 || L == 1 ) {
             phaseStabilityTest_(isStable, K, fluidState, globalComposition, verbosity);
-        //}
+        }
 
         // Update the composition if cell is two-phase
         if (isStable == false) {
@@ -197,12 +192,11 @@ public:
         fluidState.setSaturation(oilPhaseIdx, So);
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
-        //save L and K for the next flash
-        
-        for(int compIdx=0; compIdx<numComponents; ++compIdx){
-            fluidState.setKvalue(compIdx,K[compIdx]);
+        //Update L and K to the problem for the next flash
+        for (int compIdx = 0; compIdx < numComponents; ++compIdx){
+            problem.setKvalue(compIdx,spatialIdx,K[compIdx]);
         }
-        fluidState.setLvalue(L);
+        problem.setLvalue(spatialIdx,L);
 
 
         // Print saturation

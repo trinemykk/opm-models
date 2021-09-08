@@ -78,7 +78,7 @@ class FlashIntensiveQuantities
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
     using FlashSolver = GetPropType<TypeTag, Properties::FlashSolver>;
-
+    using Problem = GetPropType<TypeTag, Properties::Problem>;
     using ComponentVector = Dune::FieldVector<Evaluation, numComponents>;
     using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
 
@@ -135,7 +135,7 @@ public:
         // Compute the phase compositions and densities 
         /////////////
         int spatialIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
-        FlashSolver::solve(fluidState_, z, spatialIdx, timeIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+        FlashSolver::solve(fluidState_, z, spatialIdx, problem, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
         
         /////////////
         // Compute rel. perm and viscosities
