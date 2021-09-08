@@ -115,7 +115,7 @@ public:
         for(int compIdx = 0; compIdx < numComponents; ++compIdx) {
             K[compIdx] = problem.getKvalue(compIdx, spatialIdx);
         }
-        Scalar L;
+        InputEval L;
         L = problem.getLvalue(spatialIdx);
 
         // Print header
@@ -194,9 +194,9 @@ public:
 
         //Update L and K to the problem for the next flash
         for (int compIdx = 0; compIdx < numComponents; ++compIdx){
-            problem.setKvalue(compIdx,spatialIdx,K[compIdx]);
+            problem.setKvalue(compIdx,spatialIdx, Opm::getValue(K[compIdx]));
         }
-        problem.setLvalue(spatialIdx,L);
+        problem.setLvalue(spatialIdx, Opm::getValue(L));
 
 
         // Print saturation

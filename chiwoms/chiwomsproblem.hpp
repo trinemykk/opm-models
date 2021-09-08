@@ -434,7 +434,7 @@ public:
      */
     template <class Context>
     void initial(PrimaryVariables& values, const Context& context, unsigned spaceIdx,
-                 unsigned timeIdx) const
+                 unsigned timeIdx)
     {
         Opm::CompositionalFluidState<Scalar, FluidSystem> fs;
         initialFs(fs, context, spaceIdx, timeIdx);
@@ -446,7 +446,7 @@ public:
             Scalar tmp = wilsonK_(fs, compIdx);
             setKvalue(compIdx, spatialIdx, tmp);
         }
-        setLvalue(spatialIdx,-1);
+        setLvalue(spatialIdx, -1.0);
     }
 
 
