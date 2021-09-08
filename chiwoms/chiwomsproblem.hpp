@@ -443,9 +443,10 @@ public:
         //
         int spatialIdx = context.globalSpaceIndex(spaceIdx, timeIdx);
         for(int compIdx = 0; compIdx < numComponents; ++compIdx){
-            Kvalue_[spatialIdx][compIdx]=wilsonK_(fs, compIdx);
+            Scalar tmp = wilsonK_(fs, compIdx);
+            setKvalue(compIdx, spatialIdx, tmp);
         }
-        Lvalue_[spatialIdx]=setLvalue(spatialIdx,-1);
+        setLvalue(spatialIdx,-1);
     }
 
 
@@ -521,13 +522,13 @@ public:
     }
 
     // K and L value availible to flash
-    const Scalar Kvalue(unsigned compIdx, unsigned spatialIdx) const
+    Scalar getKvalue(unsigned compIdx, unsigned spatialIdx) const
     { 
          return Kvalue_[spatialIdx][compIdx];      
     }
 
      /*!
-      * \brief Set the K value of a component [-]
+      * \brief Set the K value of a component [-] in a cell [-]
       */
      void setKvalue(unsigned compIdx, unsigned spatialIdx, const Scalar& value)
      { 
@@ -537,7 +538,7 @@ public:
       /*!
        * \brief The L value of a composition [-]
        */
-      const LvalueVector& Lvalue(unsigned spatialIdx) const
+      Scalar getLvalue(unsigned spatialIdx) const
       { 
           return Lvalue_[spatialIdx]; 
         }

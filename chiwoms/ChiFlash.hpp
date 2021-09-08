@@ -113,10 +113,10 @@ public:
         //K and L from previous timestep (wilson and -1 initially)
         ComponentVector K;
         for(int compIdx = 0; compIdx < numComponents; ++compIdx) {
-            K[compIdx] = problem.Kvalue_(compIdx, spatialIdx);
+            K[compIdx] = problem.getKvalue(compIdx, spatialIdx);
         }
         Scalar L;
-        L = problem.Lvalue_(spatialIdx);
+        L = problem.getLvalue(spatialIdx);
 
         // Print header
         if (verbosity >= 1) {
