@@ -193,10 +193,10 @@ public:
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
         //Update L and K to the problem for the next flash
-        for (int compIdx = 0; compIdx < numComponents; ++compIdx){
-            problem.setKvalue(compIdx,spatialIdx, Opm::getValue(K[compIdx]));
-        }
-        problem.setLvalue(spatialIdx, Opm::getValue(L));
+        //for (int compIdx = 0; compIdx < numComponents; ++compIdx){
+        //    problem.setKvalue(compIdx,spatialIdx, Opm::getValue(K[compIdx]));
+        //}
+        //problem.setLvalue(spatialIdx, Opm::getValue(L));
 
 
         // Print saturation
@@ -247,11 +247,11 @@ protected:
         return tmp;
     }
 
-    template <class Vector, class FlashFluidState>
-    static typename Vector::field_type li_single_phase_label_(const FlashFluidState& fluidState, const Vector& globalComposition, int verbosity)
+    template <class ComponentVector, class FlashFluidState>
+    static typename ComponentVector::field_type li_single_phase_label_(const FlashFluidState& fluidState, const ComponentVector& globalComposition, int verbosity)
     {
         // Calculate intermediate sum
-        typename Vector::field_type sumVz = 0.0;
+        typename ComponentVector::field_type sumVz = 0.0;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             // Get component information
             const auto& V_crit = FluidSystem::criticalVolume(compIdx);
@@ -261,7 +261,7 @@ protected:
         }
 
         // Calculate approximate (pseudo) critical temperature using Li's method
-        typename Vector::field_type Tc_est = 0.0;
+        typename ComponentVector::field_type Tc_est = 0.0;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             // Get component information
             const auto& V_crit = FluidSystem::criticalVolume(compIdx);
@@ -299,28 +299,28 @@ protected:
         return L;
     }
 
-    template <class Vector>
-    static typename Vector::field_type rachfordRice_g_(const Vector& K, const Evaluation L, const Vector& globalComposition)
+    template <class ComponentVector>
+    static typename ComponentVector::field_type rachfordRice_g_(const ComponentVector& K, const Evaluation L, const ComponentVector& globalComposition)
     {
-        typename Vector::field_type g=0;
+        typename ComponentVector::field_type g=0;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             g += (globalComposition[compIdx]*(K[compIdx]-1))/(K[compIdx]-L*(K[compIdx]-1));
         }
         return g;
     }
 
-    template <class Vector>
-    static typename Vector::field_type rachfordRice_dg_dL_(const Vector& K, const Evaluation L, const Vector& globalComposition)
+    template <class ComponentVector>
+    static typename ComponentVector::field_type rachfordRice_dg_dL_(const ComponentVector& K, const Evaluation L, const ComponentVector& globalComposition)
     {
-        typename Vector::field_type dg=0;
+        typename ComponentVector::field_type dg=0;
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             dg += (globalComposition[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((K[compIdx]-L*(K[compIdx]-1))*(K[compIdx]-L*(K[compIdx]-1)));
         }
         return dg;
     }
 
-    template <class Vector>
-    static typename Vector::field_type solveRachfordRice_g_(const Vector& K, const Vector& globalComposition, int verbosity)
+    template <class ComponentVector>
+    static typename ComponentVector::field_type solveRachfordRice_g_(const ComponentVector& K, const ComponentVector& globalComposition, int verbosity)
     {
         // Find min and max K. Have to do a laborious for loop to avoid water component (where K=0)
         // TODO: Replace loop with Dune::min_value() and Dune::max_value() when water component is properly handled
@@ -405,8 +405,8 @@ protected:
         throw std::runtime_error(" Rachford-Rice did not converge within maximum number of iterations" );
     }
 
-    template <class Vector>
-    static typename Vector::field_type bisection_g_(const Vector& K, Evaluation Lmin, Evaluation Lmax, const Vector& globalComposition, int verbosity)
+    template <class ComponentVector>
+    static typename ComponentVector::field_type bisection_g_(const ComponentVector& K, Evaluation Lmin, Evaluation Lmax, const ComponentVector& globalComposition, int verbosity)
     {
         // Calculate for g(Lmin) for first comparison with gMid = g(L)
         Evaluation gLmin = rachfordRice_g_(K, Lmin, globalComposition);
