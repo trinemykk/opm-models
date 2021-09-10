@@ -84,11 +84,10 @@ public:
      * \brief Calculates the fluid state from the global mole fractions of the components and the phase pressures
      *
      */
-    template <class FluidState, class Problem>
+    template <class FluidState>
     static void solve(FluidState& fluidState,
                       const Dune::FieldVector<typename FluidState::Scalar, numComponents>& globalComposition,
                       int spatialIdx,
-                      const Problem& problem,
                       int verbosity,
                       std::string twoPhaseMethod,
                       Scalar tolerance)
@@ -113,10 +112,10 @@ public:
         //K and L from previous timestep (wilson and -1 initially)
         ComponentVector K;
         for(int compIdx = 0; compIdx < numComponents; ++compIdx) {
-            K[compIdx] = problem.getKvalue(compIdx, spatialIdx);
+            K[compIdx] = fluidState.K(compIdx);
         }
         InputEval L;
-        L = problem.getLvalue(spatialIdx);
+        L = fluidState.L(0);
 
         // Print header
         if (verbosity >= 1) {
@@ -193,10 +192,10 @@ public:
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
         //Update L and K to the problem for the next flash
-        //for (int compIdx = 0; compIdx < numComponents; ++compIdx){
-        //    problem.setKvalue(compIdx,spatialIdx, Opm::getValue(K[compIdx]));
-        //}
-        //problem.setLvalue(spatialIdx, Opm::getValue(L));
+        for (int compIdx = 0; compIdx < numComponents; ++compIdx){
+            fluidState.setKvalue(compIdx, K[compIdx]);
+        }
+        fluidState.setLvalue(L);
 
 
         // Print saturation
