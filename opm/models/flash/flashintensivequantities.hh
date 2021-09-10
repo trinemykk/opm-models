@@ -131,11 +131,29 @@ public:
         for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
             fluidState_.setPressure(phaseIdx, p);
 
+        // Get initial K and L from storage initially (if enabled)
+        const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
+        if (hint) {
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                const Evaluation& Ktmp = hint->fluidState().K(compIdx);
+                fluidState_.setKvalue(compIdx, Ktmp);
+            }
+            const Evaluation& Ltmp = hint->fluidState().L(0);
+            fluidState_.setLvalue(Ltmp);
+        }
+        else {
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                const Evaluation Ktmp = fluidState_.wilsonK_(compIdx);
+                fluidState_.setKvalue(compIdx, Ktmp);
+            }
+            const Evaluation& Ltmp = -1.0;
+            fluidState_.setLvalue(Ltmp);
+        }
         /////////////
         // Compute the phase compositions and densities 
         /////////////
         int spatialIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
-        FlashSolver::solve(fluidState_, z, spatialIdx, problem, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+        FlashSolver::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
         
         /////////////
         // Compute rel. perm and viscosities

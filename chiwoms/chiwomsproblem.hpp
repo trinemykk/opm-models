@@ -434,19 +434,19 @@ public:
      */
     template <class Context>
     void initial(PrimaryVariables& values, const Context& context, unsigned spaceIdx,
-                 unsigned timeIdx)
+                 unsigned timeIdx) const
     {
         Opm::CompositionalFluidState<Scalar, FluidSystem> fs;
         initialFs(fs, context, spaceIdx, timeIdx);
         values.assignNaive(fs);
 
         //
-        int spatialIdx = context.globalSpaceIndex(spaceIdx, timeIdx);
-        for(int compIdx = 0; compIdx < numComponents; ++compIdx){
-            Scalar tmp = wilsonK_(fs, compIdx);
-            setKvalue(compIdx, spatialIdx, tmp);
-        }
-        setLvalue(spatialIdx, -1.0);
+        // int spatialIdx = context.globalSpaceIndex(spaceIdx, timeIdx);
+        // for(int compIdx = 0; compIdx < numComponents; ++compIdx){
+        //     Scalar tmp = wilsonK_(fs, compIdx);
+        //     setKvalue(compIdx, spatialIdx, tmp);
+        // }
+        // setLvalue(spatialIdx, -1.0);
     }
 
 
