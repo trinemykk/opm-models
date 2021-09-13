@@ -281,43 +281,35 @@ template <class TypeTag>
 class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
 {
     using ParentType = GetPropType<TypeTag, Properties::BaseProblem>;
-
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
     using GridView = GetPropType<TypeTag, Properties::GridView>;
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
     using MaterialLawParams = GetPropType<TypeTag, Properties::MaterialLawParams>;
-
+    using Indices = GetPropType<TypeTag, Properties::Indices>;
+    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
+    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
+    using BoundaryRateVector = GetPropType<TypeTag, Properties::BoundaryRateVector>;
+    using Toolbox = Opm::MathToolbox<Evaluation>;
+    using CoordScalar = typename GridView::ctype;
+    using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using Model = GetPropType<TypeTag, Properties::Model>;
 
     enum { dim = GridView::dimension };
     enum { dimWorld = GridView::dimensionworld };
-
-    // copy some indices for convenience
-    using Indices = GetPropType<TypeTag, Properties::Indices>;
     enum { numPhases = FluidSystem::numPhases };
-    enum {
-        oilPhaseIdx = FluidSystem::oilPhaseIdx,
-        gasPhaseIdx = FluidSystem::gasPhaseIdx,
-    };
-    enum { Comp1Idx = FluidSystem::Comp1Idx };//change to comp1
-    enum { Comp0Idx = FluidSystem::Comp0Idx };//change to comp0
-    enum { Comp2Idx = FluidSystem::Comp2Idx };//change to comp2
+    enum { oilPhaseIdx = FluidSystem::oilPhaseIdx };
+    enum { gasPhaseIdx = FluidSystem::gasPhaseIdx };
+    enum { Comp1Idx = FluidSystem::Comp1Idx };
+    enum { Comp0Idx = FluidSystem::Comp0Idx };
+    enum { Comp2Idx = FluidSystem::Comp2Idx };
     enum { conti0EqIdx = Indices::conti0EqIdx };
     enum { contiCO2EqIdx = conti0EqIdx + Comp1Idx };
     enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
     enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
     enum { enableGravity = getPropValue<TypeTag, Properties::EnableGravity>() };
 
-    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
-    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
-    using BoundaryRateVector = GetPropType<TypeTag, Properties::BoundaryRateVector>;
-
-    using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
-    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
-    using Model = GetPropType<TypeTag, Properties::Model>;
-
-    using Toolbox = Opm::MathToolbox<Evaluation>;
-    using CoordScalar = typename GridView::ctype;
     using GlobalPosition = Dune::FieldVector<CoordScalar, dimWorld>;
     using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
     using FullField = Dune::FieldMatrix<Scalar, NX, NY>;//    typedef Dune::FieldMatrix<Scalar, NX, NY> FullField;
@@ -360,8 +352,6 @@ public:
     void finishInit()
     {
         ParentType::finishInit();
-
-
         // initialize fixed parameters; temperature, permeability, porosity
         initPetrophysics();
     }
@@ -385,11 +375,6 @@ public:
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, EpisodeLength,
                              "Time interval [s] for episode length");
     }
-
-    /*!
-     * \name Problem parameters
-     */
-    //! \{
 
     /*!
      * \copydoc FvBaseProblem::name
@@ -454,7 +439,6 @@ public:
         initialFs(fs, context, spaceIdx, timeIdx);
         values.assignNaive(fs);
 
-    //std::cout << "primary variables for cell " << context.globalSpaceIndex(spaceIdx, timeIdx) << ": " << values << "\n";
     }
 
     // Constant temperature
@@ -499,7 +483,7 @@ public:
                   unsigned spaceIdx, unsigned timeIdx) const
     {
         const Scalar eps = std::numeric_limits<double>::epsilon();
-	    const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
+	const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
 
         if (onLeftBoundary_(pos)) {
             Scalar inflowrate = EWOMS_GET_PARAM(TypeTag, Scalar, Inflowrate);
@@ -557,7 +541,8 @@ private:
         const auto& matParams = this->materialLawParams(context, spaceIdx, timeIdx);
         MaterialLaw::capillaryPressures(pC, matParams, fs);
 
-        // pressure; oleic phase is the reference
+        // pressure; set simple hydrostatic pressure initially.
+        // OBS: If horizontal (NZ = 1), then h = Z_SIZE/2 since boundingBoxMax is cell edge
         Scalar init_pressure = EWOMS_GET_PARAM(TypeTag, Scalar, Initialpressure);
         Scalar p_init;
         if (enableGravity) {
@@ -591,9 +576,8 @@ private:
         fs.setSaturation(FluidSystem::oilPhaseIdx, 1.0);
         fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
 
-
         // fill in viscosity and enthalpy based on the state set above
-        // and the fluid system defined in this class
+        // and the fluid system defined in this class. Oleic phase is the reference        
         typename FluidSystem::template ParameterCache<Scalar> paramCache;
                 using CFRP = Opm::ComputeFromReferencePhase<Scalar, FluidSystem>;
         CFRP::solve(fs, paramCache,

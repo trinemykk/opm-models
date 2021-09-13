@@ -56,6 +56,7 @@ namespace Opm {
 template <class Scalar, class Evaluation, class FluidSystem>
 class ChiFlash
 {
+    //using Problem = GetPropType<TypeTag, Properties::Problem>;
     enum { numPhases = FluidSystem::numPhases };
     enum { numComponents = FluidSystem::numComponents };
     enum { Comp2Idx = FluidSystem::Comp2Idx }; //rename for generic ?
@@ -98,6 +99,7 @@ public:
         using FlashEval = Opm::DenseAd::Evaluation</*Scalar=*/InputEval, /*numDerivs=*/numEq>;
         using FlashDefectVector = Dune::FieldVector<FlashEval, numEq>;
         using FlashFluidState = Opm::CompositionalFluidState<FlashEval, FluidSystem, /*energy=*/false>;
+        
         using ComponentVector = Dune::FieldVector<typename FluidState::Scalar, numComponents>;
 
 #if ! DUNE_VERSION_NEWER(DUNE_COMMON, 2,7)
@@ -106,57 +108,37 @@ public:
 
         if (tolerance <= 0)
             tolerance = std::min<Scalar>(1e-3, 1e8*std::numeric_limits<Scalar>::epsilon());
-
-        // PSEUDOCODE for what the code does:
-        // for two-phase --> go directly to flash (TODO)
-        // TODO: if two-phase, go directly to flash -> IMPLEMENT ??
-        // "cells that are two-phase can be flashed directly"
-        // EDIT: cells that are two-phase (skip below)
-        // twoPhase = getTwoPhaseFlag(state)
-        // if single-phase
-            // check if it stays single phase (P, T, globalComp, K)
-            // --> x0, y0, updatedSingle
-            // K0(updatedSingle) = y0(updatedSingle)./x0(updatedSingle);
-            // solveRachfordRice (L0, Ko, z);
-            // --> new L0
-            // calculate Si_L, Si_V, A_L, A_V, B_L, B_B, Bi
-            // calculate ZO_L, ZO_V
-        // end if single-phase
-
-            // for "active" cells
-            // newtonCompositionUpdate(P, T, z, K, L);
-            // --> x, y, K, Z_L, Z_V, L
-
-
-        // for single-phase : DO STABILITYTEST --> initial K0 (TODO)
-        // solve Rachford Rice (using K0, L0, z) for stabilityTest showing that singlePhase --> twoPhase --> L0 (TODO)
-        // newtonCompositionUpdate using p, T, z, K and L
-
-        // Initial guess for the K value using Wilson's formula
+        
+        //K and L from previous timestep (wilson and -1 initially)
         ComponentVector K;
-        for (int compIdx = 0; compIdx<numComponents; ++compIdx) {
-            K[compIdx] = wilsonK_(fluidState, compIdx);
+        for(int compIdx = 0; compIdx < numComponents; ++compIdx) {
+            K[compIdx] = fluidState.K(compIdx);
         }
+        InputEval L;
+        L = fluidState.L(0);
 
         // Print header
         if (verbosity >= 1) {
             std::cout << "********" << std::endl;
             std::cout << "Flash calculations on Cell " << spatialIdx << std::endl;
-            std::cout << "Stability test with K = [" << K << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
+            std::cout << "Inputs are K = [" << K << "], L = [" << L << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
+        }
+       
+        // Do a stability test to check if cell is single-phase (do for all cells the first time).
+        bool isStable = false;
+        if ( L <= 0 || L == 1 ) {
+             if (verbosity >= 1) {
+                 std::cout << "Perform stability test (L <= 0 or L == 1)!" << std::endl;
+             }
+            phaseStabilityTest_(isStable, K, fluidState, globalComposition, verbosity);
         }
 
-        // First we do stability test to check if cell is single-phase. If so, we do not need to do Newton update
-        // Phase stability test
-        bool isStable = false;
-        phaseStabilityTest_(isStable, K, fluidState, globalComposition, verbosity);
-        
         // Update the composition if cell is two-phase
-        InputEval L;
         if (isStable == false) {
             
             // Print info
             if (verbosity >= 1) {
-                std::cout << "Cell is two-phase! Solve Rachford-Rice with K = [" << K << "] and z = [" << globalComposition << "]" << std::endl;
+                std::cout << "Cell is two-phase! Solve Rachford-Rice with initial K = [" << K << "]" << std::endl;
             }
 
             // Rachford Rice equation to get initial L for composition solver
@@ -167,7 +149,6 @@ public:
             if (twoPhaseMethod == "newton"){
                 if (verbosity >= 1) {
                     std::cout << "Calculate composition using Newton." << std::endl;
-                    std::cout << "Initial guess: K = [" << K << "], z = [" << globalComposition << "], and L = " << L << std::endl;
                 }
                 newtonCompositionUpdate_(K, L, fluidState, globalComposition, verbosity);
                 
@@ -177,7 +158,6 @@ public:
             else if (twoPhaseMethod == "ssi"){
                 if (verbosity >= 1) {
                     std::cout << "Calculate composition using Succcessive Substitution." << std::endl;
-                    std::cout << "Initial guess: K = [" << K << "], z = [" << globalComposition << "], and L = " << L << std::endl;
                 }
                 successiveSubstitutionComposition_(K, L, fluidState, globalComposition, /*standAlone=*/true, verbosity);
             }
@@ -212,6 +192,13 @@ public:
         fluidState.setSaturation(oilPhaseIdx, So);
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
+        //Update L and K to the problem for the next flash
+        for (int compIdx = 0; compIdx < numComponents; ++compIdx){
+            fluidState.setKvalue(compIdx, K[compIdx]);
+        }
+        fluidState.setLvalue(L);
+
+
         // Print saturation
         if (verbosity == 5) {
             std::cout << "So = " << So <<std::endl;
@@ -245,6 +232,7 @@ public:
 
 
 protected:
+
     template <class FlashFluidState>
     static typename FlashFluidState::Scalar wilsonK_(const FlashFluidState& fluidState, int compIdx)
     {
@@ -293,7 +281,7 @@ protected:
             L = 1.0;
 
             // Print
-            if (verbosity == 3 || verbosity == 4) {
+            if (verbosity >= 1) {
                 std::cout << "Cell is single-phase, liquid (L = 1.0) due to Li's phase labeling method giving T < Tc_est (" << T << " < " << Tc_est << ")!" << std::endl;
             }
         }
@@ -302,7 +290,7 @@ protected:
             L = 0.0;
             
             // Print
-            if (verbosity == 3 || verbosity == 4) {
+            if (verbosity >= 1) {
                 std::cout << "Cell is single-phase, vapor (L = 0.0) due to Li's phase labeling method giving T >= Tc_est (" << T << " >= " << Tc_est << ")!" << std::endl;
             }
         }
@@ -461,25 +449,21 @@ protected:
     {
         // Declarations
         bool isTrivialL, isTrivialV;
-        ComponentVector K_l, K_v, x, y;
+        ComponentVector x, y;
         Evaluation S_l, S_v;
-
-        // Use equilibrium constants made with Wilson's formula
-        K_l = K;
-        K_v = K;
 
         // Check for vapour instable phase
         if (verbosity == 3 || verbosity == 4) {
             std::cout << "Stability test for vapor phase:" << std::endl;
         }
-        checkStability_(fluidState, isTrivialV, K_v, y, S_v, globalComposition, /*isGas=*/true, verbosity);
+        checkStability_(fluidState, isTrivialV, K, y, S_v, globalComposition, /*isGas=*/true, verbosity);
         bool V_unstable = (S_v < (1.0 + 1e-5)) || isTrivialV;
 
         // Check for liquids stable phase
         if (verbosity == 3 || verbosity == 4) {
             std::cout << "Stability test for liquid phase:" << std::endl;
         }
-        checkStability_(fluidState, isTrivialL, K_l, x, S_l, globalComposition, /*isGas=*/false, verbosity);
+        checkStability_(fluidState, isTrivialL, K, x, S_l, globalComposition, /*isGas=*/false, verbosity);
         bool L_stable = (S_l < (1.0 + 1e-5)) || isTrivialL;
 
         // L-stable means success in making liquid, V-unstable means no success in making vapour
@@ -492,7 +476,7 @@ protected:
                 fluidState.setMoleFraction(oilPhaseIdx, compIdx, globalComposition[compIdx]);
             }
         }
-        // If it is not stable, we use the mole fractions from the Michelsen test to calculate a new K
+        // If not stable: use the mole fractions from Michelsen's test to update K
         else {
             for (int compIdx = 0; compIdx<numComponents; ++compIdx) {
                 K[compIdx] = y[compIdx] / x[compIdx];
@@ -625,6 +609,8 @@ protected:
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
             fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
             fluidState.setMoleFraction(gasPhaseIdx, compIdx, y[compIdx]);
+            //SET k ??
+
         }
     }
 
@@ -640,13 +626,32 @@ protected:
         NewtonMatrix newtonA;
         NewtonVector newtonDelta;
 
+        // Compute x and y from K, L and Z
+        computeLiquidVapor_(fluidState, L, K, globalComposition);
+
+        // Print initial condition
+        if (verbosity >= 1) {
+            std::cout << "Initial guess: x = [";
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                if (compIdx < numComponents - 1)
+                    std::cout << fluidState.moleFraction(oilPhaseIdx, compIdx) << " ";
+                else
+                    std::cout << fluidState.moleFraction(oilPhaseIdx, compIdx);
+            }
+            std::cout << "], y = [";
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                if (compIdx < numComponents - 1)
+                    std::cout << fluidState.moleFraction(gasPhaseIdx, compIdx) << " ";
+                else
+                    std::cout << fluidState.moleFraction(gasPhaseIdx, compIdx);
+            }
+            std::cout << "], and " << "L = " << L << std::endl;
+        }
+
         // Print header
         if (verbosity == 2 || verbosity == 4) {
             std::cout << std::setw(10) << "Iteration" << std::setw(16) << "Norm2(step)" << std::setw(16) << "Norm2(Residual)" << std::endl;
         }
-
-        // Compute x and y from K, L and Z
-        computeLiquidVapor_(fluidState, L, K, globalComposition);
 
         // Assign primary variables (x, y and L)
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
@@ -850,7 +855,20 @@ protected:
             maxIterations = 100;
         else
             maxIterations = 10;
+        
+        // Store cout format before manipulation
+        std::ios_base::fmtflags f(std::cout.flags());
+        
+        // Print initial guess
+        if (verbosity >= 1)
+            std::cout << "Initial guess: K = [" << K << "] and L = " << L << std::endl;
 
+        if (verbosity == 2 || verbosity == 4) {
+            // Print header
+            int fugWidth = (numComponents * 12)/2;
+            int convWidth = fugWidth + 7;
+            std::cout << std::setw(10) << "Iteration" << std::setw(fugWidth) << "fL/fV" << std::setw(convWidth) << "norm2(fL/fv-1)" << std::endl;
+        }
         // 
         // Successive substitution loop
         // 
@@ -870,13 +888,33 @@ protected:
             }
             
             // Calculate fugacity ratio
-            ComponentVector fugRatio;
+            ComponentVector newFugRatio;
+            ComponentVector convFugRatio;
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                fugRatio[compIdx] = (fluidState.fugacity(oilPhaseIdx, compIdx)/fluidState.fugacity(gasPhaseIdx, compIdx)) - 1.0;
+                newFugRatio[compIdx] = fluidState.fugacity(oilPhaseIdx, compIdx)/fluidState.fugacity(gasPhaseIdx, compIdx);
+                convFugRatio[compIdx] = newFugRatio[compIdx] - 1.0;
+            }
+
+            // Print iteration info
+            if (verbosity == 2 || verbosity == 4) {
+                int prec = 5;
+                int fugWidth = (prec + 3);
+                int convWidth = prec + 9;
+                std::cout << std::defaultfloat;
+                std::cout << std::fixed;
+                std::cout << std::setw(5) << i;
+                std::cout << std::setw(fugWidth);
+                std::cout << std::setprecision(prec);
+                std::cout << newFugRatio;
+                std::cout << std::scientific;
+                std::cout << std::setw(convWidth) << convFugRatio.two_norm() << std::endl;
             }
 
             // Check convergence
-            if (fugRatio.two_norm() < 1e-6){
+            if (convFugRatio.two_norm() < 1e-6){
+                // Restore cout format
+                std::cout.flags(f); 
+
                 // Print info
                 if (verbosity >= 1) {
                     std::cout << "Solution converged to the following result :" << std::endl;
@@ -899,6 +937,7 @@ protected:
                     std::cout << "K = [" << K << "]" << std::endl;
                     std::cout << "L = " << L << std::endl;
                 }
+                // Restore cout format format
                 return;
             }
             
@@ -906,7 +945,7 @@ protected:
             else{
                 // Update K
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                    K[compIdx] *= (fugRatio[compIdx] + 1.0);
+                    K[compIdx] *= newFugRatio[compIdx];
                 }
 
                 // Solve Rachford-Rice to get L from updated K
