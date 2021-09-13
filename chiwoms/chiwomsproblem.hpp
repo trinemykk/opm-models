@@ -306,6 +306,7 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
     enum { contiCO2EqIdx = conti0EqIdx + Comp1Idx };
     enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
     enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
+    enum { enableGravity = getPropValue<TypeTag, Properties::EnableGravity>() };
 
     using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
     using RateVector = GetPropType<TypeTag, Properties::RateVector>;
@@ -558,12 +559,17 @@ private:
 
         // pressure; oleic phase is the reference
         Scalar init_pressure = EWOMS_GET_PARAM(TypeTag, Scalar, Initialpressure);
-        Scalar densityW = 1000.;
-        const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
-        Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
-        Scalar p_hydrostatic = (init_pressure*1e5) + densityW * h * 9.81;
-        fs.setPressure(oilPhaseIdx, p_hydrostatic);
-        fs.setPressure(gasPhaseIdx, p_hydrostatic);
+        Scalar p_init;
+        if (enableGravity) {
+            Scalar densityW = 1000.;
+            const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
+            Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
+            p_init = (init_pressure*1e5) + densityW * h * 9.81;
+        }
+        else
+            p_init = init_pressure*1e5;
+        fs.setPressure(oilPhaseIdx, p_init);
+        fs.setPressure(gasPhaseIdx, p_init);
 
         // composition
         fs.setMoleFraction(oilPhaseIdx, Comp0Idx, MFCOMP0);
