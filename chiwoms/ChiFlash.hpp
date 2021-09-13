@@ -121,12 +121,15 @@ public:
         if (verbosity >= 1) {
             std::cout << "********" << std::endl;
             std::cout << "Flash calculations on Cell " << spatialIdx << std::endl;
-            std::cout << "Stability test with K = [" << K << "], L = [" << L << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
+            std::cout << "Inputs are K = [" << K << "], L = [" << L << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
         }
        
         // Do a stability test to check if cell is single-phase (do for all cells the first time).
         bool isStable = false;
         if ( L <= 0 || L == 1 ) {
+             if (verbosity >= 1) {
+                 std::cout << "Perform stability test (L <= 0 or L == 1)!" << std::endl;
+             }
             phaseStabilityTest_(isStable, K, fluidState, globalComposition, verbosity);
         }
 
@@ -135,7 +138,7 @@ public:
             
             // Print info
             if (verbosity >= 1) {
-                std::cout << "Cell is two-phase! Solve Rachford-Rice with K = [" << K << "] and z = [" << globalComposition << "]" << std::endl;
+                std::cout << "Cell is two-phase! Solve Rachford-Rice with initial K = [" << K << "]" << std::endl;
             }
 
             // Rachford Rice equation to get initial L for composition solver
@@ -146,7 +149,6 @@ public:
             if (twoPhaseMethod == "newton"){
                 if (verbosity >= 1) {
                     std::cout << "Calculate composition using Newton." << std::endl;
-                    std::cout << "Initial guess: K = [" << K << "], z = [" << globalComposition << "], and L = " << L << std::endl;
                 }
                 newtonCompositionUpdate_(K, L, fluidState, globalComposition, verbosity);
                 
@@ -156,7 +158,6 @@ public:
             else if (twoPhaseMethod == "ssi"){
                 if (verbosity >= 1) {
                     std::cout << "Calculate composition using Succcessive Substitution." << std::endl;
-                    std::cout << "Initial guess: K = [" << K << "], z = [" << globalComposition << "], and L = " << L << std::endl;
                 }
                 successiveSubstitutionComposition_(K, L, fluidState, globalComposition, /*standAlone=*/true, verbosity);
             }
@@ -280,7 +281,7 @@ protected:
             L = 1.0;
 
             // Print
-            if (verbosity == 3 || verbosity == 4) {
+            if (verbosity >= 1) {
                 std::cout << "Cell is single-phase, liquid (L = 1.0) due to Li's phase labeling method giving T < Tc_est (" << T << " < " << Tc_est << ")!" << std::endl;
             }
         }
@@ -289,7 +290,7 @@ protected:
             L = 0.0;
             
             // Print
-            if (verbosity == 3 || verbosity == 4) {
+            if (verbosity >= 1) {
                 std::cout << "Cell is single-phase, vapor (L = 0.0) due to Li's phase labeling method giving T >= Tc_est (" << T << " >= " << Tc_est << ")!" << std::endl;
             }
         }
@@ -625,13 +626,32 @@ protected:
         NewtonMatrix newtonA;
         NewtonVector newtonDelta;
 
+        // Compute x and y from K, L and Z
+        computeLiquidVapor_(fluidState, L, K, globalComposition);
+
+        // Print initial condition
+        if (verbosity >= 1) {
+            std::cout << "Initial guess: x = [";
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                if (compIdx < numComponents - 1)
+                    std::cout << fluidState.moleFraction(oilPhaseIdx, compIdx) << " ";
+                else
+                    std::cout << fluidState.moleFraction(oilPhaseIdx, compIdx);
+            }
+            std::cout << "], y = [";
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                if (compIdx < numComponents - 1)
+                    std::cout << fluidState.moleFraction(gasPhaseIdx, compIdx) << " ";
+                else
+                    std::cout << fluidState.moleFraction(gasPhaseIdx, compIdx);
+            }
+            std::cout << "], and " << "L = " << L << std::endl;
+        }
+
         // Print header
         if (verbosity == 2 || verbosity == 4) {
             std::cout << std::setw(10) << "Iteration" << std::setw(16) << "Norm2(step)" << std::setw(16) << "Norm2(Residual)" << std::endl;
         }
-
-        // Compute x and y from K, L and Z
-        computeLiquidVapor_(fluidState, L, K, globalComposition);
 
         // Assign primary variables (x, y and L)
         for (int compIdx=0; compIdx<numComponents; ++compIdx){
@@ -835,7 +855,20 @@ protected:
             maxIterations = 100;
         else
             maxIterations = 10;
+        
+        // Store cout format before manipulation
+        std::ios_base::fmtflags f(std::cout.flags());
+        
+        // Print initial guess
+        if (verbosity >= 1)
+            std::cout << "Initial guess: K = [" << K << "] and L = " << L << std::endl;
 
+        if (verbosity == 2 || verbosity == 4) {
+            // Print header
+            int fugWidth = (numComponents * 12)/2;
+            int convWidth = fugWidth + 7;
+            std::cout << std::setw(10) << "Iteration" << std::setw(fugWidth) << "fL/fV" << std::setw(convWidth) << "norm2(fL/fv-1)" << std::endl;
+        }
         // 
         // Successive substitution loop
         // 
@@ -855,13 +888,33 @@ protected:
             }
             
             // Calculate fugacity ratio
-            ComponentVector fugRatio;
+            ComponentVector newFugRatio;
+            ComponentVector convFugRatio;
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                fugRatio[compIdx] = (fluidState.fugacity(oilPhaseIdx, compIdx)/fluidState.fugacity(gasPhaseIdx, compIdx)) - 1.0;
+                newFugRatio[compIdx] = fluidState.fugacity(oilPhaseIdx, compIdx)/fluidState.fugacity(gasPhaseIdx, compIdx);
+                convFugRatio[compIdx] = newFugRatio[compIdx] - 1.0;
+            }
+
+            // Print iteration info
+            if (verbosity == 2 || verbosity == 4) {
+                int prec = 5;
+                int fugWidth = (prec + 3);
+                int convWidth = prec + 9;
+                std::cout << std::defaultfloat;
+                std::cout << std::fixed;
+                std::cout << std::setw(5) << i;
+                std::cout << std::setw(fugWidth);
+                std::cout << std::setprecision(prec);
+                std::cout << newFugRatio;
+                std::cout << std::scientific;
+                std::cout << std::setw(convWidth) << convFugRatio.two_norm() << std::endl;
             }
 
             // Check convergence
-            if (fugRatio.two_norm() < 1e-6){
+            if (convFugRatio.two_norm() < 1e-6){
+                // Restore cout format
+                std::cout.flags(f); 
+
                 // Print info
                 if (verbosity >= 1) {
                     std::cout << "Solution converged to the following result :" << std::endl;
@@ -884,6 +937,7 @@ protected:
                     std::cout << "K = [" << K << "]" << std::endl;
                     std::cout << "L = " << L << std::endl;
                 }
+                // Restore cout format format
                 return;
             }
             
@@ -891,7 +945,7 @@ protected:
             else{
                 // Update K
                 for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                    K[compIdx] *= (fugRatio[compIdx] + 1.0);
+                    K[compIdx] *= newFugRatio[compIdx];
                 }
 
                 // Solve Rachford-Rice to get L from updated K
