@@ -912,9 +912,11 @@ protected:
 
             // Check convergence
             if (convFugRatio.two_norm() < 1e-6){
+                // Restore cout format
+                std::cout.flags(f); 
+
                 // Print info
                 if (verbosity >= 1) {
-                    std::cout.flags(f); /*Restore cout format*/
                     std::cout << "Solution converged to the following result :" << std::endl;
                     std::cout << "x = [";
                     for (int compIdx=0; compIdx<numComponents; ++compIdx){
