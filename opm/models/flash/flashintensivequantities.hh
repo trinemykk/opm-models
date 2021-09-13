@@ -133,12 +133,21 @@ public:
 
         // Get initial K and L from storage initially (if enabled)
         const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
+        const auto *hint2 = elemCtx.thermodynamicHint(dofIdx, 1);
         if (hint) {
             for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
                 const Evaluation& Ktmp = hint->fluidState().K(compIdx);
                 fluidState_.setKvalue(compIdx, Ktmp);
             }
             const Evaluation& Ltmp = hint->fluidState().L(0);
+            fluidState_.setLvalue(Ltmp);
+        }
+        else if (hint2) {
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                const Evaluation& Ktmp = hint2->fluidState().K(compIdx);
+                fluidState_.setKvalue(compIdx, Ktmp);
+            }
+            const Evaluation& Ltmp = hint2->fluidState().L(0);
             fluidState_.setLvalue(Ltmp);
         }
         else {
