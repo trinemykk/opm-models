@@ -78,7 +78,7 @@ class FlashIntensiveQuantities
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
     using FlashSolver = GetPropType<TypeTag, Properties::FlashSolver>;
-
+    using Problem = GetPropType<TypeTag, Properties::Problem>;
     using ComponentVector = Dune::FieldVector<Evaluation, numComponents>;
     using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
 
@@ -131,6 +131,33 @@ public:
         for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
             fluidState_.setPressure(phaseIdx, p);
 
+        // Get initial K and L from storage initially (if enabled)
+        const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
+        const auto *hint2 = elemCtx.thermodynamicHint(dofIdx, 1);
+        if (hint) {
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                const Evaluation& Ktmp = hint->fluidState().K(compIdx);
+                fluidState_.setKvalue(compIdx, Ktmp);
+            }
+            const Evaluation& Ltmp = hint->fluidState().L(0);
+            fluidState_.setLvalue(Ltmp);
+        }
+        else if (hint2) {
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                const Evaluation& Ktmp = hint2->fluidState().K(compIdx);
+                fluidState_.setKvalue(compIdx, Ktmp);
+            }
+            const Evaluation& Ltmp = hint2->fluidState().L(0);
+            fluidState_.setLvalue(Ltmp);
+        }
+        else {
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                const Evaluation Ktmp = fluidState_.wilsonK_(compIdx);
+                fluidState_.setKvalue(compIdx, Ktmp);
+            }
+            const Evaluation& Ltmp = -1.0;
+            fluidState_.setLvalue(Ltmp);
+        }
         /////////////
         // Compute the phase compositions and densities 
         /////////////
