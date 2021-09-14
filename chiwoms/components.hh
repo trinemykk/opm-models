@@ -36,8 +36,8 @@ public:
         /// Acentric factor
         static Scalar acentricFactor() { return 0.398; }
 
-        // Critical volume [m3/kmol]
-        static Scalar criticalVolume() {return 4.92e-7; }
+        // Critical volume [m3/kmol] (same as [L/mol])
+        static Scalar criticalVolume() {return 4.92e-1; }
 };
 
 template <class Scalar>
@@ -59,8 +59,8 @@ public:
         /// Acentric factor
         static Scalar acentricFactor() { return 0.4884; }
 
-        // Critical volume [m3/kmol]
-        static Scalar criticalVolume() {return 6.0976e-7; }
+        // Critical volume [m3/kmol] (same as [L/mol])
+        static Scalar criticalVolume() {return 6.0976e-1; }
 };
 
 template <class Scalar>
@@ -83,7 +83,7 @@ public:
         static Scalar acentricFactor() { return 0.0114; }
 
         // Critical volume [m3/kmol]
-        static Scalar criticalVolume() {return 9.8628e-8; }
+        static Scalar criticalVolume() {return 9.8628e-2; }
 };
 
 
@@ -107,7 +107,7 @@ public:
         static Scalar acentricFactor() { return -0.22; }
 
         // Critical volume [m3/kmol]
-        static Scalar criticalVolume() {return 6.45e-8; }
+        static Scalar criticalVolume() {return 6.45e-2; }
 
 };
 
@@ -131,7 +131,7 @@ public:
         static Scalar acentricFactor() { return 0.039; }
 
         // Critical volume [m3/kmol]
-        static Scalar criticalVolume() {return 8.94e-8; }
+        static Scalar criticalVolume() {return 8.94e-2; }
 };
 
 template <class Scalar>
@@ -154,7 +154,7 @@ public:
         static Scalar acentricFactor() { return 0.344; }
 
         // Critical volume [m3/kmol]
-        static Scalar criticalVolume() {return 5.595e-8; }
+        static Scalar criticalVolume() {return 5.595e-2; }
 };
 
 template <class Scalar>
@@ -177,7 +177,7 @@ public:
         static Scalar acentricFactor() { return 0.225; }
 
         // Critical volume [m3/kmol]
-        static Scalar criticalVolume() {return 9.4118e-8; }
+        static Scalar criticalVolume() {return 9.4118e-2; }
 };
 
 template <class Scalar>
@@ -200,7 +200,7 @@ public:
         static Scalar acentricFactor() { return 0.344; }
 
         // Critical volume [m3/kmol]
-        static Scalar criticalVolume() {return 5.595e-8; }
+        static Scalar criticalVolume() {return 5.595e-2; }
 };
 
 struct EOS
