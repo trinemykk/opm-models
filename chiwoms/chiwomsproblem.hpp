@@ -544,8 +544,9 @@ private:
         // pressure; set simple hydrostatic pressure initially.
         // OBS: If horizontal (NZ = 1), then h = Z_SIZE/2 since boundingBoxMax is cell edge
         Scalar init_pressure = EWOMS_GET_PARAM(TypeTag, Scalar, Initialpressure);
+        bool enable_gravity = EWOMS_GET_PARAM(TypeTag, bool, EnableGravity);
         Scalar p_init;
-        if (enableGravity) {
+        if (enable_gravity == true) {
             Scalar densityW = 1000.;
             const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
             Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
