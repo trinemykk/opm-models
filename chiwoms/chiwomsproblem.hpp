@@ -295,6 +295,8 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
     using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
     using Simulator = GetPropType<TypeTag, Properties::Simulator>;
     using Model = GetPropType<TypeTag, Properties::Model>;
+    using H2O = typename Opm::H2O<Scalar>;
+    using Brine = typename Opm::Brine<Scalar, H2O>;
 
     enum { dim = GridView::dimension };
     enum { dimWorld = GridView::dimensionworld };
@@ -546,7 +548,7 @@ private:
         bool enable_gravity = EWOMS_GET_PARAM(TypeTag, bool, EnableGravity);
         Scalar p_init;
         if (enable_gravity == true) {
-            Scalar densityW = 1000.;
+            Scalar densityW = Brine::liquidDensity(temperature_, Scalar(init_pressure));
             const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
             Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
             p_init = (init_pressure*1e5) + densityW * h * 9.81;
