@@ -126,9 +126,9 @@ public:
         static const int Comp2Idx = 2;
 
        // TODO: make this a loop over choises in chiwoms.hh
-        // using Comp0 = Opm::Methane<Scalar>;
         using Comp0 = Opm::ChiwomsBrine<Scalar>;
         using Comp1 = Opm::ChiwomsCO2<Scalar>;
+        //using Comp2 = Opm::Hydrogen<Scalar>;
         using Comp2 = Opm::Hydrogen<Scalar>;
 
     static void init(Scalar minT = 273.15,
