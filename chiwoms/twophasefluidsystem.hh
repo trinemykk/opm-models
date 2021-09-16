@@ -114,7 +114,7 @@ public:
          ****************************************/
 
         //! \copydoc BaseFluidSystem::numComponents
-        static const int numComponents = 2;  // Comp0, Comp1 and Comp2
+        static const int numComponents = 3;  // Comp0, Comp1 and Comp2
 
         //! first comp idx
         static const int Comp0Idx = 0;

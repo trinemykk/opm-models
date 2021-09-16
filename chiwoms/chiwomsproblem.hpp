@@ -576,11 +576,11 @@ private:
         // composition
         fs.setMoleFraction(oilPhaseIdx, Comp0Idx, MFCOMP0);
         fs.setMoleFraction(oilPhaseIdx, Comp1Idx, MFCOMP1); 
-        // fs.setMoleFraction(oilPhaseIdx, Comp2Idx, MFCOMP2);
+        fs.setMoleFraction(oilPhaseIdx, Comp2Idx, MFCOMP2);
 
         fs.setMoleFraction(gasPhaseIdx, Comp0Idx, MFCOMP0);
         fs.setMoleFraction(gasPhaseIdx, Comp1Idx, MFCOMP1);
-        // fs.setMoleFraction(gasPhaseIdx, Comp2Idx, MFCOMP2);
+        fs.setMoleFraction(gasPhaseIdx, Comp2Idx, MFCOMP2);
         
        // fs.setMoleFraction(waterPhaseIdx, Comp0Idx, 1.0);
        // fs.setMoleFraction(waterPhaseIdx, Comp1Idx, 0.0);
