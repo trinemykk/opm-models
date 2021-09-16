@@ -69,7 +69,10 @@ template<class TypeTag, class MyTypeTag>
 struct EpisodeLength{ using type = UndefinedProperty; };
 
 template<class TypeTag, class MyTypeTag>
-struct Inflowrate{ using type = UndefinedProperty; };
+struct Inflowrate1{ using type = UndefinedProperty; };
+
+template<class TypeTag, class MyTypeTag>
+struct Inflowrate2{ using type = UndefinedProperty; };
 
 template<class TypeTag, class MyTypeTag>
 struct Initialpressure{ using type = UndefinedProperty; };
@@ -144,10 +147,17 @@ struct Temperature<TypeTag, TTag::ChiwomsProblem>
 };
 
 template<class TypeTag>
-struct Inflowrate<TypeTag, TTag::ChiwomsProblem>
+struct Inflowrate1<TypeTag, TTag::ChiwomsProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = INFLOW_RATE;
+    static constexpr type value = INFLOW_RATE_C1;
+};
+
+template<class TypeTag>
+struct Inflowrate2<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = INFLOW_RATE_C2;
 };
 
 template<class TypeTag>
@@ -308,6 +318,7 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
     enum { Comp2Idx = FluidSystem::Comp2Idx };
     enum { conti0EqIdx = Indices::conti0EqIdx };
     enum { contiCO2EqIdx = conti0EqIdx + Comp1Idx };
+    enum { contiH2EqIdx = conti0EqIdx + Comp2Idx };
     enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
     enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
     enum { enableGravity = getPropValue<TypeTag, Properties::EnableGravity>() };
@@ -367,8 +378,10 @@ public:
 
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, Temperature,
                              "The temperature [K] in the reservoir");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Inflowrate,
-                             "The inflow rate [?] on the left boundary of the reservoir");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Inflowrate1,
+                             "The inflow rate [?] og comp1 (CO2) on the left boundary of the reservoir");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Inflowrate2,
+                             "The inflow rate [?] og comp2 (H2) on the left boundary of the reservoir");
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, Initialpressure,
                              "The initial pressure [Pa s] in the reservoir");
         EWOMS_REGISTER_PARAM(TypeTag, std::string, SimulationName,
@@ -487,10 +500,12 @@ public:
 	const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
 
         if (onLeftBoundary_(pos)) {
-            Scalar inflowrate = EWOMS_GET_PARAM(TypeTag, Scalar, Inflowrate);
+            Scalar inflowrate1 = EWOMS_GET_PARAM(TypeTag, Scalar, Inflowrate1);
+            Scalar inflowrate2 = EWOMS_GET_PARAM(TypeTag, Scalar, Inflowrate2);
             RateVector massRate(0.0);
             massRate = 0.0;
-            massRate[contiCO2EqIdx] = inflowrate; // kg / (m^2 * s)
+            massRate[contiCO2EqIdx] = inflowrate1; // kg / (m^2 * s)
+            massRate[contiH2EqIdx] = inflowrate2; // kg / (m^2 * s)
 
             values.setMassRate(massRate);
         }

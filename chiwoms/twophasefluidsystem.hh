@@ -129,7 +129,7 @@ public:
         // using Comp0 = Opm::Methane<Scalar>;
         using Comp0 = Opm::ChiwomsBrine<Scalar>;
         using Comp1 = Opm::ChiwomsCO2<Scalar>;
-        using Comp2 = Opm::NDekane<Scalar>;
+        using Comp2 = Opm::Hydrogen<Scalar>;
 
     static void init(Scalar minT = 273.15,
                      Scalar maxT = 373.15,

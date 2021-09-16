@@ -19,10 +19,11 @@ const unsigned NZ = 5;         /* number of cells z-dir */
 const double POROSITY = 0.2;     /* non-dimensional */
 const double PERMEABILITY = 100; /* milli-Darcy */
 const double DIFFUSIVITY = 1e-9; /* square meter per second */
-const double MFCOMP0 = 0.99;
+const double MFCOMP0 = 0.98;
 const double MFCOMP1 = 0.01;
-const double MFCOMP2 = 0.0;
-constexpr double INFLOW_RATE = -1e-4; /* unit kg/s ? */
+const double MFCOMP2 = 0.01;
+constexpr double INFLOW_RATE_C1 = -1e-4; /* unit kg/s ? */
+constexpr double INFLOW_RATE_C2 = -1e-8; 
 
 /* "random" fields will be equal as long as this is set the same */
 const double SEED = 5163166242092481088;
