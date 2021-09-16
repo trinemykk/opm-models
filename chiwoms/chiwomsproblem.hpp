@@ -508,7 +508,6 @@ public:
     // only write output when episodes change, aka. report steps, and
     // include the initial timestep too
     bool shouldWriteOutput() {
-        return true;
 	    return this->simulator().episodeWillBeOver()
 		    || (this->simulator().timeStepIndex() == -1);
     }
