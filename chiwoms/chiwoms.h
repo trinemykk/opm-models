@@ -19,8 +19,8 @@ const unsigned NZ = 5;         /* number of cells z-dir */
 const double POROSITY = 0.2;     /* non-dimensional */
 const double PERMEABILITY = 100; /* milli-Darcy */
 const double DIFFUSIVITY = 1e-9; /* square meter per second */
-const double MFCOMP0 = 0.99;
-const double MFCOMP1 = 0.01;
+const double MFCOMP0 = 0.9999999;
+const double MFCOMP1 = 0.0000001;
 const double MFCOMP2 = 0.0;
 constexpr double INFLOW_RATE = -1e-4; /* unit kg/s ? */
 
