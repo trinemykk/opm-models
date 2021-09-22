@@ -127,7 +127,7 @@ public:
         Scalar sumMoles = 0.0;
         for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
             for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-                Scalar tmp = fluidState.molarity(phaseIdx, compIdx) * fluidState.saturation(phaseIdx);
+                Scalar tmp = Opm::getValue(fluidState.molarity(phaseIdx, compIdx) * fluidState.saturation(phaseIdx));
                 z[compIdx] += Opm::max(tmp, 1e-8);
                 sumMoles += tmp;
             }
@@ -136,7 +136,7 @@ public:
 
         for (int i = 0; i < numComponents - 1; ++i)
             (*this)[z0Idx + i] = z[i];
-        (*this)[pressure0Idx] = fluidState.pressure(0);
+        (*this)[pressure0Idx] = Opm::getValue(fluidState.pressure(0));
     }
 
     /*!

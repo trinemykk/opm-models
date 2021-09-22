@@ -302,12 +302,13 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
     enum { dimWorld = GridView::dimensionworld };
     enum { numPhases = FluidSystem::numPhases };
     enum { oilPhaseIdx = FluidSystem::oilPhaseIdx };
-    enum { gasPhaseIdx = FluidSystem::gasPhaseIdx };
+    enum { gasPhaseIdx = FluidSystem::gasPhaseIdx };    
     enum { Comp1Idx = FluidSystem::Comp1Idx };
     enum { Comp0Idx = FluidSystem::Comp0Idx };
     enum { Comp2Idx = FluidSystem::Comp2Idx };
     enum { conti0EqIdx = Indices::conti0EqIdx };
     enum { contiCO2EqIdx = conti0EqIdx + Comp1Idx };
+    enum { numComponents = getPropValue<TypeTag, Properties::NumComponents>() };
     enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
     enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
     enum { enableGravity = getPropValue<TypeTag, Properties::EnableGravity>() };
@@ -316,7 +317,9 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
     using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
     using FullField = Dune::FieldMatrix<Scalar, NX, NY>;//    typedef Dune::FieldMatrix<Scalar, NX, NY> FullField;
     using FieldColumn = Dune::FieldVector<Scalar, NY>;//typedef Dune::FieldVector<Scalar, NY> FieldColumn;
-
+    using ComponentVector = Dune::FieldVector<Evaluation, numComponents>;
+    using FlashSolver = GetPropType<TypeTag, Properties::FlashSolver>;
+    
     const unsigned XDIM = 0;
     const unsigned YDIM = 1;
     const unsigned ZDIM = 2;
@@ -332,6 +335,7 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
     Scalar rate;
 
 public:
+    using FluidState = Opm::CompositionalFluidState<Evaluation, FluidSystem, enableEnergy>;
     /*!
      * \copydoc Doxygen::defaultProblemConstructor
      */
@@ -436,7 +440,7 @@ public:
     void initial(PrimaryVariables& values, const Context& context, unsigned spaceIdx,
                  unsigned timeIdx) const
     {
-        Opm::CompositionalFluidState<Scalar, FluidSystem> fs;
+        Opm::CompositionalFluidState<Evaluation, FluidSystem> fs;
         initialFs(fs, context, spaceIdx, timeIdx);
         values.assignNaive(fs);
 
@@ -495,7 +499,7 @@ public:
             values.setMassRate(massRate);
         }
         else if (onRightBoundary_(pos)) {
-            Opm::CompositionalFluidState<Scalar, FluidSystem> fs;
+            Opm::CompositionalFluidState<Evaluation, FluidSystem> fs;
             initialFs(fs, context, spaceIdx, timeIdx);
             values.setFreeFlow(context, spaceIdx, timeIdx, fs);
         }
@@ -525,6 +529,7 @@ private:
 
     bool onUpperBoundary_(const GlobalPosition& pos) const
     { return pos[ZDIM] > this->boundingBoxMax()[ZDIM] - 1e-6; }
+
     DimMatrix K_;
     Scalar porosity_;
     Scalar temperature_;
@@ -578,14 +583,63 @@ private:
         fs.setSaturation(FluidSystem::oilPhaseIdx, 1.0);
         fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
 
+        // Density
+        typename FluidSystem::template ParameterCache<Scalar> paramCache;
+        paramCache.updatePhase(fs, oilPhaseIdx);
+        paramCache.updatePhase(fs, gasPhaseIdx);
+        fs.setDensity(oilPhaseIdx, FluidSystem::density(fs, paramCache, oilPhaseIdx));
+        fs.setDensity(gasPhaseIdx, FluidSystem::density(fs, paramCache, gasPhaseIdx));
+
         // fill in viscosity and enthalpy based on the state set above
         // and the fluid system defined in this class. Oleic phase is the reference        
-        typename FluidSystem::template ParameterCache<Scalar> paramCache;
-                using CFRP = Opm::ComputeFromReferencePhase<Scalar, FluidSystem>;
-        CFRP::solve(fs, paramCache,
-                    /*refPhaseIdx=*/oilPhaseIdx,
-                    /*setViscosity=*/true,
-                    /*setEnthalpy=*/false);
+        // typename FluidSystem::template ParameterCache<Scalar> paramCache;
+        //         using CFRP = Opm::ComputeFromReferencePhase<Scalar, FluidSystem>;
+        // CFRP::solve(fs, paramCache,
+        //             /*refPhaseIdx=*/oilPhaseIdx,
+        //             /*setViscosity=*/true,
+        //             /*setEnthalpy=*/false);
+        
+        if (enable_gravity == true) {
+            // //
+            // Run flash to get new density to correct pressure estimate
+            // //
+            // Set up z
+            ComponentVector zInit(0.0);
+            Scalar sumMoles = 0.0;
+            for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
+                for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                    Scalar tmp = Opm::getValue(fs.molarity(phaseIdx, compIdx) * fs.saturation(phaseIdx));
+                    zInit[compIdx] += Opm::max(tmp, 1e-8);
+                    sumMoles += tmp;
+                }
+            }
+            zInit /= sumMoles;
+            
+            // Flash solver setup
+            Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
+            int flashVerbosity = EWOMS_GET_PARAM(TypeTag, int, FlashVerbosity);
+            std::string flashTwoPhaseMethod = EWOMS_GET_PARAM(TypeTag, std::string, FlashTwoPhaseMethod);
+            int spatialIdx = context.globalSpaceIndex(spaceIdx, timeIdx);
+
+            // Set K and L initial
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                    const Evaluation Ktmp = fs.wilsonK_(compIdx);
+                    fs.setKvalue(compIdx, Ktmp);
+            }
+            const Evaluation& Ltmp = -1.0;
+            fs.setLvalue(Ltmp);
+
+            // Run flash solver
+            FlashSolver::solve(fs, zInit, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+
+            // Calculate pressure again
+            Evaluation densityL = fs.density(oilPhaseIdx);
+            const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
+            Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
+            p_init = (init_pressure*1e5) + Opm::getValue(densityL) * h * 9.81;
+            fs.setPressure(oilPhaseIdx, p_init);
+            fs.setPressure(gasPhaseIdx, p_init);
+        }
 
     }
 };
