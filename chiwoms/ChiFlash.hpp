@@ -526,37 +526,38 @@ protected:
             }
 
             int phaseIdx = (isGas?gasPhaseIdx:oilPhaseIdx);
+            int phaseIdx2 = (isGas?oilPhaseIdx:gasPhaseIdx);
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                fluidState_global.setMoleFraction(phaseIdx, compIdx, globalComposition[compIdx]);
+                fluidState_global.setMoleFraction(phaseIdx2, compIdx, globalComposition[compIdx]);
             }
 
             typename FluidSystem::template ParameterCache<FlashEval> paramCache_fake;
             paramCache_fake.updatePhase(fluidState_fake, phaseIdx);
 
             typename FluidSystem::template ParameterCache<FlashEval> paramCache_global;
-            paramCache_global.updatePhase(fluidState_global, phaseIdx);
+            paramCache_global.updatePhase(fluidState_global, phaseIdx2);
 
             //fugacity for fake phases each component
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
                 auto phiFake = PengRobinsonMixture::computeFugacityCoefficient(fluidState_fake, paramCache_fake, phaseIdx, compIdx);
-                auto phiGlobal = PengRobinsonMixture::computeFugacityCoefficient(fluidState_global, paramCache_global, phaseIdx, compIdx);
+                auto phiGlobal = PengRobinsonMixture::computeFugacityCoefficient(fluidState_global, paramCache_global, phaseIdx2, compIdx);
 
                 fluidState_fake.setFugacityCoefficient(phaseIdx, compIdx, phiFake);
-                fluidState_global.setFugacityCoefficient(phaseIdx, compIdx, phiGlobal);
+                fluidState_global.setFugacityCoefficient(phaseIdx2, compIdx, phiGlobal);
             }
 
            
             ComponentVector R;
             for (int compIdx=0; compIdx<numComponents; ++compIdx){
                 if (isGas){
-                    auto fug_fake = fluidState_fake.fugacity(gasPhaseIdx, compIdx);
-                    auto fug_global = fluidState_global.fugacity(gasPhaseIdx, compIdx);
+                    auto fug_fake = fluidState_fake.fugacity(phaseIdx, compIdx);
+                    auto fug_global = fluidState_global.fugacity(phaseIdx2, compIdx);
                     auto fug_ratio = fug_global / fug_fake;
                     R[compIdx] = fug_ratio / S_loc;
                 }
                 else{
-                    auto fug_fake = fluidState_fake.fugacity(oilPhaseIdx, compIdx);
-                    auto fug_global = fluidState_global.fugacity(oilPhaseIdx, compIdx);
+                    auto fug_fake = fluidState_fake.fugacity(phaseIdx, compIdx);
+                    auto fug_global = fluidState_global.fugacity(phaseIdx2, compIdx);
                     auto fug_ratio = fug_fake / fug_global;
                     R[compIdx] = fug_ratio * S_loc;
                 }
