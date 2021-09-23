@@ -134,7 +134,7 @@ struct NewtonWriteConvergence<TypeTag, TTag::ChiwomsProblem> { static constexpr 
 
 // Enable gravity
 template<class TypeTag>
-struct EnableGravity<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+struct EnableGravity<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
 
 template<class TypeTag>
 struct Temperature<TypeTag, TTag::ChiwomsProblem>

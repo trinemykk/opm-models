@@ -370,7 +370,7 @@ public:
         unsigned j = std::max(comp1Idx, comp2Idx);
         #warning interactionCoefficients from Ivar
         if (i == Comp0Idx && j == Comp1Idx)   //octane-co2TOD= generic
-            return -0.101;//0.1089;
+            return 0.0;//-0.101;//0.1089;
         else if (i == Comp0Idx && j == Comp2Idx) //octane-brine TODO generic
             return 0.0;//1.1290;
         else if (i == Comp1Idx && j == Comp2Idx) //co2 - brine TODO generic
