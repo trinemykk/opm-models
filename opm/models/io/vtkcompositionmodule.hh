@@ -61,6 +61,8 @@ template<class TypeTag, class MyTypeTag>
 struct VtkWriteFugacityCoeffs { using type = UndefinedProperty; };
 template<class TypeTag, class MyTypeTag>
 struct VtkWriteLiquidMoleFractions { using type = UndefinedProperty; };
+template<class TypeTag, class MyTypeTag>
+struct VtkWriteEquilibriumConstants { using type = UndefinedProperty; };
 
 // set default values for what quantities to output
 template<class TypeTag>
@@ -79,6 +81,8 @@ template<class TypeTag>
 struct VtkWriteFugacityCoeffs<TypeTag, TTag::VtkComposition> { static constexpr bool value = false; };
 template<class TypeTag>
 struct VtkWriteLiquidMoleFractions<TypeTag, TTag::VtkComposition> { static constexpr bool value = false; };
+template<class TypeTag>
+struct VtkWriteEquilibriumConstants<TypeTag, TTag::VtkComposition> { static constexpr bool value = false; };
 
 } // namespace Opm::Properties
 
@@ -144,6 +148,8 @@ public:
                              "Include component fugacity coefficients in the VTK output files");
         EWOMS_REGISTER_PARAM(TypeTag, bool, VtkWriteLiquidMoleFractions,
                              "Include liquid mole fractions (L) in the VTK output files");
+        EWOMS_REGISTER_PARAM(TypeTag, bool, VtkWriteEquilibriumConstants,
+                             "Include equilibrium constants (K) in the VTK output files");
     }
 
     /*!
@@ -164,7 +170,8 @@ public:
             this->resizePhaseComponentBuffer_(molarity_);
         if (LOutput_())
             this->resizeScalarBuffer_(L_);
-
+        if (equilConstOutput_())
+            this->resizeComponentBuffer_(K_);
         if (fugacityOutput_())
             this->resizeComponentBuffer_(fugacity_);
         if (fugacityCoeffOutput_())
@@ -186,6 +193,9 @@ public:
             unsigned I = elemCtx.globalSpaceIndex(i, /*timeIdx=*/0);
             const auto& intQuants = elemCtx.intensiveQuantities(i, /*timeIdx=*/0);
             const auto& fs = intQuants.fluidState();
+
+            if (LOutput_()) 
+                L_[I] = Toolbox::value(fs.L(0));
 
             for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
                 for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
@@ -231,9 +241,10 @@ public:
                 }
                 if (fugacityOutput_())
                     fugacity_[compIdx][I] = Toolbox::value(intQuants.fluidState().fugacity(/*phaseIdx=*/0, compIdx));
+                
+                if (equilConstOutput_())
+                    K_[compIdx][I] = Toolbox::value(fs.K(compIdx));
 
-                if (LOutput_()) 
-                    L_[I] = getValue(fs.L(0));
             }
         }
     }
@@ -258,6 +269,8 @@ public:
             this->commitComponentBuffer_(baseWriter, "totalMassFrac^%s", totalMassFrac_);
         if (totalMoleFracOutput_())
             this->commitComponentBuffer_(baseWriter, "totalMoleFrac^%s", totalMoleFrac_);
+        if (equilConstOutput_())
+            this->commitComponentBuffer_(baseWriter, "K^%s", K_);
 
         if (fugacityOutput_())
             this->commitComponentBuffer_(baseWriter, "fugacity^%s", fugacity_);
@@ -316,11 +329,18 @@ private:
         return val;
     }
 
+    static bool equilConstOutput_()
+    {
+        static bool val = EWOMS_GET_PARAM(TypeTag, bool, VtkWriteEquilibriumConstants);
+        return val;
+    }
+
     PhaseComponentBuffer moleFrac_;
     PhaseComponentBuffer massFrac_;
     PhaseComponentBuffer molarity_;
     ComponentBuffer totalMassFrac_;
     ComponentBuffer totalMoleFrac_;
+    ComponentBuffer K_;
 
     ComponentBuffer fugacity_;
     PhaseComponentBuffer fugacityCoeff_;
