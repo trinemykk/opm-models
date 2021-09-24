@@ -215,6 +215,10 @@ template<class TypeTag>
 struct VtkWriteTotalMoleFractions<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
 template<class TypeTag>
 struct VtkWriteFugacityCoeffs<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+template<class TypeTag>
+struct VtkWriteLiquidMoleFractions<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+template<class TypeTag>
+struct VtkWriteEquilibriumConstants<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
 
 // write restart for every hour
 template<class TypeTag>
