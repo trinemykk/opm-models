@@ -491,7 +491,11 @@ public:
     void boundary(BoundaryRateVector& values, const Context& context,
                   unsigned spaceIdx, unsigned timeIdx) const
     {
-        const Scalar eps = std::numeric_limits<double>::epsilon();
+
+    values.setNoFlow();
+    
+    /*
+    const Scalar eps = std::numeric_limits<double>::epsilon();
 	const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
 
         if (onLeftBoundary_(pos)) {
@@ -509,8 +513,9 @@ public:
         }
         else
             values.setNoFlow();  // closed on top and bottom
-
+    */
     }
+    
 
     // No source terms
     template <class Context>
@@ -534,6 +539,9 @@ private:
     bool onUpperBoundary_(const GlobalPosition& pos) const
     { return pos[ZDIM] > this->boundingBoxMax()[ZDIM] - 1e-6; }
 
+    bool aboveMiddle_(const GlobalPosition& pos) const
+    { return pos[ZDIM] > (this->boundingBoxMax()[ZDIM] + this->boundingBoxMin()[ZDIM]) / 2; }
+
     DimMatrix K_;
     Scalar porosity_;
     Scalar temperature_;
@@ -551,6 +559,9 @@ private:
         const auto& matParams = this->materialLawParams(context, spaceIdx, timeIdx);
         MaterialLaw::capillaryPressures(pC, matParams, fs);
 
+        // Position
+        const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
+
         // pressure; set simple hydrostatic pressure initially.
         // OBS: If horizontal (NZ = 1), then h = Z_SIZE/2 since boundingBoxMax is cell edge
         Scalar init_pressure = EWOMS_GET_PARAM(TypeTag, Scalar, Initialpressure);
@@ -558,7 +569,6 @@ private:
         Scalar p_init;
         if (enable_gravity == true) {
             Scalar densityW = Brine::liquidDensity(temperature_, Scalar(init_pressure));
-            const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
             Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
             p_init = (init_pressure*1e5) + densityW * h * 9.81;
         }
@@ -568,24 +578,28 @@ private:
         fs.setPressure(gasPhaseIdx, p_init);
 
         // composition
-        fs.setMoleFraction(oilPhaseIdx, Comp0Idx, MFCOMP0);
-        fs.setMoleFraction(oilPhaseIdx, Comp1Idx, MFCOMP1); 
-        // fs.setMoleFraction(oilPhaseIdx, Comp2Idx, MFCOMP2);
+        Scalar S_L;
+        Scalar Co2_frac;
+        if (aboveMiddle_(pos)) {
+            S_L = 0.0;
+            Co2_frac = 0.9999;
+        }
+        else {
+            S_L = 1.0;
+            Co2_frac = 0.0001;
+        }
+        fs.setMoleFraction(oilPhaseIdx, Comp0Idx, 1-Co2_frac);
+        fs.setMoleFraction(oilPhaseIdx, Comp1Idx, Co2_frac); 
 
-        fs.setMoleFraction(gasPhaseIdx, Comp0Idx, MFCOMP0);
-        fs.setMoleFraction(gasPhaseIdx, Comp1Idx, MFCOMP1);
-        // fs.setMoleFraction(gasPhaseIdx, Comp2Idx, MFCOMP2);
+        fs.setMoleFraction(gasPhaseIdx, Comp0Idx, 1-Co2_frac);
+        fs.setMoleFraction(gasPhaseIdx, Comp1Idx, Co2_frac);
         
-       // fs.setMoleFraction(waterPhaseIdx, Comp0Idx, 1.0);
-       // fs.setMoleFraction(waterPhaseIdx, Comp1Idx, 0.0);
-       // fs.setMoleFraction(waterPhaseIdx, Comp2Idx, 0.0);
+        // saturation, oil-filled
+        fs.setSaturation(FluidSystem::oilPhaseIdx, S_L);
+        fs.setSaturation(FluidSystem::gasPhaseIdx, 1-S_L);
 
         // temperature
         fs.setTemperature(temperature_);
-
-        // saturation, oil-filled
-        fs.setSaturation(FluidSystem::oilPhaseIdx, 1.0);
-        fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
 
         // Density
         typename FluidSystem::template ParameterCache<Scalar> paramCache;
@@ -594,15 +608,6 @@ private:
         fs.setDensity(oilPhaseIdx, FluidSystem::density(fs, paramCache, oilPhaseIdx));
         fs.setDensity(gasPhaseIdx, FluidSystem::density(fs, paramCache, gasPhaseIdx));
 
-        // fill in viscosity and enthalpy based on the state set above
-        // and the fluid system defined in this class. Oleic phase is the reference        
-        // typename FluidSystem::template ParameterCache<Scalar> paramCache;
-        //         using CFRP = Opm::ComputeFromReferencePhase<Scalar, FluidSystem>;
-        // CFRP::solve(fs, paramCache,
-        //             /*refPhaseIdx=*/oilPhaseIdx,
-        //             /*setViscosity=*/true,
-        //             /*setEnthalpy=*/false);
-        
         if (enable_gravity == true) {
             // //
             // Run flash to get new density to correct pressure estimate
