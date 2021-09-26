@@ -181,6 +181,10 @@ struct InitialTimeStepSize<TypeTag, TTag::ChiwomsProblem>
 };
 
 template<class TypeTag>
+struct LinearSolverSplice<TypeTag, TTag::ChiwomsProblem>
+{ using type = TTag::ParallelAmgLinearSolver; };
+
+template<class TypeTag>
 struct LinearSolverTolerance<TypeTag, TTag::ChiwomsProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
