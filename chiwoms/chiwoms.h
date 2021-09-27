@@ -7,6 +7,7 @@
 // The Netherlands.
 
 constexpr double TEMPERATURE = 80;   /* degree Celsius */
+constexpr double GRAVITYFACTOR = 1;   /* fraction og gravity */
 constexpr double MIN_PRES = 75;     /* bars */
 const double MAX_PRES = 220;     /* bars */
 constexpr double SIM_TIME = 1;      /* days */
