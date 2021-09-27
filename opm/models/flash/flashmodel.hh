@@ -38,6 +38,7 @@
 #include "flashintensivequantities.hh"
 #include "flashextensivequantities.hh"
 #include "flashindices.hh"
+#include "flashnewtonmethod.hh"
 
 #include <opm/models/common/multiphasebasemodel.hh>
 #include <opm/models/common/energymodule.hh>
@@ -69,6 +70,10 @@ struct FlashModel { using InheritsFrom = std::tuple<VtkDiffusion,
 //! Use the FlashLocalResidual function for the flash model
 template<class TypeTag>
 struct LocalResidual<TypeTag, TTag::FlashModel> { using type = Opm::FlashLocalResidual<TypeTag>; };
+
+//! Use the Ncp specific newton method for the flash model
+template<class TypeTag>
+struct NewtonMethod<TypeTag, TTag::FlashModel> { using type = Opm::FlashNewtonMethod<TypeTag>; };
 
 //! Use the NCP flash solver by default
 template<class TypeTag>
