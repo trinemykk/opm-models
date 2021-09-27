@@ -63,6 +63,9 @@ template<class TypeTag, class MyTypeTag>
 struct Temperature{ using type = UndefinedProperty; };
 
 template<class TypeTag, class MyTypeTag>
+struct Gravityfactor{ using type = UndefinedProperty; };
+
+template<class TypeTag, class MyTypeTag>
 struct SimulationName{ using type = UndefinedProperty; };
 
 template<class TypeTag, class MyTypeTag>
@@ -141,6 +144,14 @@ struct Temperature<TypeTag, TTag::ChiwomsProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 273.15 + TEMPERATURE;
+};
+
+
+template<class TypeTag>
+struct Gravityfactor<TypeTag, TTag::ChiwomsProblem>
+{
+    using type = GetPropType<TypeTag, Scalar>;
+    static constexpr type value = GRAVITYFACTOR;
 };
 
 template<class TypeTag>
@@ -319,21 +330,15 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
 
     using GlobalPosition = Dune::FieldVector<CoordScalar, dimWorld>;
     using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
-    using FullField = Dune::FieldMatrix<Scalar, NX, NY>;//    typedef Dune::FieldMatrix<Scalar, NX, NY> FullField;
-    using FieldColumn = Dune::FieldVector<Scalar, NY>;//typedef Dune::FieldVector<Scalar, NY> FieldColumn;
+    using DimVector = Dune::FieldVector<Scalar, dimWorld>;
+    using FullField = Dune::FieldMatrix<Scalar, NX, NY>;
+    using FieldColumn = Dune::FieldVector<Scalar, NY>;
     using ComponentVector = Dune::FieldVector<Evaluation, numComponents>;
     using FlashSolver = GetPropType<TypeTag, Properties::FlashSolver>;
     
     const unsigned XDIM = 0;
     const unsigned YDIM = 1;
     const unsigned ZDIM = 2;
-
-    // we need to layout the initial state from top to down, so fill
-    // a full matrix with that now and access it (possibly) randomly later
-    // note that these matrices are logical to fill from the top, so index
-    // 0 is the *top-most* element, and the index increase as we move *down*
-    // the column. this is opposite of the orientation of the grid in eWoms
-    FieldColumn init_pres;  // oleic phase pressure; ref. pres. w/o cap. pres
 
     // influx on the left boundary
     Scalar rate;
@@ -356,6 +361,45 @@ public:
         porosity_ = POROSITY;
     }
 
+    void initGravity() {
+        gravity_ = 0.0;
+        gravityfactor_ = EWOMS_GET_PARAM(TypeTag, Scalar, Gravityfactor);
+        if (EWOMS_GET_PARAM(TypeTag, bool, EnableGravity))
+            gravity_[dimWorld-1]  = gravityfactor_ * (-9.81);
+
+    }
+
+        /*!
+     * \brief Returns the acceleration due to gravity \f$\mathrm{[m/s^2]}\f$.
+     *
+     * \param context Reference to the object which represents the
+     *                current execution context.
+     * \param spaceIdx The local index of spatial entity defined by the context
+     * \param timeIdx The index used by the time discretization.
+     */
+
+    template <class Context>
+    const DimVector& gravity(const Context& context OPM_UNUSED,
+                             unsigned spaceIdx OPM_UNUSED,
+                             unsigned timeIdx OPM_UNUSED) const
+    { 
+        return gravity(); 
+    }
+
+    /*!
+     * \brief Returns the acceleration due to gravity \f$\mathrm{[m/s^2]}\f$.
+     *
+     * This method is used for problems where the gravitational
+     * acceleration does not depend on the spatial position. The
+     * default behaviour is that if the <tt>EnableGravity</tt>
+     * property is true, \f$\boldsymbol{g} = ( 0,\dots,\ -9.81)^T \f$ holds,
+     * else \f$\boldsymbol{g} = ( 0,\dots, 0)^T \f$.
+     */
+    const DimVector& gravity() const
+    {
+        return gravity_; 
+    }
+
     /*!
      * \copydoc FvBaseProblem::finishInit
      */
@@ -364,6 +408,9 @@ public:
         ParentType::finishInit();
         // initialize fixed parameters; temperature, permeability, porosity
         initPetrophysics();
+
+        // initialize gravity
+        initGravity();
     }
 
     /*!
@@ -375,6 +422,8 @@ public:
 
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, Temperature,
                              "The temperature [K] in the reservoir");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Gravityfactor,
+                             "The gravityfactor [-] of the reservoir");
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, Inflowrate,
                              "The inflow rate [?] on the left boundary of the reservoir");
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, Initialpressure,
@@ -459,6 +508,15 @@ public:
         return temperature_;
     }
 
+    // Constant gravityfactor
+    template <class Context>
+    Scalar gravityfactor(const Context& context OPM_UNUSED,
+                       unsigned spaceIdx OPM_UNUSED,
+                       unsigned timeIdx OPM_UNUSED) const
+    {
+        return gravityfactor_;
+    }
+
     // Constant permeability
     template <class Context>
     const DimMatrix& intrinsicPermeability(const Context& context OPM_UNUSED,
@@ -537,7 +595,9 @@ private:
     DimMatrix K_;
     Scalar porosity_;
     Scalar temperature_;
+    Scalar gravityfactor_;
     MaterialLawParams mat_;
+    DimVector gravity_;
     
     /*!
      * \copydoc FvBaseProblem::initial
@@ -560,7 +620,7 @@ private:
             Scalar densityW = Brine::liquidDensity(temperature_, Scalar(init_pressure));
             const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
             Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
-            p_init = (init_pressure*1e5) + densityW * h * 9.81;
+            p_init = (init_pressure*1e5) + densityW * h * (-this->gravity_[1]);
         }
         else
             p_init = init_pressure*1e5;
