@@ -180,9 +180,9 @@ struct InitialTimeStepSize<TypeTag, TTag::ChiwomsProblem>
     static constexpr type value = 30;
 };
 
-template<class TypeTag>
-struct LinearSolverSplice<TypeTag, TTag::ChiwomsProblem>
-{ using type = TTag::ParallelAmgLinearSolver; };
+// template<class TypeTag>
+// struct LinearSolverSplice<TypeTag, TTag::ChiwomsProblem>
+// { using type = TTag::ParallelAmgLinearSolver; };
 
 template<class TypeTag>
 struct LinearSolverTolerance<TypeTag, TTag::ChiwomsProblem>
@@ -586,11 +586,11 @@ private:
         Scalar Co2_frac;
         if (aboveMiddle_(pos)) {
             S_L = 0.0;
-            Co2_frac = 0.9999;
+            Co2_frac = 0.999;
         }
         else {
             S_L = 1.0;
-            Co2_frac = 0.0001;
+            Co2_frac = 0.001;
         }
         fs.setMoleFraction(oilPhaseIdx, Comp0Idx, 1-Co2_frac);
         fs.setMoleFraction(oilPhaseIdx, Comp1Idx, Co2_frac); 
