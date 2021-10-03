@@ -238,6 +238,14 @@ protected:
             for (unsigned phaseIdx=0; phaseIdx < numPhases; phaseIdx++) {
                 if (!elemCtx.model().phaseIsConsidered(phaseIdx))
                     continue;
+                     
+                // if (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 0 || intQuantsEx.fluidState().L(0) == 0) ){
+                //     continue;
+                // }
+                    
+                // if (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 1 || intQuantsEx.fluidState().L(0) == 1) ) {
+                //     continue;
+                // }
 
                 // calculate the hydrostatic pressure at the integration point of the face
                 Evaluation pStatIn;
@@ -252,6 +260,29 @@ protected:
                     Scalar rhoIn = Toolbox::value(intQuantsIn.fluidState().density(phaseIdx));
                     pStatIn = - rhoIn*(gIn*distVecIn);
                 }
+
+                // if (std::is_same<Scalar, Evaluation>::value ||
+                //     interiorDofIdx_ == static_cast<int>(focusDofIdx))
+                // {
+                //     Evaluation rhoIn;
+                //     if ((phaseIdx == 0 && intQuantsIn.fluidState().L(0) == 0) || (phaseIdx == 1 && intQuantsIn.fluidState().L(0) == 1)) {
+                //         rhoIn = 0.0;
+                //     }
+                //     else {
+                //         rhoIn = intQuantsIn.fluidState().density(phaseIdx);
+                //     }
+                //     pStatIn = - rhoIn*(gIn*distVecIn);
+                // }
+                // else {
+                //     Scalar rhoIn;
+                //     if ((phaseIdx == 0 && intQuantsIn.fluidState().L(0) == 0) || (phaseIdx == 1 && intQuantsIn.fluidState().L(0) == 1)) {
+                //         rhoIn = 0.0;
+                //     }
+                //     else {
+                //         rhoIn = Toolbox::value(intQuantsIn.fluidState().density(phaseIdx));
+                //     }
+                //     pStatIn = - rhoIn*(gIn*distVecIn);
+                // }
 
                 // the quantities on the exterior side of the face do not influence the
                 // result for the TPFA scheme, so they can be treated as scalar values.
@@ -268,12 +299,44 @@ protected:
                     pStatEx = - rhoEx*(gEx*distVecEx);
                 }
 
+                // if (std::is_same<Scalar, Evaluation>::value ||
+                //     exteriorDofIdx_ == static_cast<int>(focusDofIdx))
+                // {
+                //     Evaluation rhoEx;
+                //     if ((phaseIdx == 0 && intQuantsEx.fluidState().L(0) == 0) || (phaseIdx == 1 && intQuantsEx.fluidState().L(0) == 1)) {
+                //         rhoEx = 0.0;
+                //     }
+                //     else
+                //         rhoEx = intQuantsEx.fluidState().density(phaseIdx);
+                //     pStatEx = - rhoEx*(gEx*distVecEx);
+                // }
+                // else {
+                //     Scalar rhoEx;
+                //     if ((phaseIdx == 0 && intQuantsEx.fluidState().L(0) == 0) || (phaseIdx == 1 && intQuantsEx.fluidState().L(0) == 1)) {
+                //         rhoEx = 0.0;
+                //     }
+                //     else
+                //         rhoEx = Toolbox::value(intQuantsEx.fluidState().density(phaseIdx));
+                //     pStatEx = - rhoEx*(gEx*distVecEx);
+                // }
+
                 // compute the hydrostatic gradient between the two control volumes (this
                 // gradient exhibitis the same direction as the vector between the two
                 // control volume centers and the length (pStaticExterior -
                 // pStaticInterior)/distanceInteriorToExterior
                 Dune::FieldVector<Evaluation, dimWorld> f(distVecTotal);
-                f *= (pStatEx - pStatIn)/absDistTotalSquared;
+                if (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 1 && intQuantsEx.fluidState().L(0) == 0))
+                    f *= -(pStatIn + pStatIn)/absDistTotalSquared;
+                else if (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 0 && intQuantsEx.fluidState().L(0) == 1))
+                    f *= (pStatEx + pStatEx)/absDistTotalSquared;
+
+                else if (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 0 && intQuantsEx.fluidState().L(0) == 1))
+                    f *= -(pStatIn + pStatIn)/absDistTotalSquared;
+                else if (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 1 && intQuantsEx.fluidState().L(0) == 0))
+                    f *= (pStatEx + pStatEx)/absDistTotalSquared;
+                
+                else
+                    f *= (pStatEx - pStatIn)/absDistTotalSquared;
 
                 // calculate the final potential gradient
                 for (unsigned dimIdx = 0; dimIdx < dimWorld; ++dimIdx)
