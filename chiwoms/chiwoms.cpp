@@ -5,9 +5,6 @@
 
 namespace Opm::Properties {
 
-// NEW_TYPE_TAG(ChiwomsNcpEcfvProblem, INHERITS_FROM(FlashModel, ChiwomsProblem));
-// SET_TAG_PROP(ChiwomsNcpEcfvProblem, SpatialDiscretizationSplice, EcfvDiscretization);
-// SET_TAG_PROP(ChiwomsNcpEcfvProblem, LocalLinearizerSplice, AutoDiffLocalLinearizer);
 namespace TTag {
     struct ChiwomsNcpEcfvProblem {using InheritsFrom = std::tuple<ChiwomsProblem, FlashModel>;};
 
@@ -17,11 +14,11 @@ struct SpatialDiscretizationSplice<TypeTag, TTag::ChiwomsNcpEcfvProblem>
 {
     using type = TTag::EcfvDiscretization;
 };
-template <class TypeTag>
-struct LocalLinearizerSplice<TypeTag, TTag::ChiwomsNcpEcfvProblem>
-{
-    using type = TTag::AutoDiffLocalLinearizer;
-};
+// template <class TypeTag>
+// struct LocalLinearizerSplice<TypeTag, TTag::ChiwomsNcpEcfvProblem>
+// {
+//     using type = TTag::AutoDiffLocalLinearizer;
+// };
 
 
 } // namespace Opm::Properties

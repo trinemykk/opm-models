@@ -592,15 +592,15 @@ private:
             S_L = 1.0;
             Co2_frac = 0.001;
         }
-        fs.setMoleFraction(oilPhaseIdx, Comp0Idx, 1-Co2_frac);
+        fs.setMoleFraction(oilPhaseIdx, Comp0Idx, 1.0-Co2_frac);
         fs.setMoleFraction(oilPhaseIdx, Comp1Idx, Co2_frac); 
 
-        fs.setMoleFraction(gasPhaseIdx, Comp0Idx, 1-Co2_frac);
+        fs.setMoleFraction(gasPhaseIdx, Comp0Idx, 1.0-Co2_frac);
         fs.setMoleFraction(gasPhaseIdx, Comp1Idx, Co2_frac);
         
         // saturation, oil-filled
         fs.setSaturation(FluidSystem::oilPhaseIdx, S_L);
-        fs.setSaturation(FluidSystem::gasPhaseIdx, 1-S_L);
+        fs.setSaturation(FluidSystem::gasPhaseIdx, 1.0-S_L);
 
         // temperature
         fs.setTemperature(temperature_);

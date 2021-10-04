@@ -178,7 +178,7 @@ public:
         ComponentVector y;
         Scalar sumX;
         Scalar sumY;
-        Scalar tol = 1e-3;
+        Scalar tol = 1e-8;
         for (int compIdx = 0; compIdx < numComponents; ++compIdx) {
             x[compIdx] = Opm::min(Opm::max(fluidState.moleFraction(oilPhaseIdx, compIdx), tol), 1-tol);
             y[compIdx] = Opm::min(Opm::max(fluidState.moleFraction(gasPhaseIdx, compIdx), tol), 1-tol);
@@ -206,8 +206,8 @@ public:
                 (R * fluidState.temperature(gasPhaseIdx));
 
         // Update saturation
-        Evaluation So = Opm::max((L*Z_L/(L*Z_L+(1-L)*Z_V)), 1e-8);
-        Evaluation Sg = Opm::max(1-So, 1e-8);
+        Evaluation So = Opm::max((L*Z_L/(L*Z_L+(1-L)*Z_V)), 0.0);
+        Evaluation Sg = Opm::max(1-So, 0.0);
         Scalar sumS = Opm::getValue(So) + Opm::getValue(Sg);
         So /= sumS;
         Sg /= sumS;
