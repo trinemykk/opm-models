@@ -546,6 +546,9 @@ private:
     bool aboveMiddle_(const GlobalPosition& pos) const
     { return pos[ZDIM] > (this->boundingBoxMax()[ZDIM] + this->boundingBoxMin()[ZDIM]) / 2; }
 
+    bool latteralMiddle_(const GlobalPosition& pos) const
+    { return pos[XDIM] > (this->boundingBoxMax()[XDIM] + this->boundingBoxMin()[XDIM]) / 2; }
+
     DimMatrix K_;
     Scalar porosity_;
     Scalar temperature_;
@@ -584,7 +587,7 @@ private:
         // composition
         Scalar S_L;
         Scalar Co2_frac;
-        if (aboveMiddle_(pos)) {
+        if (latteralMiddle_(pos)) {
             S_L = 0.0;
             Co2_frac = 0.999;
         }
