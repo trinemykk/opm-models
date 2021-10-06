@@ -570,27 +570,30 @@ private:
         // OBS: If horizontal (NZ = 1), then h = Z_SIZE/2 since boundingBoxMax is cell edge
         Scalar init_pressure = EWOMS_GET_PARAM(TypeTag, Scalar, Initialpressure);
         bool enable_gravity = EWOMS_GET_PARAM(TypeTag, bool, EnableGravity);
-        Scalar p_init;
-        if (enable_gravity == true) {
-            Scalar densityW = Brine::liquidDensity(temperature_, Scalar(init_pressure));
-            Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
-            p_init = (init_pressure*1e5) + densityW * h * 9.81;
-        }
-        else
-            p_init = init_pressure*1e5;
-        fs.setPressure(oilPhaseIdx, p_init);
-        fs.setPressure(gasPhaseIdx, p_init);
+        // Scalar p_init;
+        // if (enable_gravity == true) {
+        //     Scalar densityW = Brine::liquidDensity(temperature_, Scalar(init_pressure));
+        //     Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
+        //     p_init = (init_pressure*1e5) + densityW * h * 9.81;
+        // }
+        // else
+        //     p_init = init_pressure*1e5;
+        // fs.setPressure(oilPhaseIdx, p_init);
+        // fs.setPressure(gasPhaseIdx, p_init);
+
+        fs.setPressure(oilPhaseIdx, init_pressure*1e5);
+        fs.setPressure(gasPhaseIdx, init_pressure*1e5);
 
         // composition
         Scalar S_L;
         Scalar Co2_frac;
         if (aboveMiddle_(pos)) {
-            S_L = 0.0;
-            Co2_frac = 0.999;
+            S_L = 1.0;
+            Co2_frac = 1.0-0.999;
         }
         else {
-            S_L = 1.0;
-            Co2_frac = 0.001;
+            S_L = 0.0;
+            Co2_frac = 1.0-0.001;
         }
         fs.setMoleFraction(oilPhaseIdx, Comp0Idx, 1.0-Co2_frac);
         fs.setMoleFraction(oilPhaseIdx, Comp1Idx, Co2_frac); 
@@ -612,47 +615,47 @@ private:
         fs.setDensity(oilPhaseIdx, FluidSystem::density(fs, paramCache, oilPhaseIdx));
         fs.setDensity(gasPhaseIdx, FluidSystem::density(fs, paramCache, gasPhaseIdx));
 
-        if (enable_gravity == true) {
-            // //
-            // Run flash to get new density to correct pressure estimate
-            // //
-            // Set up z
-            ComponentVector zInit(0.0);
-            Scalar sumMoles = 0.0;
-            for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
-                for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-                    Scalar tmp = Opm::getValue(fs.molarity(phaseIdx, compIdx) * fs.saturation(phaseIdx));
-                    zInit[compIdx] += Opm::max(tmp, 1e-8);
-                    sumMoles += tmp;
-                }
-            }
-            zInit /= sumMoles;
+        // if (enable_gravity == true) {
+        //     // //
+        //     // Run flash to get new density to correct pressure estimate
+        //     // //
+        //     // Set up z
+        //     ComponentVector zInit(0.0);
+        //     Scalar sumMoles = 0.0;
+        //     for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
+        //         for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+        //             Scalar tmp = Opm::getValue(fs.molarity(phaseIdx, compIdx) * fs.saturation(phaseIdx));
+        //             zInit[compIdx] += Opm::max(tmp, 1e-8);
+        //             sumMoles += tmp;
+        //         }
+        //     }
+        //     zInit /= sumMoles;
             
-            // Flash solver setup
-            Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
-            int flashVerbosity = EWOMS_GET_PARAM(TypeTag, int, FlashVerbosity);
-            std::string flashTwoPhaseMethod = EWOMS_GET_PARAM(TypeTag, std::string, FlashTwoPhaseMethod);
-            int spatialIdx = context.globalSpaceIndex(spaceIdx, timeIdx);
+        //     // Flash solver setup
+        //     Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
+        //     int flashVerbosity = EWOMS_GET_PARAM(TypeTag, int, FlashVerbosity);
+        //     std::string flashTwoPhaseMethod = EWOMS_GET_PARAM(TypeTag, std::string, FlashTwoPhaseMethod);
+        //     int spatialIdx = context.globalSpaceIndex(spaceIdx, timeIdx);
 
-            // Set K and L initial
-            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-                    const Evaluation Ktmp = fs.wilsonK_(compIdx);
-                    fs.setKvalue(compIdx, Ktmp);
-            }
-            const Evaluation& Ltmp = -1.0;
-            fs.setLvalue(Ltmp);
+        //     // Set K and L initial
+        //     for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+        //             const Evaluation Ktmp = fs.wilsonK_(compIdx);
+        //             fs.setKvalue(compIdx, Ktmp);
+        //     }
+        //     const Evaluation& Ltmp = -1.0;
+        //     fs.setLvalue(Ltmp);
 
-            // Run flash solver
-            FlashSolver::solve(fs, zInit, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+        //     // Run flash solver
+        //     FlashSolver::solve(fs, zInit, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
 
-            // Calculate pressure again
-            Evaluation densityL = fs.density(oilPhaseIdx);
-            const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
-            Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
-            p_init = (init_pressure*1e5) + Opm::getValue(densityL) * h * 9.81;
-            fs.setPressure(oilPhaseIdx, p_init);
-            fs.setPressure(gasPhaseIdx, p_init);
-        }
+        //     // Calculate pressure again
+        //     Evaluation densityL = fs.density(oilPhaseIdx);
+        //     const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
+        //     Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
+        //     p_init = (init_pressure*1e5) + Opm::getValue(densityL) * h * 9.81;
+        //     fs.setPressure(oilPhaseIdx, p_init);
+        //     fs.setPressure(gasPhaseIdx, p_init);
+        // }
 
     }
 };

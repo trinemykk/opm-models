@@ -135,7 +135,6 @@ public:
 
         // Update the composition if cell is two-phase
         if (isStable == false) {
-            
             // Print info
             if (verbosity >= 1) {
                 std::cout << "Cell is two-phase! Solve Rachford-Rice with initial K = [" << K << "]" << std::endl;
@@ -146,21 +145,21 @@ public:
 
             // Calculate composition using nonlinear solver
             // Newton
-            if (twoPhaseMethod == "newton"){
-                if (verbosity >= 1) {
-                    std::cout << "Calculate composition using Newton." << std::endl;
-                }
-                newtonCompositionUpdate_(K, L, fluidState, globalComposition, verbosity);
+                if (twoPhaseMethod == "newton"){
+                    if (verbosity >= 1) {
+                        std::cout << "Calculate composition using Newton." << std::endl;
+                    }
+                    newtonCompositionUpdate_(K, L, fluidState, globalComposition, verbosity);
                 
-            }
-
-            // Successive substitution
-            else if (twoPhaseMethod == "ssi"){
-                if (verbosity >= 1) {
-                    std::cout << "Calculate composition using Succcessive Substitution." << std::endl;
                 }
-                successiveSubstitutionComposition_(K, L, fluidState, globalComposition, /*standAlone=*/true, verbosity);
-            }
+
+                // Successive substitution
+                else if (twoPhaseMethod == "ssi"){
+                    if (verbosity >= 1) {
+                        std::cout << "Calculate composition using Succcessive Substitution." << std::endl;
+                    }
+                    successiveSubstitutionComposition_(K, L, fluidState, globalComposition, /*standAlone=*/true, verbosity);
+                }
         }
 
         // Cell is one-phase. Use Li's phase labeling method to see if it's liquid or vapor
@@ -937,7 +936,7 @@ protected:
             }
 
             // Check convergence
-            if (convFugRatio.two_norm() < 1e-6){
+            if (convFugRatio.two_norm() < 1e-6 || (L == 0 || L == 1)){
                 // Restore cout format
                 std::cout.flags(f); 
 
