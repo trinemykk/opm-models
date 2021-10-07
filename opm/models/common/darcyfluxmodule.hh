@@ -238,20 +238,14 @@ protected:
             for (unsigned phaseIdx=0; phaseIdx < numPhases; phaseIdx++) {
                 if (!elemCtx.model().phaseIsConsidered(phaseIdx))
                     continue;
-                     
-                // if (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 0 || intQuantsEx.fluidState().L(0) == 0) ){
-                //     continue;
-                // }
-                    
-                // if (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 1 || intQuantsEx.fluidState().L(0) == 1) ) {
-                //     continue;
-                // }
 
                 // calculate the hydrostatic pressure at the integration point of the face
                 Evaluation pStatIn;
 
                 if (std::is_same<Scalar, Evaluation>::value ||
-                    interiorDofIdx_ == static_cast<int>(focusDofIdx))
+                    interiorDofIdx_ == static_cast<int>(focusDofIdx) ||
+                    (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 1 && intQuantsEx.fluidState().L(0) == 0)) ||
+                    (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 0 && intQuantsEx.fluidState().L(0) == 1)))
                 {
                     const Evaluation& rhoIn = intQuantsIn.fluidState().density(phaseIdx);
                     pStatIn = - rhoIn*(gIn*distVecIn);
@@ -261,35 +255,14 @@ protected:
                     pStatIn = - rhoIn*(gIn*distVecIn);
                 }
 
-                // if (std::is_same<Scalar, Evaluation>::value ||
-                //     interiorDofIdx_ == static_cast<int>(focusDofIdx))
-                // {
-                //     Evaluation rhoIn;
-                //     if ((phaseIdx == 0 && intQuantsIn.fluidState().L(0) == 0) || (phaseIdx == 1 && intQuantsIn.fluidState().L(0) == 1)) {
-                //         rhoIn = 0.0;
-                //     }
-                //     else {
-                //         rhoIn = intQuantsIn.fluidState().density(phaseIdx);
-                //     }
-                //     pStatIn = - rhoIn*(gIn*distVecIn);
-                // }
-                // else {
-                //     Scalar rhoIn;
-                //     if ((phaseIdx == 0 && intQuantsIn.fluidState().L(0) == 0) || (phaseIdx == 1 && intQuantsIn.fluidState().L(0) == 1)) {
-                //         rhoIn = 0.0;
-                //     }
-                //     else {
-                //         rhoIn = Toolbox::value(intQuantsIn.fluidState().density(phaseIdx));
-                //     }
-                //     pStatIn = - rhoIn*(gIn*distVecIn);
-                // }
-
                 // the quantities on the exterior side of the face do not influence the
                 // result for the TPFA scheme, so they can be treated as scalar values.
                 Evaluation pStatEx;
 
                 if (std::is_same<Scalar, Evaluation>::value ||
-                    exteriorDofIdx_ == static_cast<int>(focusDofIdx))
+                    exteriorDofIdx_ == static_cast<int>(focusDofIdx) ||
+                    (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 0 && intQuantsEx.fluidState().L(0) == 1)) ||
+                    (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 1 && intQuantsEx.fluidState().L(0) == 0)))
                 {
                     const Evaluation& rhoEx = intQuantsEx.fluidState().density(phaseIdx);
                     pStatEx = - rhoEx*(gEx*distVecEx);
@@ -298,27 +271,6 @@ protected:
                     Scalar rhoEx = Toolbox::value(intQuantsEx.fluidState().density(phaseIdx));
                     pStatEx = - rhoEx*(gEx*distVecEx);
                 }
-
-                // if (std::is_same<Scalar, Evaluation>::value ||
-                //     exteriorDofIdx_ == static_cast<int>(focusDofIdx))
-                // {
-                //     Evaluation rhoEx;
-                //     if ((phaseIdx == 0 && intQuantsEx.fluidState().L(0) == 0) || (phaseIdx == 1 && intQuantsEx.fluidState().L(0) == 1)) {
-                //         rhoEx = 0.0;
-                //     }
-                //     else
-                //         rhoEx = intQuantsEx.fluidState().density(phaseIdx);
-                //     pStatEx = - rhoEx*(gEx*distVecEx);
-                // }
-                // else {
-                //     Scalar rhoEx;
-                //     if ((phaseIdx == 0 && intQuantsEx.fluidState().L(0) == 0) || (phaseIdx == 1 && intQuantsEx.fluidState().L(0) == 1)) {
-                //         rhoEx = 0.0;
-                //     }
-                //     else
-                //         rhoEx = Toolbox::value(intQuantsEx.fluidState().density(phaseIdx));
-                //     pStatEx = - rhoEx*(gEx*distVecEx);
-                // }
 
                 // compute the hydrostatic gradient between the two control volumes (this
                 // gradient exhibitis the same direction as the vector between the two
