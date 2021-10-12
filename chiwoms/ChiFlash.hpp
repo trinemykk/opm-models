@@ -59,7 +59,6 @@ class ChiFlash
     //using Problem = GetPropType<TypeTag, Properties::Problem>;
     enum { numPhases = FluidSystem::numPhases };
     enum { numComponents = FluidSystem::numComponents };
-    enum { Comp2Idx = FluidSystem::Comp2Idx }; //rename for generic ?
     enum { Comp0Idx = FluidSystem::Comp0Idx }; //rename for generic ?
     enum { Comp1Idx = FluidSystem::Comp1Idx }; //rename for generic ?
     enum { oilPhaseIdx = FluidSystem::oilPhaseIdx};
