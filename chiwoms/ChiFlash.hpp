@@ -285,7 +285,7 @@ public:
 
 
     template <class FluidState>
-    static void solve(FluidState& fluidState,
+      static void solve(FluidState& fluidState,
                       const Dune::FieldVector<typename FluidState::Scalar, numComponents>& globalComposition,
                       int spatialIdx,
                       int verbosity,
@@ -576,6 +576,96 @@ protected:
 
                     // Run bisection
                     L = bisection_g_(K, Lmin, Lmax, globalComposition, verbosity);
+        
+                    // Ensure that L is in the range (0, 1)
+                    L = Opm::min(Opm::max(L, 0.0), 1.0);
+
+                    // Print final result
+                    if (verbosity >= 1) {
+                        std::cout << "Rachford-Rice (Bisection) converged to final solution L = " << L << std::endl;
+                    }
+                    return L;
+                }
+
+            // Print iteration info
+            if (verbosity == 3 || verbosity == 4) {
+                std::cout << std::setw(10) << iteration << std::setw(16) << Opm::abs(delta) << std::setw(16) << L << std::endl;
+            }
+            // Check for convergence
+            if ( Opm::abs(delta) < 1e-10 ) {
+                // Ensure that L is in the range (0, 1)
+                L = Opm::min(Opm::max(L, 0.0), 1.0);
+
+                // Print final result
+                if (verbosity >= 1) {
+                    std::cout << "Rachford-Rice converged to final solution L = " << L << std::endl;
+                }
+                return L;
+            }
+        }
+        // Throw error if Rachford-Rice fails
+        throw std::runtime_error(" Rachford-Rice did not converge within maximum number of iterations" );
+    }
+
+    template <class ComponentVector>
+    static typename ComponentVector::field_type solveRachfordRiceXY(const bool& hasL, const ComponentVector& K0, Evaluation& L, const ComponentVector& z0, int verbosity)
+    {
+        
+        
+        // Find min and max K. Have to do a laborious for loop to avoid water component (where K=0)
+        // TODO: Replace loop with Dune::min_value() and Dune::max_value() when water component is properly handled
+        Evaluation Kmin = K0[0];
+        Evaluation Kmax = K0[0];
+        for (int compIdx=1; compIdx<numComponents; ++compIdx){
+            if (K0[compIdx] < Kmin)
+                Kmin = K0[compIdx];
+            else if (K0[compIdx] >= Kmax)
+                Kmax = K0[compIdx];
+        }
+
+        // Lower and upper bound for solution
+        Evaluation Lmin = (Kmin / (Kmin - 1));
+        Evaluation Lmax = Kmax / (Kmax - 1);
+
+        // Check if Lmin < Lmax, and switch if not
+        if (Lmin > Lmax)
+        {
+            Evaluation Ltmp = Lmin;
+            Lmin = Lmax;
+            Lmax = Ltmp;
+        }
+
+        // Initial guess
+        if (hasL == false) {
+            Evaluation L = (Lmin + Lmax)/2;
+        }
+
+        // Print initial guess and header
+        if (verbosity == 3 || verbosity == 4) {
+            std::cout << "Initial guess: L = " << L << " and [Lmin, Lmax] = [" << Lmin << ", " << Lmax << "]" << std::endl;
+            std::cout << std::setw(10) << "Iteration" << std::setw(16) << "abs(step)" << std::setw(16) << "L" << std::endl;
+        }
+
+        // Newton-Raphson loop
+        for (int iteration=1; iteration<100; ++iteration){
+            // Calculate function and derivative values
+            Evaluation g = rachfordRice_g_(K0, L, z0);
+            Evaluation dg_dL = rachfordRice_dg_dL_(K0, L, z0);
+
+            // Lnew = Lold - g/dg;
+            Evaluation delta = g/dg_dL;
+            L -= delta;
+
+            // Check if L is within the bounds, and if not, we apply bisection method
+            if (L < Lmin || L > Lmax)
+                {
+                    // Print info
+                    if (verbosity == 3 || verbosity == 4) {
+                        std::cout << "L is not within the the range [Lmin, Lmax], solve using Bisection method!" << std::endl;
+                    }
+
+                    // Run bisection
+                    L = bisection_g_(K0, Lmin, Lmax, z0, verbosity);
         
                     // Ensure that L is in the range (0, 1)
                     L = Opm::min(Opm::max(L, 0.0), 1.0);
