@@ -168,64 +168,77 @@ public:
             const bool& twophaseflagtmp = false;
             fluidState_.setTwophaseflag(twophaseflagtmp);
         }
-
         /////////////
         // Compute the phase compositions and densities 
-        /////////////
+        /////////////        
+        
         int spatialIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
-        FlashSolver::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+        // Print header
+        if (flashVerbosity >= 1) {
+            std::cout << "********" << std::endl;
+            std::cout << "Flash calculations on Cell " << spatialIdx << std::endl;
+        }
 
-        /////////////
+        
+        //FlashSolver::solve(fluidState_, z, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+
+        ////////////
         // COMPUTE FLASH
         //////////
-        // for (int iteration=1; iteration<1000; ++iteration) {
-        //     if (iteration == 1) {
-        //         bool flashActive_ = true;
-        //         //do stability-test:update fluidState, make "stable and active-flag",   
-        //         FlashSolver::prepareSolve(fluidState_, z, flashActive_, flashVerbosity, flashTolerance);
-        //     }
+        for (int iteration=1; iteration<1000; ++iteration) {
+             if (iteration == 1) {
+                 bool flashActive_ = true;
+                 //do stability-test:update fluidState, make "stable and active-flag",   
+                 FlashSolver::prepareSolve(fluidState_, z, flashActive_, flashVerbosity, flashTolerance);
+             }
 
-        //     if (flashActive_) { //cell is active from phasestability test, and remains active after ssi
-        //         ///Flashsolver::solve = subcompupdate for now
-        //         FlashSolver::solveSsi(fluidState_, z, flashActive_, flashVerbosity, flashTolerance);
-        //         //(note that if L ==0 or L==1 K is adjusted, also convergence bool)
-
-        //     }
-        //     if (flashActive_ = false){
-        //         iteration = 1001;
-        //     } else {iteration += 1;}
-        // }            
+             if (flashActive_) { //cell is active from phasestability test, and remains active after ssi
+                 if (flashVerbosity >= 1) {
+                    std::cout << "-------------" << std::endl;
+                    std::cout << "Active Cell: " << spatialIdx << std::endl;}
         
-        // const Scalar R = Opm::Constants<Scalar>::R;
-        // typename FluidSystem::template ParameterCache<Evaluation> paramCache;
-        // paramCache.updatePhase(fluidState_, FluidSystem::oilPhaseIdx);
-        // Evaluation Z_L = (paramCache.molarVolume(FluidSystem::oilPhaseIdx) * fluidState_.pressure(FluidSystem::oilPhaseIdx) )/
-        // (R * fluidState_.temperature(FluidSystem::oilPhaseIdx));
-        // paramCache.updatePhase(fluidState_, FluidSystem::gasPhaseIdx);
-        // Evaluation Z_V = (paramCache.molarVolume(FluidSystem::gasPhaseIdx) * fluidState_.pressure(FluidSystem::gasPhaseIdx) )/
-        // (R * fluidState_.temperature(FluidSystem::gasPhaseIdx));
+                 FlashSolver::solveSsi(fluidState_, z, flashActive_, flashVerbosity, flashTolerance);
+                 //(note that if L ==0 or L==1 K is adjusted, also convergence bool)
+                if (flashVerbosity >= 1) {
+                    std::cout << "-------------" << std::endl;
+                }
 
-        // // Update saturation
-        // Evaluation L = fluidState_.L(0);
-        // Evaluation So = Opm::max((L*Z_L/(L*Z_L+(1-L)*Z_V)), 0.0);
-        // Evaluation Sg = Opm::max(1-So, 0.0);
-        // Scalar sumS = Opm::getValue(So) + Opm::getValue(Sg);
-        // So /= sumS;
-        // Sg /= sumS;
+             }
+             if (flashActive_ = false){
+                 iteration = 1001;
+             } else {iteration += 1;}
+         }            
         
-        // fluidState_.setSaturation(0, So);
-        // fluidState_.setSaturation(1, Sg);
+        const Scalar R = Opm::Constants<Scalar>::R;
+        typename FluidSystem::template ParameterCache<Evaluation> paramCache;
+        paramCache.updatePhase(fluidState_, FluidSystem::oilPhaseIdx);
+        Evaluation Z_L = (paramCache.molarVolume(FluidSystem::oilPhaseIdx) * fluidState_.pressure(FluidSystem::oilPhaseIdx) )/
+        (R * fluidState_.temperature(FluidSystem::oilPhaseIdx));
+        paramCache.updatePhase(fluidState_, FluidSystem::gasPhaseIdx);
+        Evaluation Z_V = (paramCache.molarVolume(FluidSystem::gasPhaseIdx) * fluidState_.pressure(FluidSystem::gasPhaseIdx) )/
+        (R * fluidState_.temperature(FluidSystem::gasPhaseIdx));
 
-        // // Print saturation
-        // if (flashVerbosity == 5) {
-        //     std::cout << "So = " << So <<std::endl;
-        //     std::cout << "Sg = " << Sg <<std::endl;
-        //  }
+        // Update saturation
+        Evaluation L = fluidState_.L(0);
+        Evaluation So = Opm::max((L*Z_L/(L*Z_L+(1-L)*Z_V)), 0.0);
+        Evaluation Sg = Opm::max(1-So, 0.0);
+        Scalar sumS = Opm::getValue(So) + Opm::getValue(Sg);
+        So /= sumS;
+        Sg /= sumS;
+        
+        fluidState_.setSaturation(0, So);
+        fluidState_.setSaturation(1, Sg);
+
+        // Print saturation
+        if (flashVerbosity == 5) {
+            std::cout << "So = " << So <<std::endl;
+            std::cout << "Sg = " << Sg <<std::endl;
+          }
         
         /////////////
         // Compute rel. perm and viscosities
         /////////////
-        typename FluidSystem::template ParameterCache<Evaluation> paramCache;
+        //typename FluidSystem::template ParameterCache<Evaluation> paramCache;
         const MaterialLawParams& materialParams = problem.materialLawParams(elemCtx, dofIdx, timeIdx);
 
         // calculate relative permeabilities
@@ -243,8 +256,8 @@ public:
             mobility_[phaseIdx] = relativePermeability_[phaseIdx] / mu;
             Opm::Valgrind::CheckDefined(mobility_[phaseIdx]);
 
-            //const Evaluation& rho = FluidSystem::density(fluidState_, paramCache, phaseIdx);
-            //fluidState_.setDensity(phaseIdx, rho);
+            const Evaluation& rho = FluidSystem::density(fluidState_, paramCache, phaseIdx);
+            fluidState_.setDensity(phaseIdx, rho);
         }
 
         /////////////

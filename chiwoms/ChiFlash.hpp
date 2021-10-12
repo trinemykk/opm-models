@@ -288,7 +288,6 @@ public:
     template <class FluidState>
     static void solve(FluidState& fluidState,
                       const Dune::FieldVector<typename FluidState::Scalar, numComponents>& globalComposition,
-                      int spatialIdx,
                       int verbosity,
                       std::string twoPhaseMethod,
                       Scalar tolerance)
@@ -320,8 +319,6 @@ public:
 
         // Print header
         if (verbosity >= 1) {
-            std::cout << "********" << std::endl;
-            std::cout << "Flash calculations on Cell " << spatialIdx << std::endl;
             std::cout << "Inputs are K = [" << K << "], L = [" << L << "], z = [" << globalComposition << "], P = " << fluidState.pressure(0) << ", and T = " << fluidState.temperature(0) << std::endl;
         }
        
@@ -336,7 +333,6 @@ public:
 
         // Update the composition if cell is two-phase
         if (isStable == false) {
-            
             // Print info
             if (verbosity >= 1) {
                 std::cout << "Cell is two-phase! Solve Rachford-Rice with initial K = [" << K << "]" << std::endl;
@@ -352,7 +348,6 @@ public:
                     std::cout << "Calculate composition using Newton." << std::endl;
                 }
                 newtonCompositionUpdate_(K, L, fluidState, globalComposition, verbosity);
-                
             }
 
             // Successive substitution
@@ -379,7 +374,7 @@ public:
         ComponentVector y;
         Scalar sumX;
         Scalar sumY;
-        Scalar tol = 1e-3;
+        Scalar tol = 1e-8;
         for (int compIdx = 0; compIdx < numComponents; ++compIdx) {
             x[compIdx] = Opm::min(Opm::max(fluidState.moleFraction(oilPhaseIdx, compIdx), tol), 1-tol);
             y[compIdx] = Opm::min(Opm::max(fluidState.moleFraction(gasPhaseIdx, compIdx), tol), 1-tol);
@@ -407,8 +402,8 @@ public:
                 (R * fluidState.temperature(gasPhaseIdx));
 
         // Update saturation
-        Evaluation So = Opm::max((L*Z_L/(L*Z_L+(1-L)*Z_V)), 1e-8);
-        Evaluation Sg = Opm::max(1-So, 1e-8);
+        Evaluation So = Opm::max((L*Z_L/(L*Z_L+(1-L)*Z_V)), 0.0);
+        Evaluation Sg = Opm::max(1-So, 0.0);
         Scalar sumS = Opm::getValue(So) + Opm::getValue(Sg);
         So /= sumS;
         Sg /= sumS;
@@ -1256,7 +1251,7 @@ protected:
             }
 
             // Check convergence
-            if (convFugRatio.two_norm() < 1e-6){
+            if (convFugRatio.two_norm() < 1e-6 || (L == 0 || L == 1) ){
                 // Restore cout format
                 std::cout.flags(f); 
 
