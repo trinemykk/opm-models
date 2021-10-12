@@ -110,6 +110,7 @@ public:
         Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
         int flashVerbosity = EWOMS_GET_PARAM(TypeTag, int, FlashVerbosity);
         std::string flashTwoPhaseMethod = EWOMS_GET_PARAM(TypeTag, std::string, FlashTwoPhaseMethod);
+        bool notconverged = true;
         
         // extract the total molar densities of the components
         ComponentVector z;
@@ -141,6 +142,9 @@ public:
             }
             const Evaluation& Ltmp = hint->fluidState().L(0);
             fluidState_.setLvalue(Ltmp);
+
+            const bool& twophaseflagtmp = hint->fluidState().twophaseflag(0);
+            fluidState_.setTwophaseflag(twophaseflagtmp);
         }
         else if (hint2) {
             for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
@@ -149,6 +153,9 @@ public:
             }
             const Evaluation& Ltmp = hint2->fluidState().L(0);
             fluidState_.setLvalue(Ltmp);
+
+            const bool& twophaseflagtmp = hint2->fluidState().twophaseflag(0);
+            fluidState_.setTwophaseflag(twophaseflagtmp);
         }
         else {
             for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
@@ -157,12 +164,63 @@ public:
             }
             const Evaluation& Ltmp = -1.0;
             fluidState_.setLvalue(Ltmp);
+
+            const bool& twophaseflagtmp = false;
+            fluidState_.setTwophaseflag(twophaseflagtmp);
         }
+
         /////////////
         // Compute the phase compositions and densities 
         /////////////
         int spatialIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
         FlashSolver::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+
+        /////////////
+        // COMPUTE FLASH
+        //////////
+        // for (int iteration=1; iteration<1000; ++iteration) {
+        //     if (iteration == 1) {
+        //         bool flashActive_ = true;
+        //         //do stability-test:update fluidState, make "stable and active-flag",   
+        //         FlashSolver::prepareSolve(fluidState_, z, flashActive_, flashVerbosity, flashTolerance);
+        //     }
+
+        //     if (flashActive_) { //cell is active from phasestability test, and remains active after ssi
+        //         ///Flashsolver::solve = subcompupdate for now
+        //         FlashSolver::solveSsi(fluidState_, z, flashActive_, flashVerbosity, flashTolerance);
+        //         //(note that if L ==0 or L==1 K is adjusted, also convergence bool)
+
+        //     }
+        //     if (flashActive_ = false){
+        //         iteration = 1001;
+        //     } else {iteration += 1;}
+        // }            
+        
+        // const Scalar R = Opm::Constants<Scalar>::R;
+        // typename FluidSystem::template ParameterCache<Evaluation> paramCache;
+        // paramCache.updatePhase(fluidState_, FluidSystem::oilPhaseIdx);
+        // Evaluation Z_L = (paramCache.molarVolume(FluidSystem::oilPhaseIdx) * fluidState_.pressure(FluidSystem::oilPhaseIdx) )/
+        // (R * fluidState_.temperature(FluidSystem::oilPhaseIdx));
+        // paramCache.updatePhase(fluidState_, FluidSystem::gasPhaseIdx);
+        // Evaluation Z_V = (paramCache.molarVolume(FluidSystem::gasPhaseIdx) * fluidState_.pressure(FluidSystem::gasPhaseIdx) )/
+        // (R * fluidState_.temperature(FluidSystem::gasPhaseIdx));
+
+        // // Update saturation
+        // Evaluation L = fluidState_.L(0);
+        // Evaluation So = Opm::max((L*Z_L/(L*Z_L+(1-L)*Z_V)), 0.0);
+        // Evaluation Sg = Opm::max(1-So, 0.0);
+        // Scalar sumS = Opm::getValue(So) + Opm::getValue(Sg);
+        // So /= sumS;
+        // Sg /= sumS;
+        
+        // fluidState_.setSaturation(0, So);
+        // fluidState_.setSaturation(1, Sg);
+
+        // // Print saturation
+        // if (flashVerbosity == 5) {
+        //     std::cout << "So = " << So <<std::endl;
+        //     std::cout << "Sg = " << Sg <<std::endl;
+        //  }
         
         /////////////
         // Compute rel. perm and viscosities
@@ -184,6 +242,9 @@ public:
 
             mobility_[phaseIdx] = relativePermeability_[phaseIdx] / mu;
             Opm::Valgrind::CheckDefined(mobility_[phaseIdx]);
+
+            //const Evaluation& rho = FluidSystem::density(fluidState_, paramCache, phaseIdx);
+            //fluidState_.setDensity(phaseIdx, rho);
         }
 
         /////////////
@@ -245,6 +306,7 @@ private:
     Evaluation porosity_;
     Evaluation relativePermeability_[numPhases];
     Evaluation mobility_[numPhases];
+    bool flashActive_;
 };
 
 } // namespace Opm
