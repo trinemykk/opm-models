@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 %define tag final
 %define rtype release
 %define toolset devtoolset-9
@@ -8,6 +9,13 @@
 Name: opm-models
 Summary: OPM - Fully implicit models for flow and transport in porous media
 Version:        2018.10
+=======
+%define tag rc1
+
+Name: opm-models
+Summary: OPM - Fully implicit models for flow and transport in porous media
+Version: 2021.10
+>>>>>>> b13f7eae5 (bump version to 2021.10-rc1)
 Release: 0
 License: GPL-3.0+
 Group:   Development/Libraries/C and C++
