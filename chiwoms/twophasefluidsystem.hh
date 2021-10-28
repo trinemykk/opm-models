@@ -122,14 +122,10 @@ public:
         //! second comp idx 
         static const int Comp1Idx = 1;
 
-        //! third comp idx
-        static const int Comp2Idx = 2;
-
        // TODO: make this a loop over choises in chiwoms.hh
         // using Comp0 = Opm::Methane<Scalar>;
         using Comp0 = Opm::ChiwomsBrine<Scalar>;
         using Comp1 = Opm::ChiwomsCO2<Scalar>;
-        using Comp2 = Opm::NDekane<Scalar>;
 
     static void init(Scalar minT = 273.15,
                      Scalar maxT = 373.15,
@@ -188,7 +184,6 @@ public:
                 static const char* name[] = {
                         Comp0::name(),
                         Comp1::name(),
-                        Comp2::name(),
                 };
 
                 assert(0 <= compIdx && compIdx < numComponents);
@@ -202,8 +197,6 @@ public:
                         ? Comp0::molarMass()
                         : (compIdx == Comp1Idx)
                         ? Comp1::molarMass()
-                        : (compIdx == Comp2Idx)
-                        ? Comp2::molarMass()
                         : throw std::invalid_argument("Molar mass component index");
         }
 
@@ -218,8 +211,6 @@ public:
                         ? Comp0::criticalTemperature()
                         : (compIdx == Comp1Idx)
                         ? Comp1::criticalTemperature()
-                        : (compIdx == Comp2Idx)
-                        ? Comp2::criticalTemperature()
                         : throw std::invalid_argument("Critical temperature component index");
         }
 
@@ -234,8 +225,6 @@ public:
                         ? Comp0::criticalPressure()
                         : (compIdx == Comp1Idx)
                         ? Comp1::criticalPressure()
-                        : (compIdx == Comp2Idx)
-                        ? Comp2::criticalPressure()
                         : throw std::invalid_argument("Critical pressure component index");
         }
 
@@ -250,8 +239,6 @@ public:
                         ? Comp0::criticalVolume()
                         : (compIdx == Comp1Idx)
                         ? Comp1::criticalVolume()
-                        : (compIdx == Comp2Idx)
-                        ? Comp2::criticalVolume()
                         : throw std::invalid_argument("Critical volume component index");
         }
 
@@ -266,8 +253,6 @@ public:
                         ? Comp0::acentricFactor()
                         : (compIdx == Comp1Idx)
                         ? Comp1::acentricFactor()
-                        : (compIdx == Comp2Idx)
-                        ? Comp2::acentricFactor()
                         : throw std::invalid_argument("Molar mass component index");
         }
 
@@ -301,14 +286,14 @@ public:
         {
             // Use LBC method to calculate viscosity
             LhsEval mu;
-            if (phaseIdx == gasPhaseIdx) {
+            // if (phaseIdx == gasPhaseIdx) {
                 mu = LBCviscosity::LBCmod(fluidState, paramCache, phaseIdx);
-            }
-            else {
-                const auto& T = Opm::decay<LhsEval>(fluidState.temperature(phaseIdx));
-                const auto& p = Opm::decay<LhsEval>(fluidState.pressure(0));
-                mu = Brine::liquidViscosity(T, p);
-            }
+            // }
+            // else {
+            //     const auto& T = Opm::decay<LhsEval>(fluidState.temperature(phaseIdx));
+            //     const auto& p = Opm::decay<LhsEval>(fluidState.pressure(0));
+            //     mu = Brine::liquidViscosity(T, p);
+            // }
             return mu;
 
         }
@@ -365,17 +350,7 @@ public:
      */
     static Scalar interactionCoefficient(unsigned comp1Idx, unsigned comp2Idx)
     {
-        return 0;
-        unsigned i = std::min(comp1Idx, comp2Idx);
-        unsigned j = std::max(comp1Idx, comp2Idx);
-        #warning interactionCoefficients from Ivar
-        if (i == Comp0Idx && j == Comp1Idx)   //octane-co2TOD= generic
-            return -0.101;//0.1089;
-        else if (i == Comp0Idx && j == Comp2Idx) //octane-brine TODO generic
-            return 0.0;//1.1290;
-        else if (i == Comp1Idx && j == Comp2Idx) //co2 - brine TODO generic
-            return 0.0;//-0.0736;
-        return 0;
+        return 0.0; //-0.101;//0.1089;
     }
 
 };

@@ -59,7 +59,6 @@ class ChiFlash
     //using Problem = GetPropType<TypeTag, Properties::Problem>;
     enum { numPhases = FluidSystem::numPhases };
     enum { numComponents = FluidSystem::numComponents };
-    enum { Comp2Idx = FluidSystem::Comp2Idx }; //rename for generic ?
     enum { Comp0Idx = FluidSystem::Comp0Idx }; //rename for generic ?
     enum { Comp1Idx = FluidSystem::Comp1Idx }; //rename for generic ?
     enum { oilPhaseIdx = FluidSystem::oilPhaseIdx};
@@ -173,6 +172,26 @@ public:
             std::cout << "********" << std::endl;
         }
 
+        // Ensure that mole fractions are not close to 0
+        ComponentVector x;
+        ComponentVector y;
+        Scalar sumX;
+        Scalar sumY;
+        Scalar tol = 1e-3;
+        for (int compIdx = 0; compIdx < numComponents; ++compIdx) {
+            x[compIdx] = Opm::min(Opm::max(fluidState.moleFraction(oilPhaseIdx, compIdx), tol), 1-tol);
+            y[compIdx] = Opm::min(Opm::max(fluidState.moleFraction(gasPhaseIdx, compIdx), tol), 1-tol);
+            
+            sumX += Opm::getValue(x[compIdx]);
+            sumY += Opm::getValue(y[compIdx]);
+        }
+        x /= sumX;
+        y /= sumY;
+        for (int compIdx = 0; compIdx < numComponents; ++compIdx) {
+            fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
+            fluidState.setMoleFraction(gasPhaseIdx, compIdx, y[compIdx]);
+        }
+
         // Update phases
         typename FluidSystem::template ParameterCache<Scalar> paramCache;
         paramCache.updatePhase(fluidState, oilPhaseIdx);
@@ -186,9 +205,12 @@ public:
                 (R * fluidState.temperature(gasPhaseIdx));
 
         // Update saturation
-        Evaluation So = (L*Z_L/(L*Z_L+(1-L)*Z_V));
-        Evaluation Sg = 1-So;
-        //Evaluation Sg = (1-L)*Z_V/(L*Z_L+(1-L)*Z_V);
+        Evaluation So = Opm::max((L*Z_L/(L*Z_L+(1-L)*Z_V)), 1e-8);
+        Evaluation Sg = Opm::max(1-So, 1e-8);
+        Scalar sumS = Opm::getValue(So) + Opm::getValue(Sg);
+        So /= sumS;
+        Sg /= sumS;
+        
         fluidState.setSaturation(oilPhaseIdx, So);
         fluidState.setSaturation(gasPhaseIdx, Sg);
 
@@ -451,19 +473,21 @@ protected:
         bool isTrivialL, isTrivialV;
         ComponentVector x, y;
         Evaluation S_l, S_v;
+        ComponentVector K0 = K;
+        ComponentVector K1 = K;
 
         // Check for vapour instable phase
         if (verbosity == 3 || verbosity == 4) {
             std::cout << "Stability test for vapor phase:" << std::endl;
         }
-        checkStability_(fluidState, isTrivialV, K, y, S_v, globalComposition, /*isGas=*/true, verbosity);
+        checkStability_(fluidState, isTrivialV, K0, y, S_v, globalComposition, /*isGas=*/true, verbosity);
         bool V_unstable = (S_v < (1.0 + 1e-5)) || isTrivialV;
 
         // Check for liquids stable phase
         if (verbosity == 3 || verbosity == 4) {
             std::cout << "Stability test for liquid phase:" << std::endl;
         }
-        checkStability_(fluidState, isTrivialL, K, x, S_l, globalComposition, /*isGas=*/false, verbosity);
+        checkStability_(fluidState, isTrivialL, K1, x, S_l, globalComposition, /*isGas=*/false, verbosity);
         bool L_stable = (S_l < (1.0 + 1e-5)) || isTrivialL;
 
         // L-stable means success in making liquid, V-unstable means no success in making vapour

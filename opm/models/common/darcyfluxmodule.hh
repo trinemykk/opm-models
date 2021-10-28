@@ -243,7 +243,9 @@ protected:
                 Evaluation pStatIn;
 
                 if (std::is_same<Scalar, Evaluation>::value ||
-                    interiorDofIdx_ == static_cast<int>(focusDofIdx))
+                    interiorDofIdx_ == static_cast<int>(focusDofIdx) ||
+                    (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 1 && intQuantsEx.fluidState().L(0) == 0)) ||
+                    (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 0 && intQuantsEx.fluidState().L(0) == 1)))
                 {
                     const Evaluation& rhoIn = intQuantsIn.fluidState().density(phaseIdx);
                     pStatIn = - rhoIn*(gIn*distVecIn);
@@ -258,7 +260,9 @@ protected:
                 Evaluation pStatEx;
 
                 if (std::is_same<Scalar, Evaluation>::value ||
-                    exteriorDofIdx_ == static_cast<int>(focusDofIdx))
+                    exteriorDofIdx_ == static_cast<int>(focusDofIdx) ||
+                    (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 0 && intQuantsEx.fluidState().L(0) == 1)) ||
+                    (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 1 && intQuantsEx.fluidState().L(0) == 0)))
                 {
                     const Evaluation& rhoEx = intQuantsEx.fluidState().density(phaseIdx);
                     pStatEx = - rhoEx*(gEx*distVecEx);
@@ -273,7 +277,18 @@ protected:
                 // control volume centers and the length (pStaticExterior -
                 // pStaticInterior)/distanceInteriorToExterior
                 Dune::FieldVector<Evaluation, dimWorld> f(distVecTotal);
-                f *= (pStatEx - pStatIn)/absDistTotalSquared;
+                if (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 1 && intQuantsEx.fluidState().L(0) == 0))
+                    f *= -(pStatIn + pStatIn)/absDistTotalSquared;
+                else if (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 0 && intQuantsEx.fluidState().L(0) == 1))
+                    f *= (pStatEx + pStatEx)/absDistTotalSquared;
+
+                else if (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 0 && intQuantsEx.fluidState().L(0) == 1))
+                    f *= -(pStatIn + pStatIn)/absDistTotalSquared;
+                else if (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 1 && intQuantsEx.fluidState().L(0) == 0))
+                    f *= (pStatEx + pStatEx)/absDistTotalSquared;
+                
+                else
+                    f *= (pStatEx - pStatIn)/absDistTotalSquared;
 
                 // calculate the final potential gradient
                 for (unsigned dimIdx = 0; dimIdx < dimWorld; ++dimIdx)

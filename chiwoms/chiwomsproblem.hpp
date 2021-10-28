@@ -320,7 +320,6 @@ class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
     enum { gasPhaseIdx = FluidSystem::gasPhaseIdx };    
     enum { Comp1Idx = FluidSystem::Comp1Idx };
     enum { Comp0Idx = FluidSystem::Comp0Idx };
-    enum { Comp2Idx = FluidSystem::Comp2Idx };
     enum { conti0EqIdx = Indices::conti0EqIdx };
     enum { contiCO2EqIdx = conti0EqIdx + Comp1Idx };
     enum { numComponents = getPropValue<TypeTag, Properties::NumComponents>() };
