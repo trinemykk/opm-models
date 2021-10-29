@@ -124,15 +124,15 @@ public:
 
        // TODO: make this a loop over choises in chiwoms.hh
         // using Comp0 = Opm::Methane<Scalar>;
-        using Comp0 = Opm::ChiwomsBrine<Scalar>;
-        using Comp1 = Opm::ChiwomsCO2<Scalar>;
+        using Comp1 = Opm::ChiwomsBrine<Scalar>;
+        using Comp0 = Opm::ChiwomsCO2<Scalar>;
 
     static void init(Scalar minT = 273.15,
                      Scalar maxT = 373.15,
                      Scalar minP = 1e4,
                      Scalar maxP = 100e6)
     {
-        Opm::PengRobinsonParamsMixture<Scalar, ThisType, oilPhaseIdx, /*useSpe5=*/true> prParams;
+        Opm::PengRobinsonParamsMixture<Scalar, ThisType, oilPhaseIdx, /*useSpe5=*/false> prParams;
 
         // find envelopes of the 'a' and 'b' parameters for the range
         // minT <= T <= maxT and minP <= p <= maxP. For
