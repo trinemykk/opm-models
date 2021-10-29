@@ -55,9 +55,9 @@ class ChiParameterCache
 
 public:
     //! The cached parameters for the oil phase
-    using OilPhaseParams = Opm::PengRobinsonParamsMixture<Scalar, FluidSystem, oilPhaseIdx, /*useChi=*/true>;
+    using OilPhaseParams = Opm::PengRobinsonParamsMixture<Scalar, FluidSystem, oilPhaseIdx, /*useChi=*/false>;
     //! The cached parameters for the gas phase
-    using GasPhaseParams = Opm::PengRobinsonParamsMixture<Scalar, FluidSystem, gasPhaseIdx, /*useChi=*/true>;
+    using GasPhaseParams = Opm::PengRobinsonParamsMixture<Scalar, FluidSystem, gasPhaseIdx, /*useChi=*/false>;
 
     ChiParameterCache()
     {
@@ -243,8 +243,8 @@ protected:
     template <class FluidState>
     void updatePure_(const FluidState& fluidState, unsigned phaseIdx)
     {
-        Scalar T = Opm::getValue( fluidState.temperature(phaseIdx));
-        Scalar p = Opm::getValue( fluidState.pressure(phaseIdx));
+        Scalar T = fluidState.temperature(phaseIdx);
+        Scalar p = fluidState.pressure(phaseIdx);
 
         switch (phaseIdx)
         {
@@ -290,11 +290,11 @@ protected:
             // molar volume appears in basically every quantity the fluid
             // system can get queried, so it is okay to calculate it
             // here...
-            Vm_[gasPhaseIdx] = Opm::getValue(
+            Vm_[gasPhaseIdx] =
                 PengRobinson::computeMolarVolume(fluidState,
                                                  *this,
                                                  phaseIdx,
-                                                 /*isGasPhase=*/true));
+                                                 /*isGasPhase=*/true);
             break;
         }
         case oilPhaseIdx: {
@@ -303,11 +303,11 @@ protected:
             // molar volume appears in basically every quantity the fluid
             // system can get queried, so it is okay to calculate it
             // here...
-            Vm_[oilPhaseIdx] = Opm::getValue(
+            Vm_[oilPhaseIdx] = 
                 PengRobinson::computeMolarVolume(fluidState,
                                                  *this,
                                                  phaseIdx,
-                                                 /*isGasPhase=*/false));
+                                                 /*isGasPhase=*/false);
 
             break;
         }
