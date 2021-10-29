@@ -172,28 +172,8 @@ public:
             std::cout << "********" << std::endl;
         }
 
-        // Ensure that mole fractions are not close to 0
-        ComponentVector x;
-        ComponentVector y;
-        Scalar sumX;
-        Scalar sumY;
-        Scalar tol = 1e-3;
-        for (int compIdx = 0; compIdx < numComponents; ++compIdx) {
-            x[compIdx] = Opm::min(Opm::max(fluidState.moleFraction(oilPhaseIdx, compIdx), tol), 1-tol);
-            y[compIdx] = Opm::min(Opm::max(fluidState.moleFraction(gasPhaseIdx, compIdx), tol), 1-tol);
-            
-            sumX += Opm::getValue(x[compIdx]);
-            sumY += Opm::getValue(y[compIdx]);
-        }
-        x /= sumX;
-        y /= sumY;
-        for (int compIdx = 0; compIdx < numComponents; ++compIdx) {
-            fluidState.setMoleFraction(oilPhaseIdx, compIdx, x[compIdx]);
-            fluidState.setMoleFraction(gasPhaseIdx, compIdx, y[compIdx]);
-        }
-
         // Update phases
-        typename FluidSystem::template ParameterCache<Scalar> paramCache;
+        typename FluidSystem::template ParameterCache<Evaluation> paramCache;
         paramCache.updatePhase(fluidState, oilPhaseIdx);
         paramCache.updatePhase(fluidState, gasPhaseIdx);
 
@@ -205,11 +185,8 @@ public:
                 (R * fluidState.temperature(gasPhaseIdx));
 
         // Update saturation
-        Evaluation So = Opm::max((L*Z_L/(L*Z_L+(1-L)*Z_V)), 1e-8);
-        Evaluation Sg = Opm::max(1-So, 1e-8);
-        Scalar sumS = Opm::getValue(So) + Opm::getValue(Sg);
-        So /= sumS;
-        Sg /= sumS;
+        Evaluation So = L*Z_L/(L*Z_L+(1-L)*Z_V);
+        Evaluation Sg = 1-So;
         
         fluidState.setSaturation(oilPhaseIdx, So);
         fluidState.setSaturation(gasPhaseIdx, Sg);
@@ -225,6 +202,8 @@ public:
         if (verbosity == 5) {
             std::cout << "So = " << So <<std::endl;
             std::cout << "Sg = " << Sg <<std::endl;
+            std::cout << "Z_L = " << Z_L <<std::endl;
+            std::cout << "Z_V = " << Z_V <<std::endl;
         }
 
         // Update densities
