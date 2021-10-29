@@ -281,11 +281,15 @@ protected:
                     f *= -(pStatIn + pStatIn)/absDistTotalSquared;
                 else if (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 0 && intQuantsEx.fluidState().L(0) == 1))
                     f *= (pStatEx + pStatEx)/absDistTotalSquared;
+                else if (phaseIdx == 0 && (intQuantsIn.fluidState().L(0) == 0 && intQuantsEx.fluidState().L(0) == 0))
+                    f *= 0.0;
 
                 else if (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 0 && intQuantsEx.fluidState().L(0) == 1))
                     f *= -(pStatIn + pStatIn)/absDistTotalSquared;
                 else if (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 1 && intQuantsEx.fluidState().L(0) == 0))
                     f *= (pStatEx + pStatEx)/absDistTotalSquared;
+                else if (phaseIdx == 1 && (intQuantsIn.fluidState().L(0) == 1 && intQuantsEx.fluidState().L(0) == 1))
+                    f *= 0.0;
                 
                 else
                     f *= (pStatEx - pStatIn)/absDistTotalSquared;
