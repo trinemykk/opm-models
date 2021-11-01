@@ -38,6 +38,7 @@
 #include "flashintensivequantities.hh"
 #include "flashextensivequantities.hh"
 #include "flashindices.hh"
+#include "flashnewtonmethod.hh"
 
 #include <opm/models/common/multiphasebasemodel.hh>
 #include <opm/models/common/energymodule.hh>
@@ -70,6 +71,10 @@ struct FlashModel { using InheritsFrom = std::tuple<VtkDiffusion,
 template<class TypeTag>
 struct LocalResidual<TypeTag, TTag::FlashModel> { using type = Opm::FlashLocalResidual<TypeTag>; };
 
+//! Use the Ncp specific newton method for the flash model
+template<class TypeTag>
+struct NewtonMethod<TypeTag, TTag::FlashModel> { using type = Opm::FlashNewtonMethod<TypeTag>; };
+
 //! Use the NCP flash solver by default
 template<class TypeTag>
 struct FlashSolver<TypeTag, TTag::FlashModel>
@@ -83,6 +88,14 @@ struct FlashTolerance<TypeTag, TTag::FlashModel>
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = -1.0;
 };
+
+// Flash solver verbosity
+template<class TypeTag>
+struct FlashVerbosity<TypeTag, TTag::FlashModel> { static constexpr int value = 0; };
+
+// Flash two-phase method 
+template<class TypeTag>
+struct FlashTwoPhaseMethod<TypeTag, TTag::FlashModel> { static constexpr auto value = "ssi"; };
 
 //! the Model property
 template<class TypeTag>
@@ -237,6 +250,10 @@ public:
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, FlashTolerance,
                              "The maximum tolerance for the flash solver to "
                              "consider the solution converged");
+        EWOMS_REGISTER_PARAM(TypeTag, int, FlashVerbosity,
+                             "Flash solver verbosity level");
+        EWOMS_REGISTER_PARAM(TypeTag, std::string, FlashTwoPhaseMethod, 
+                             "Method for solving vapor-liquid composition");
     }
 
     /*!
@@ -255,10 +272,10 @@ public:
             return tmp;
 
         std::ostringstream oss;
-        if (Indices::cTot0Idx <= pvIdx && pvIdx < Indices::cTot0Idx
-                                                  + numComponents)
-            oss << "c_tot," << FluidSystem::componentName(/*compIdx=*/pvIdx
-                                                          - Indices::cTot0Idx);
+        if (Indices::z0Idx <= pvIdx && pvIdx < Indices::z0Idx + numComponents - 1)
+            oss << "z_," << FluidSystem::componentName(/*compIdx=*/pvIdx - Indices::z0Idx);
+        else if (pvIdx==Indices::pressure0Idx)
+            oss << "pressure_" << FluidSystem::phaseName(0);
         else
             assert(false);
 
@@ -295,7 +312,7 @@ public:
         if (tmp > 0)
             return tmp;
 
-        unsigned compIdx = pvIdx - Indices::cTot0Idx;
+        unsigned compIdx = pvIdx - Indices::conti0EqIdx;
 
         // make all kg equal. also, divide the weight of all total
         // compositions by 100 to make the relative errors more

@@ -554,10 +554,16 @@ protected:
         for (unsigned dofIdx = 0; dofIdx < numDof; dofIdx++) {
             unsigned globalIdx = globalSpaceIndex(dofIdx, timeIdx);
             const PrimaryVariables& dofSol = globalSol[globalIdx];
+<<<<<<< HEAD
             dofVars_[dofIdx].priVars[timeIdx] = &dofSol;
 
             dofVars_[dofIdx].thermodynamicHint[timeIdx] =
                 model().thermodynamicHint(globalIdx, timeIdx);
+=======
+            dofVars_[dofIdx].priVars[timeIdx] = dofSol;
+            dofVars_[dofIdx].thermodynamicHint[timeIdx] = model().thermodynamicHint(globalIdx, timeIdx);
+            dofVars_[dofIdx].thermodynamicHint[1] = model().thermodynamicHint(globalIdx, 1);
+>>>>>>> 622657fcb (compositional solver for two phase two component (co2 and brine) using LBC viscosity, z and p as primary variables and peng robinson eoscalculations)
 
             const auto *cachedIntQuants = model().cachedIntensiveQuantities(globalIdx, timeIdx);
             if (cachedIntQuants) {
@@ -568,6 +574,7 @@ protected:
                 model().updateCachedIntensiveQuantities(dofVars_[dofIdx].intensiveQuantities[timeIdx],
                                                         globalIdx,
                                                         timeIdx);
+                
             }
         }
     }
