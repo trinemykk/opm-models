@@ -94,9 +94,9 @@ protected:
         // Pressure updates
         ////
         // limit pressure reference change to 20% of the total value per iteration
-        // clampValue_(nextValue[pressure0Idx],
-        //             currentValue[pressure0Idx]*0.8,
-        //             currentValue[pressure0Idx]*1.2);
+        clampValue_(nextValue[pressure0Idx],
+                    currentValue[pressure0Idx]*0.8,
+                    currentValue[pressure0Idx]*1.2);
 
         ////
         // z updates
@@ -119,7 +119,7 @@ protected:
         }
 
         // ensure that z-values are less than tol or more than 1-tol
-        Scalar tol = 1e-3;
+        Scalar tol = 1e-8;
         for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
             clampValue_(nextValue[z0Idx + compIdx], tol, 1-tol);
         }
