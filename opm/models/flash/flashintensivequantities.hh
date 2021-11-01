@@ -66,18 +66,19 @@ class FlashIntensiveQuantities
     using ThreadManager = GetPropType<TypeTag, Properties::ThreadManager>;
 
     // primary variable indices
-    enum { cTot0Idx = Indices::cTot0Idx };
+    enum { z0Idx = Indices::z0Idx };
     enum { numPhases = getPropValue<TypeTag, Properties::NumPhases>() };
     enum { numComponents = getPropValue<TypeTag, Properties::NumComponents>() };
     enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
     enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
     enum { dimWorld = GridView::dimensionworld };
+    enum { pressure0Idx = Indices::pressure0Idx };
 
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
     using FlashSolver = GetPropType<TypeTag, Properties::FlashSolver>;
-
+    using Problem = GetPropType<TypeTag, Properties::Problem>;
     using ComponentVector = Dune::FieldVector<Evaluation, numComponents>;
     using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
 
@@ -107,33 +108,67 @@ public:
         const auto& priVars = elemCtx.primaryVars(dofIdx, timeIdx);
         const auto& problem = elemCtx.problem();
         Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
-
+        int flashVerbosity = EWOMS_GET_PARAM(TypeTag, int, FlashVerbosity);
+        std::string flashTwoPhaseMethod = EWOMS_GET_PARAM(TypeTag, std::string, FlashTwoPhaseMethod);
+        
         // extract the total molar densities of the components
-        ComponentVector cTotal;
-        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx)
-            cTotal[compIdx] = priVars.makeEvaluation(cTot0Idx + compIdx, timeIdx);
-
-        const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
-        if (hint) {
-            // use the same fluid state as the one of the hint, but
-            // make sure that we don't overwrite the temperature
-            // specified by the primary variables
-            Evaluation T = fluidState_.temperature(/*phaseIdx=*/0);
-            fluidState_.assign(hint->fluidState());
-            fluidState_.setTemperature(T);
+        ComponentVector z;
+        Evaluation lastZ = 1.0;
+        for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
+            z[compIdx] = priVars.makeEvaluation(z0Idx + compIdx, timeIdx);
+            lastZ -= z[compIdx];
         }
-        else
-            FlashSolver::guessInitial(fluidState_, cTotal);
+        z[numComponents - 1] = lastZ;
 
-        // compute the phase compositions, densities and pressures
+        Evaluation sumz = 0.0;
+        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+            z[compIdx] = Opm::max(z[compIdx], 1e-8);
+            sumz +=z[compIdx];
+        }
+        z /= sumz;
+
+        Evaluation p = priVars.makeEvaluation(pressure0Idx, timeIdx);
+        for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
+            fluidState_.setPressure(phaseIdx, p);
+
+        // Get initial K and L from storage initially (if enabled)
+        const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
+        const auto *hint2 = elemCtx.thermodynamicHint(dofIdx, 1);
+        if (hint) {
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                const Evaluation& Ktmp = hint->fluidState().K(compIdx);
+                fluidState_.setKvalue(compIdx, Ktmp);
+            }
+            const Evaluation& Ltmp = hint->fluidState().L(0);
+            fluidState_.setLvalue(Ltmp);
+        }
+        else if (hint2) {
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                const Evaluation& Ktmp = hint2->fluidState().K(compIdx);
+                fluidState_.setKvalue(compIdx, Ktmp);
+            }
+            const Evaluation& Ltmp = hint2->fluidState().L(0);
+            fluidState_.setLvalue(Ltmp);
+        }
+        else {
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                const Evaluation Ktmp = fluidState_.wilsonK_(compIdx);
+                fluidState_.setKvalue(compIdx, Ktmp);
+            }
+            const Evaluation& Ltmp = -1.0;
+            fluidState_.setLvalue(Ltmp);
+        }
+        /////////////
+        // Compute the phase compositions and densities 
+        /////////////
+        int spatialIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
+        FlashSolver::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+        
+        /////////////
+        // Compute rel. perm and viscosities
+        /////////////
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;
-        const MaterialLawParams& materialParams =
-            problem.materialLawParams(elemCtx, dofIdx, timeIdx);
-        FlashSolver::template solve<MaterialLaw>(fluidState_,
-                                                 materialParams,
-                                                 paramCache,
-                                                 cTotal,
-                                                 flashTolerance);
+        const MaterialLawParams& materialParams = problem.materialLawParams(elemCtx, dofIdx, timeIdx);
 
         // calculate relative permeabilities
         MaterialLaw::relativePermeabilities(relativePermeability_,
@@ -152,7 +187,7 @@ public:
         }
 
         /////////////
-        // calculate the remaining quantities
+        // Compute the remaining quantities
         /////////////
 
         // porosity
