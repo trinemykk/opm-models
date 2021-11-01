@@ -83,8 +83,7 @@ public:
         for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
             unsigned eqIdx = conti0EqIdx + compIdx;
             storage[eqIdx] +=
-                Toolbox::template decay<LhsEval>(fs.massFraction(phaseIdx, compIdx))
-                * Toolbox::template decay<LhsEval>(fs.density(phaseIdx))
+            Toolbox::template decay<LhsEval>(fs.molarity(phaseIdx, compIdx))
                 * Toolbox::template decay<LhsEval>(fs.saturation(phaseIdx))
                 * Toolbox::template decay<LhsEval>(intQuants.porosity());
         }
@@ -145,22 +144,22 @@ public:
             // linearize the system of equations, it does not matter.)
             if (upIdx == focusDofIdx) {
                 Evaluation tmp =
-                    up.fluidState().density(phaseIdx)
+                    up.fluidState().molarDensity(phaseIdx)
                     * extQuants.volumeFlux(phaseIdx);
 
                 for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
                     flux[conti0EqIdx + compIdx] +=
-                        tmp*up.fluidState().massFraction(phaseIdx, compIdx);
+                        tmp*up.fluidState().moleFraction(phaseIdx, compIdx);
                 }
             }
             else {
                 Evaluation tmp =
-                    Toolbox::value(up.fluidState().density(phaseIdx)
-                    * extQuants.volumeFlux(phaseIdx));
+                    Toolbox::value(up.fluidState().molarDensity(phaseIdx))
+                    * extQuants.volumeFlux(phaseIdx);
 
                 for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
                     flux[conti0EqIdx + compIdx] +=
-                        tmp*Toolbox::value(up.fluidState().massFraction(phaseIdx, compIdx));
+                        tmp*Toolbox::value(up.fluidState().moleFraction(phaseIdx, compIdx));
                 }
             }
         }
