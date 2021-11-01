@@ -30,13 +30,13 @@ namespace Opm {
  * \ingroup Fluidsystems
  *
  * \brief A two-phase fluid system with brine and octane as the main components
- * in each their phase, and CO2 as solvent in both.
+ * in each their phase, and CO2 as solvent in both. EDIT THIS
  */
 template <class Scalar>
-class ThreePhaseCo2OctaneBrineFluidSystem
-        : public Opm::BaseFluidSystem<Scalar, ThreePhaseCo2OctaneBrineFluidSystem<Scalar> >
+class ThreePhaseThreeComponentFluidSystem
+        : public Opm::BaseFluidSystem<Scalar, ThreePhaseThreeComponentFluidSystem<Scalar> >
 {
-    using ThisType = ThreePhaseCo2OctaneBrineFluidSystem<Scalar>;
+    using ThisType = ThreePhaseThreeComponentFluidSystem<Scalar>;
     using Base = Opm::BaseFluidSystem<Scalar, ThisType>;
     using PengRobinson =  typename Opm::PengRobinson<Scalar>;
     using PengRobinsonMixture =  typename Opm::PengRobinsonMixture<Scalar, ThisType>;
@@ -76,7 +76,7 @@ public:
         if (phaseIdx == oilPhaseIdx)
             return false;
 
-        // CO2 have associative effects, both with octane and with brine
+        // CO2 have associative effects
         return true;
     }
 
@@ -86,27 +86,26 @@ public:
          ****************************************/
 
     //! \copydoc BaseFluidSystem::numComponents
-    static const int numComponents = 3;  // octane, co2 and brine
+    static const int numComponents = 3;  // methane, co2 andn-decane
 
-    //! The component index of the oil; octane
-    static const int OctaneIdx = 0;
+    //! The component index of the methane; 
+    static const int Comp0Idx = 0;
 
-    //! The component index of the solvent; co2
-    static const int CO2Idx = 1;
+    //! The component index of the co2
+    static const int Comp1Idx = 1;
 
-    //! The component index of the other main component; h2o + salts
-    static const int BrineIdx = 2;
+    //! The component index of n-dekane
+    static const int Comp2Idx = 2;
 
     //! The component for pure oil
-    using Octane = Opm::Octane<Scalar>;
+    using Comp0 = Opm::Methane<Scalar>;
 
     //! The component for pure solvent; since we have our own thermodynamic
     //! functions, we use the simple definition for the rest.
-    using CO2 = Opm::ChiwomsCO2<Scalar>;
+    using Comp1 = Opm::ChiwomsCO2<Scalar>;
 
     //! The component for brine
-    using PureH2O = Opm::H2O<Scalar>;
-    using Brine = Opm::ChiwomsBrine<Scalar>;
+    using Comp2 = Opm::NDekane<Scalar>;
 
     static void init(Scalar minT = 273.15,
                      Scalar maxT = 373.15,
@@ -161,9 +160,9 @@ public:
     static const char* componentName(unsigned compIdx)
     {
         static const char* name[] = {
-            Octane::name(),
-            CO2::name(),
-            Brine::name(),
+            Comp0::name(),
+            Comp1::name(),
+            Comp2::name(),
         };
 
         assert(0 <= compIdx && compIdx < numComponents);
@@ -173,12 +172,12 @@ public:
     //! \copydoc BaseFluidSystem::molarMass
     static Scalar molarMass(unsigned compIdx)
     {
-        return (compIdx == OctaneIdx)
-                ? Octane::molarMass()
-                : (compIdx == CO2Idx)
-                  ? CO2::molarMass()
-                  : (compIdx == BrineIdx)
-                    ? Brine::molarMass()
+        return (compIdx == Comp0Idx)
+                ? Comp0::molarMass()
+                : (compIdx == Comp1Idx)
+                  ? Comp1::molarMass()
+                  : (compIdx == Comp2Idx)
+                    ? Comp2::molarMass()
                     : throw std::invalid_argument("Molar mass component index");
     }
 
@@ -189,12 +188,12 @@ public:
          */
     static Scalar criticalTemperature(unsigned compIdx)
     {
-        return (compIdx == OctaneIdx)
-                ? Octane::criticalTemperature()
-                : (compIdx == CO2Idx)
-                  ? CO2::criticalTemperature()
-                  : (compIdx == BrineIdx)
-                    ? Brine::criticalTemperature()
+        return (compIdx == Comp0Idx)
+                ? Comp0::criticalTemperature()
+                : (compIdx == Comp1Idx)
+                  ? Comp1::criticalTemperature()
+                  : (compIdx == Comp2Idx)
+                    ? Comp2::criticalTemperature()
                     : throw std::invalid_argument("Critical temperature component index");
     }
 
@@ -205,12 +204,12 @@ public:
          */
     static Scalar criticalPressure(unsigned compIdx)
     {
-        return (compIdx == OctaneIdx)
-                ? Octane::criticalPressure()
-                : (compIdx == CO2Idx)
-                  ? CO2::criticalPressure()
-                  : (compIdx == BrineIdx)
-                    ? Brine::criticalPressure()
+        return (compIdx == Comp0Idx)
+                ? Comp0::criticalPressure()
+                : (compIdx == Comp1Idx)
+                  ? Comp1::criticalPressure()
+                  : (compIdx == Comp2Idx)
+                    ? Comp2::criticalPressure()
                     : throw std::invalid_argument("Critical pressure component index");
     }
 
@@ -221,12 +220,12 @@ public:
          */
     static Scalar acentricFactor(unsigned compIdx)
     {
-        return (compIdx == OctaneIdx)
-                ? Octane::acentricFactor()
-                : (compIdx == CO2Idx)
-                  ? CO2::acentricFactor()
-                  : (compIdx == BrineIdx)
-                    ? Brine::acentricFactor()
+        return (compIdx == Comp0Idx)
+                ? Comp0::acentricFactor()
+                : (compIdx == Comp1Idx)
+                  ? Comp1::acentricFactor()
+                  : (compIdx == Comp2Idx)
+                    ? Comp2::acentricFactor()
                     : throw std::invalid_argument("Molar mass component index");
     }
 
@@ -248,7 +247,7 @@ public:
 
         const auto& T = Opm::decay<LhsEval>(fluidState.temperature(phaseIdx));
         const auto& p = Opm::decay<LhsEval>(fluidState.pressure(phaseIdx));
-        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, CO2Idx));
+        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, Comp1Idx));
         assert(T == (TEMPERATURE + 273.15));
 
         // if(phaseIdx == oilPhaseIdx) {
@@ -261,7 +260,7 @@ public:
             // return EOS::oleic_density(T, p, x);
         // } else if(phaseIdx == gasPhaseIdx) {
             // using IdealGas = Opm::IdealGas<Scalar>;
-            // return IdealGas::density(LhsEval(molarMass(CO2Idx)), T, p);
+            // return IdealGas::density(LhsEval(molarMass(Comp1Idx)), T, p);
         // }
         else {
             return 1000.;
@@ -279,7 +278,7 @@ public:
 
         const auto& T = Opm::decay<LhsEval>(fluidState.temperature(phaseIdx));
         const auto& p = Opm::decay<LhsEval>(fluidState.pressure(phaseIdx));
-        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, CO2Idx));
+        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, Comp1Idx));
         assert(T == (TEMPERATURE + 273.15));
 
         if(phaseIdx == oilPhaseIdx) {
@@ -298,7 +297,7 @@ public:
     {
         const auto& T = Opm::decay<LhsEval>(fluidState.temperature(phaseIdx));
         const auto& p = Opm::decay<LhsEval>(fluidState.pressure(phaseIdx));
-        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, CO2Idx));
+        const auto& x = Opm::decay<LhsEval>(fluidState.moleFraction(phaseIdx, Comp1Idx));
 
         if(phaseIdx == oilPhaseIdx) {
             return EOS::oleic_enthalpy(T, p, x);
@@ -318,7 +317,7 @@ public:
         assert(0 <= phaseIdx && phaseIdx < numPhases);
         assert(0 <= compIdx && compIdx < numComponents);
 
-        if (phaseIdx == waterPhaseIdx || compIdx == BrineIdx)
+        if (phaseIdx == waterPhaseIdx)
             return 1.0;
         else {
             Scalar phi = Opm::getValue(PengRobinsonMixture::computeFugacityCoefficient(fluidState, paramCache, phaseIdx, compIdx));
@@ -349,11 +348,11 @@ public:
         unsigned i = std::min(comp1Idx, comp2Idx);
         unsigned j = std::max(comp1Idx, comp2Idx);
 #warning interactionCoefficients from Ivar
-        if (i == OctaneIdx && j == CO2Idx)
+        if (i == Comp0Idx && j == Comp1Idx)
             return 0.1089;
-        else if (i == OctaneIdx && j == BrineIdx)
+        else if (i == Comp1Idx && j == Comp2Idx)
             return 1.1290;
-        else if (i == CO2Idx && j == BrineIdx)
+        else if (i == Comp1Idx && j == Comp2Idx)
             return -0.0736;
         return 0;
     }
