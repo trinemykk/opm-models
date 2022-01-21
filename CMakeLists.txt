@@ -135,11 +135,11 @@ if (BUILD_EXAMPLES)
     SOURCES art2dgf/art2dgf.cc
     EXE_NAME art2dgf)
 
-  EwomsAddApplication(chiwoms
-    SOURCES chiwoms/chiwoms.cpp
-    EXE_NAME chiwoms)
+  EwomsAddApplication(compositional
+    SOURCES compositional/compositional.cpp
+    EXE_NAME compositional)
 
-  add_dependencies(test-suite art2dgf chiwoms)
+  add_dependencies(test-suite art2dgf compositional)
 
   opm_add_test(art2dgf
     NO_COMPILE

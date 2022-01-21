@@ -22,7 +22,7 @@
 */
 /*!
  * \file
- * \copydoc Opm::ChiParameterCache
+ * \copydoc Opm::CompositionalParameterCache
  */
 #ifndef OPM_CHI_PARAMETER_CACHE_HPP
 #define OPM_CHI_PARAMETER_CACHE_HPP
@@ -42,10 +42,10 @@ namespace Opm {
  * \brief Specifies the parameter cache used by the SPE-5 fluid system.
  */
 template <class Scalar, class FluidSystem>
-class ChiParameterCache
-    : public Opm::ParameterCacheBase<ChiParameterCache<Scalar, FluidSystem> >
+class CompositionalParameterCache
+    : public Opm::ParameterCacheBase<CompositionalParameterCache<Scalar, FluidSystem> >
 {
-    using ThisType = ChiParameterCache<Scalar, FluidSystem>;
+    using ThisType = CompositionalParameterCache<Scalar, FluidSystem>;
     using ParentType = Opm::ParameterCacheBase<ThisType>;
     using PengRobinson = Opm::PengRobinson<Scalar>;
 
@@ -59,7 +59,7 @@ public:
     //! The cached parameters for the gas phase
     using GasPhaseParams = Opm::PengRobinsonParamsMixture<Scalar, FluidSystem, gasPhaseIdx, /*useChi=*/false>;
 
-    ChiParameterCache()
+    CompositionalParameterCache()
     {
             VmUpToDate_[oilPhaseIdx] = false;
             Valgrind::SetUndefined(Vm_[oilPhaseIdx]);

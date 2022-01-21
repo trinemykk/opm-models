@@ -2,7 +2,7 @@
 #define TWOPHASEFLUIDSYSTEM_HH
 
 #include "components.hh"
-#include "chiwoms.h"
+#include "compositional.h"
 #include "LBCviscosity.hpp"
 
 #include <iostream>
@@ -25,7 +25,7 @@
 #include <opm/material/components/SimpleH2O.hpp>
 #include <opm/material/eos/PengRobinsonMixture.hpp>
 #include <opm/material/eos/PengRobinsonParamsMixture.hpp>
-#include "ChiParameterCache.hpp"
+#include "CompositionalParameterCache.hpp"
 
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/material/common/Exceptions.hpp>
@@ -75,7 +75,7 @@ public:
 
     //! \copydoc BaseFluidSystem::ParameterCache
     template <class Evaluation>
-    using ParameterCache = Opm::ChiParameterCache<Evaluation, ThisType>;
+    using ParameterCache = Opm::CompositionalParameterCache<Evaluation, ThisType>;
 
     /****************************************
          * Fluid phase related static parameters
@@ -122,10 +122,10 @@ public:
         //! second comp idx 
         static const int Comp1Idx = 1;
 
-       // TODO: make this a loop over choises in chiwoms.hh
+       // TODO: make this a loop over choises in compositional.hh
         // using Comp0 = Opm::Methane<Scalar>;
-        using Comp0 = Opm::ChiwomsBrine<Scalar>;
-        using Comp1 = Opm::ChiwomsCO2<Scalar>;
+        using Comp0 = Opm::CompositionalBrine<Scalar>;
+        using Comp1 = Opm::CompositionalCO2<Scalar>;
 
     static void init(Scalar minT = 273.15,
                      Scalar maxT = 373.15,

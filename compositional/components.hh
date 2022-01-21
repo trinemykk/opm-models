@@ -1,7 +1,7 @@
 #ifndef COMPONENTS_HH
 #define COMPONENTS_HH
 
-#include "chiwoms.h"
+#include "compositional.h"
 
 #include <opm/material/IdealGas.hpp>
 #include <opm/material/components/Component.hpp>
@@ -158,7 +158,7 @@ public:
 };
 
 template <class Scalar>
-class ChiwomsCO2 : public Opm::SimpleCO2<Scalar>
+class CompositionalCO2 : public Opm::SimpleCO2<Scalar>
 {
 public:
          /// Chemical name
@@ -181,7 +181,7 @@ public:
 };
 
 template <class Scalar>
-class ChiwomsBrine : public Opm::H2O<Scalar>
+class CompositionalBrine : public Opm::H2O<Scalar>
 {
 public:
         /// Chemical name

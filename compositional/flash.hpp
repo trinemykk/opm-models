@@ -21,10 +21,10 @@
 */
 /*!
  * \file
- * \copydoc Opm::ChiFlash
+ * \copydoc Opm::flash
  */
-#ifndef OPM_CHI_FLASH_HPP
-#define OPM_CHI_FLASH_HPP
+#ifndef OPM_FLASH_HPP
+#define OPM_FLASH_HPP
 
 #include <opm/material/fluidmatrixinteractions/NullMaterial.hpp>
 #include <opm/material/fluidmatrixinteractions/MaterialTraits.hpp>
@@ -50,11 +50,11 @@ namespace Opm {
 
 /*!
  * \brief Determines the phase compositions, pressures and saturations
- *        given the total mass of all components for the chiwoms problem.
+ *        given the total mass of all components for the compositionalproblem.
  *
  */
 template <class Scalar, class Evaluation, class FluidSystem>
-class ChiFlash
+class flash
 {
     //using Problem = GetPropType<TypeTag, Properties::Problem>;
     enum { numPhases = FluidSystem::numPhases };
@@ -960,7 +960,7 @@ protected:
         throw std::runtime_error("Successive substitution composition update did not converge within maxIterations");
     }
     
-};//end ChiFlash
+};//end flash
 
 } // namespace Opm
 

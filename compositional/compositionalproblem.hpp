@@ -1,5 +1,5 @@
-#ifndef CHIWOMS_PROBLEM_HPP
-#define CHIWOMS_PROBLEM_HPP
+#ifndef COMPOSITIONAL_PROBLEM_HPP
+#define COMPOSITIONAL_PROBLEM_HPP
 
 #include <iostream>
 #include <cassert>
@@ -14,7 +14,7 @@
 // note that this header must be included before anything that directly
 // or indirectly may reference DUNE headers
 #include "twophasefluidsystem.hh"
-#include "ChiFlash.hpp"
+#include "flash.hpp"
 
 #include <opm/models/utils/propertysystem.hh>
 #include <opm/models/utils/start.hh>
@@ -45,19 +45,19 @@
 
 namespace Opm {
 template <class TypeTag>
-class ChiwomsProblem;
+class CompositionalProblem;
 } // namespace Opm
 
 namespace Opm::Properties {
 
 // Create new type tags
 namespace TTag {
-struct ChiwomsProblem {};
+struct CompositionalProblem {};
 } // end namespace TTag
 
 
 template<class TypeTag>
-struct Grid<TypeTag, TTag::ChiwomsProblem>
+struct Grid<TypeTag, TTag::CompositionalProblem>
 { using type = Dune::YaspGrid<3>; };
 
 template<class TypeTag, class MyTypeTag>
@@ -80,10 +80,10 @@ struct Initialpressure{ using type = UndefinedProperty; };
 
 // Set the problem property
 template<class TypeTag>
-struct Problem<TypeTag, TTag::ChiwomsProblem> { using type = Opm::ChiwomsProblem<TypeTag>; };
+struct Problem<TypeTag, TTag::CompositionalProblem> { using type = Opm::CompositionalProblem<TypeTag>; };
 
 template<class TypeTag>
-struct FlashSolver<TypeTag, TTag::ChiwomsProblem>
+struct FlashSolver<TypeTag, TTag::CompositionalProblem>
 {
 private:
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
@@ -91,12 +91,12 @@ private:
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
 
 public:
-    using type = Opm::ChiFlash<Scalar, Evaluation, FluidSystem >;
+    using type = Opm::flash<Scalar, Evaluation, FluidSystem >;
 };
 
 // Set fluid configuration
 template<class TypeTag>
-struct FluidSystem<TypeTag, TTag::ChiwomsProblem>
+struct FluidSystem<TypeTag, TTag::CompositionalProblem>
 {
 private:
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
@@ -107,7 +107,7 @@ public:
 
 // Set the material Law
 template<class TypeTag>
-struct MaterialLaw<TypeTag, TTag::ChiwomsProblem>
+struct MaterialLaw<TypeTag, TTag::CompositionalProblem>
 {
 private:
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
@@ -134,14 +134,14 @@ public:
 
 // Write the Newton convergence behavior to disk?
 template<class TypeTag>
-struct NewtonWriteConvergence<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
+struct NewtonWriteConvergence<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = false; };
 
 // Enable gravity
 template<class TypeTag>
-struct EnableGravity<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+struct EnableGravity<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
 
 template<class TypeTag>
-struct Temperature<TypeTag, TTag::ChiwomsProblem>
+struct Temperature<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 273.15 + TEMPERATURE;
@@ -149,21 +149,21 @@ struct Temperature<TypeTag, TTag::ChiwomsProblem>
 
 
 template<class TypeTag>
-struct Gravityfactor<TypeTag, TTag::ChiwomsProblem>
+struct Gravityfactor<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = GRAVITYFACTOR;
 };
 
 template<class TypeTag>
-struct Inflowrate<TypeTag, TTag::ChiwomsProblem>
+struct Inflowrate<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = INFLOW_RATE;
 };
 
 template<class TypeTag>
-struct Initialpressure<TypeTag, TTag::ChiwomsProblem>
+struct Initialpressure<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = MIN_PRES;
@@ -171,13 +171,13 @@ struct Initialpressure<TypeTag, TTag::ChiwomsProblem>
 
 
 template<class TypeTag>
-struct SimulationName<TypeTag, TTag::ChiwomsProblem>
-{ static constexpr auto value = "chiwoms"; };
+struct SimulationName<TypeTag, TTag::CompositionalProblem>
+{ static constexpr auto value = "compositional"; };
 
 
 // The default for the end time of the simulation
 template<class TypeTag>
-struct EndTime<TypeTag, TTag::ChiwomsProblem>
+struct EndTime<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value =  SIM_TIME * 24. * 60. * 60.;
@@ -186,60 +186,60 @@ struct EndTime<TypeTag, TTag::ChiwomsProblem>
 
 // convergence control
 template<class TypeTag>
-struct InitialTimeStepSize<TypeTag, TTag::ChiwomsProblem>
+struct InitialTimeStepSize<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 30;
 };
 
 // template<class TypeTag>
-// struct LinearSolverSplice<TypeTag, TTag::ChiwomsProblem>
+// struct LinearSolverSplice<TypeTag, TTag::CompositionalProblem>
 // { using type = TTag::ParallelIstlLinearSolver; };
 
 // template<class TypeTag>
-// struct LinearSolverWrapper<TypeTag, TTag::ChiwomsProblem>
+// struct LinearSolverWrapper<TypeTag, TTag::CompositionalProblem>
 // { using type = Opm::Linear::SolverWrapperRestartedGMRes<TypeTag>; };
 
 // template<class TypeTag>
-// struct PreconditionerWrapper<TypeTag, TTag::ChiwomsProblem>
+// struct PreconditionerWrapper<TypeTag, TTag::CompositionalProblem>
 // { using type = Opm::Linear::PreconditionerWrapperILU<TypeTag>; };
 
 // template<class TypeTag>
-// struct PreconditionerOrder<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = 2; };
+// struct PreconditionerOrder<TypeTag, TTag::CompositionalProblem> { static constexpr int value = 2; };
 
 template<class TypeTag>
-struct LinearSolverTolerance<TypeTag, TTag::ChiwomsProblem>
+struct LinearSolverTolerance<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 1e-3;
 };
 
 template<class TypeTag>
-struct LinearSolverAbsTolerance<TypeTag, TTag::ChiwomsProblem>
+struct LinearSolverAbsTolerance<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 0.;
 };
 template<class TypeTag>
-struct NewtonTolerance<TypeTag, TTag::ChiwomsProblem>
+struct NewtonTolerance<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 1e-3;
 };
 template<class TypeTag>
-struct MaxTimeStepSize<TypeTag, TTag::ChiwomsProblem>
+struct MaxTimeStepSize<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 60 * 60;
 };
 template<class TypeTag>
-struct NewtonMaxIterations<TypeTag, TTag::ChiwomsProblem>
+struct NewtonMaxIterations<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 10;
 };
 template<class TypeTag>
-struct NewtonTargetIterations<TypeTag, TTag::ChiwomsProblem>
+struct NewtonTargetIterations<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 6;
@@ -247,23 +247,23 @@ struct NewtonTargetIterations<TypeTag, TTag::ChiwomsProblem>
 
 // output
 template<class TypeTag>
-struct VtkWriteFilterVelocities<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+struct VtkWriteFilterVelocities<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
 template<class TypeTag>
-struct VtkWritePotentialGradients<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+struct VtkWritePotentialGradients<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
 template<class TypeTag>
-struct VtkWriteTotalMassFractions<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+struct VtkWriteTotalMassFractions<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
 template<class TypeTag>
-struct VtkWriteTotalMoleFractions<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+struct VtkWriteTotalMoleFractions<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
 template<class TypeTag>
-struct VtkWriteFugacityCoeffs<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+struct VtkWriteFugacityCoeffs<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
 template<class TypeTag>
-struct VtkWriteLiquidMoleFractions<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+struct VtkWriteLiquidMoleFractions<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
 template<class TypeTag>
-struct VtkWriteEquilibriumConstants<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = true; };
+struct VtkWriteEquilibriumConstants<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
 
 // write restart for every hour
 template<class TypeTag>
-struct EpisodeLength<TypeTag, TTag::ChiwomsProblem>
+struct EpisodeLength<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 60. * 60.;
@@ -271,36 +271,36 @@ struct EpisodeLength<TypeTag, TTag::ChiwomsProblem>
 
 // mesh grid
 template<class TypeTag>
-struct Vanguard<TypeTag, TTag::ChiwomsProblem> { using type = Opm::StructuredGridVanguard<TypeTag>; };
+struct Vanguard<TypeTag, TTag::CompositionalProblem> { using type = Opm::StructuredGridVanguard<TypeTag>; };
 
 template<class TypeTag>
-struct DomainSizeX<TypeTag, TTag::ChiwomsProblem>
+struct DomainSizeX<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = X_SIZE;  // meter
 };
 template<class TypeTag>
-struct CellsX<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = NX; };
+struct CellsX<TypeTag, TTag::CompositionalProblem> { static constexpr int value = NX; };
 template<class TypeTag>
-struct DomainSizeY<TypeTag, TTag::ChiwomsProblem>
+struct DomainSizeY<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = Y_SIZE;  // meter
 };
 template<class TypeTag>
-struct CellsY<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = NY; };
+struct CellsY<TypeTag, TTag::CompositionalProblem> { static constexpr int value = NY; };
 template<class TypeTag>
-struct DomainSizeZ<TypeTag, TTag::ChiwomsProblem>
+struct DomainSizeZ<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = Z_SIZE;  //meter
 };
 template<class TypeTag>
-struct CellsZ<TypeTag, TTag::ChiwomsProblem> { static constexpr int value = NZ; };
+struct CellsZ<TypeTag, TTag::CompositionalProblem> { static constexpr int value = NZ; };
 
 // compositional, with diffusion
 template<class TypeTag>
-struct EnableEnergy<TypeTag, TTag::ChiwomsProblem> { static constexpr bool value = false; };
+struct EnableEnergy<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = false; };
 }// namespace Opm::Properties
 
 namespace Opm {
@@ -309,7 +309,7 @@ namespace Opm {
  *
  */
 template <class TypeTag>
-class ChiwomsProblem : public GetPropType<TypeTag, Properties::BaseProblem>
+class CompositionalProblem : public GetPropType<TypeTag, Properties::BaseProblem>
 {
     using ParentType = GetPropType<TypeTag, Properties::BaseProblem>;
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
@@ -363,7 +363,7 @@ public:
     /*!
      * \copydoc Doxygen::defaultProblemConstructor
      */
-    ChiwomsProblem(Simulator& simulator)
+    CompositionalProblem(Simulator& simulator)
         : ParentType(simulator)
     {
 	    Scalar epi_len = EWOMS_GET_PARAM(TypeTag, Scalar, EpisodeLength);
