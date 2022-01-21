@@ -2,7 +2,7 @@
 #define THREEPHASEFLUIDSYSTEM_HH
 
 #include "components.hh"
-#include "chiwoms.h"
+#include "compositional.h"
 
 #include <iostream>
 #include <cassert>
@@ -19,7 +19,7 @@
 
 #include <opm/material/eos/PengRobinsonMixture.hpp>
 #include <opm/material/eos/PengRobinsonParamsMixture.hpp>
-#include "ChiParameterCache.hpp"
+#include "CompositionalParameterCache.hpp"
 
 #include <opm/material/fluidsystems/BrineCO2FluidSystem.hpp>
 #include <opm/material/constraintsolvers/ComputeFromReferencePhase.hpp>
@@ -45,7 +45,7 @@ public:
 
     //! \copydoc BaseFluidSystem::ParameterCache
     template <class Evaluation>
-    using ParameterCache = Opm::ChiParameterCache<Evaluation, ThisType>;
+    using ParameterCache = Opm::CompositionalParameterCache<Evaluation, ThisType>;
 
     /****************************************
          * Fluid phase related static parameters
@@ -102,7 +102,7 @@ public:
 
     //! The component for pure solvent; since we have our own thermodynamic
     //! functions, we use the simple definition for the rest.
-    using Comp1 = Opm::ChiwomsCO2<Scalar>;
+    using Comp1 = Opm::CompositionalCO2<Scalar>;
 
     //! The component for brine
     using Comp2 = Opm::NDekane<Scalar>;
