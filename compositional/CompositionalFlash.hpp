@@ -54,7 +54,7 @@ namespace Opm {
  *
  */
 template <class Scalar, class Evaluation, class FluidSystem>
-class flash
+class CompositionalFlash
 {
     //using Problem = GetPropType<TypeTag, Properties::Problem>;
     enum { numPhases = FluidSystem::numPhases };
