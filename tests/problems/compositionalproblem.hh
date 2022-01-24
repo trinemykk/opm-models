@@ -1,29 +1,58 @@
-#ifndef COMPOSITIONAL_PROBLEM_HPP
-#define COMPOSITIONAL_PROBLEM_HPP
+// -*- mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+// vi: set et ts=4 sw=4 sts=4:
+/*
+  This file is part of the Open Porous Media project (OPM).
 
-#include <iostream>
-#include <cassert>
-#include <stdexcept>  // invalid_argument
-#include <sstream>
-#include <iostream>
-#include <string>
-#include <random>    // mt19937, normal_distribution
-#include <limits>    // epsilon
-#include <boost/format.hpp>  // boost::format
+  OPM is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 2 of the License, or
+  (at your option) any later version.
+
+  OPM is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with OPM.  If not, see <http://www.gnu.org/licenses/>.
+
+  Consult the COPYING file in the top-level source directory of this
+  module for the precise wording of the license and the list of
+  copyright holders.
+*/
+/*!
+ * \file
+ *
+ * \copydoc Opm::CompositionalProblem
+ */
+#ifndef EWOMS_COMPOSITIONAL_PROBLEM_HH
+#define EWOMS_COMPOSITIONAL_PROBLEM_HH
+
+//#include <iostream>
+//#include <cassert>
+//#include <stdexcept>  // invalid_argument
+//#include <sstream>
+//#include <iostream>
+//#include <string>
+//#include <random>    // mt19937, normal_distribution
+//#include <limits>    // epsilon
+//#include <boost/format.hpp>  // boost::format
 
 //NOTE: these files are from old chiwoms....:
 #include "twophasefluidsystem.hh"
 #include "CompositionalFlash.hpp"
 
 //WHAT DO WE NEED HERE:
+#include <opm/models/immiscible/immisciblemodel.hh>
+#include <opm/simulators/linalg/parallelistlbackend.hh>
 #include <opm/models/utils/propertysystem.hh>
 #include <opm/models/utils/start.hh>
 #include <opm/models/io/structuredgridvanguard.hh>
 #include <opm/models/flash/flashmodel.hh>
-#include <opm/models/immiscible/immisciblemodel.hh>
 #include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
 
-#include <opm/simulators/linalg/parallelistlbackend.hh>
+// opm-material
+
 #include <opm/common/Exceptions.hpp>
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/material/common/Exceptions.hpp>
@@ -39,22 +68,21 @@
 namespace Opm {
 template <class TypeTag>
 class CompositionalProblem;
+
+namespace Compositional {
+    //#include <opm/material/components/co2tables.inc>
+}
 } // namespace Opm
 
 namespace Opm::Properties {
 
-// Create new type tags
 namespace TTag {
 struct CompositionalProblem {};
 } // end namespace TTag
 
-
-template<class TypeTag>
-struct Grid<TypeTag, TTag::CompositionalProblem>
-{ using type = Dune::YaspGrid<3>; };
-
+// declare the Compositional problem specify property tags
 template<class TypeTag, class MyTypeTag>
-struct Temperature{ using type = UndefinedProperty; };
+struct Temperature { using type = UndefinedProperty; };
 
 template<class TypeTag, class MyTypeTag>
 struct Gravityfactor{ using type = UndefinedProperty; };
@@ -71,10 +99,16 @@ struct Inflowrate{ using type = UndefinedProperty; };
 template<class TypeTag, class MyTypeTag>
 struct Initialpressure{ using type = UndefinedProperty; };
 
+// Set the grid type
+template<class TypeTag>
+struct Grid<TypeTag, TTag::CompositionalProblem> { using type = Dune::YaspGrid<3>; };
+
 // Set the problem property
 template<class TypeTag>
-struct Problem<TypeTag, TTag::CompositionalProblem> { using type = Opm::CompositionalProblem<TypeTag>; };
+struct Problem<TypeTag, TTag::CompositionalProblem> 
+{ using type = Opm::CompositionalProblem<TypeTag>; };
 
+// Set flash solver
 template<class TypeTag>
 struct FlashSolver<TypeTag, TTag::CompositionalProblem>
 {
@@ -125,6 +159,10 @@ public:
     using type = EffMaterialLaw;
 };
 
+// Set the thermal conduction law ???????????????????????????
+// set the energy storage law for the solid phase ?????????????????????????
+// Use the algebraic multi-grid linear solver for this problem ???????????????
+
 // Write the Newton convergence behavior to disk?
 template<class TypeTag>
 struct NewtonWriteConvergence<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = false; };
@@ -133,13 +171,14 @@ struct NewtonWriteConvergence<TypeTag, TTag::CompositionalProblem> { static cons
 template<class TypeTag>
 struct EnableGravity<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
 
+// set the defaults for the problem specific properties ?????
+
 template<class TypeTag>
 struct Temperature<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 273.15 + TEMPERATURE;
 };
-
 
 template<class TypeTag>
 struct Gravityfactor<TypeTag, TTag::CompositionalProblem>
@@ -162,11 +201,9 @@ struct Initialpressure<TypeTag, TTag::CompositionalProblem>
     static constexpr type value = MIN_PRES;
 };
 
-
 template<class TypeTag>
 struct SimulationName<TypeTag, TTag::CompositionalProblem>
 { static constexpr auto value = "compositional"; };
-
 
 // The default for the end time of the simulation
 template<class TypeTag>
@@ -176,7 +213,6 @@ struct EndTime<TypeTag, TTag::CompositionalProblem>
     static constexpr type value =  SIM_TIME * 24. * 60. * 60.;
 };
 
-
 // convergence control
 template<class TypeTag>
 struct InitialTimeStepSize<TypeTag, TTag::CompositionalProblem>
@@ -184,21 +220,6 @@ struct InitialTimeStepSize<TypeTag, TTag::CompositionalProblem>
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 30;
 };
-
-// template<class TypeTag>
-// struct LinearSolverSplice<TypeTag, TTag::CompositionalProblem>
-// { using type = TTag::ParallelIstlLinearSolver; };
-
-// template<class TypeTag>
-// struct LinearSolverWrapper<TypeTag, TTag::CompositionalProblem>
-// { using type = Opm::Linear::SolverWrapperRestartedGMRes<TypeTag>; };
-
-// template<class TypeTag>
-// struct PreconditionerWrapper<TypeTag, TTag::CompositionalProblem>
-// { using type = Opm::Linear::PreconditionerWrapperILU<TypeTag>; };
-
-// template<class TypeTag>
-// struct PreconditionerOrder<TypeTag, TTag::CompositionalProblem> { static constexpr int value = 2; };
 
 template<class TypeTag>
 struct LinearSolverTolerance<TypeTag, TTag::CompositionalProblem>
@@ -213,24 +234,28 @@ struct LinearSolverAbsTolerance<TypeTag, TTag::CompositionalProblem>
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 0.;
 };
+
 template<class TypeTag>
 struct NewtonTolerance<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 1e-3;
 };
+
 template<class TypeTag>
 struct MaxTimeStepSize<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 60 * 60;
 };
+
 template<class TypeTag>
 struct NewtonMaxIterations<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 10;
 };
+
 template<class TypeTag>
 struct NewtonTargetIterations<TypeTag, TTag::CompositionalProblem>
 {
@@ -239,18 +264,25 @@ struct NewtonTargetIterations<TypeTag, TTag::CompositionalProblem>
 };
 
 // output
+
 template<class TypeTag>
 struct VtkWriteFilterVelocities<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
+
 template<class TypeTag>
 struct VtkWritePotentialGradients<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
+
 template<class TypeTag>
 struct VtkWriteTotalMassFractions<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
+
 template<class TypeTag>
 struct VtkWriteTotalMoleFractions<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
+
 template<class TypeTag>
 struct VtkWriteFugacityCoeffs<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
+
 template<class TypeTag>
 struct VtkWriteLiquidMoleFractions<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
+
 template<class TypeTag>
 struct VtkWriteEquilibriumConstants<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true; };
 
@@ -272,34 +304,56 @@ struct DomainSizeX<TypeTag, TTag::CompositionalProblem>
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = X_SIZE;  // meter
 };
+
 template<class TypeTag>
 struct CellsX<TypeTag, TTag::CompositionalProblem> { static constexpr int value = NX; };
+
 template<class TypeTag>
 struct DomainSizeY<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = Y_SIZE;  // meter
 };
+
 template<class TypeTag>
 struct CellsY<TypeTag, TTag::CompositionalProblem> { static constexpr int value = NY; };
+
 template<class TypeTag>
 struct DomainSizeZ<TypeTag, TTag::CompositionalProblem>
 {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = Z_SIZE;  //meter
 };
+
 template<class TypeTag>
 struct CellsZ<TypeTag, TTag::CompositionalProblem> { static constexpr int value = NZ; };
 
 // compositional, with diffusion
 template<class TypeTag>
 struct EnableEnergy<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = false; };
+
 }// namespace Opm::Properties
+
+
+
 
 namespace Opm {
 /*!
  * \ingroup TestProblems
  *
+ * \brief Problem where 
+ *
+ * 
+ * 
+ * 
+ *
+ *
+ * 
+ *
+ * 
+ * 
+ *
+ * 
  */
 template <class TypeTag>
 class CompositionalProblem : public GetPropType<TypeTag, Properties::BaseProblem>

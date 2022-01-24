@@ -24,8 +24,8 @@
  * \file
  * \copydoc Opm::CompositionalParameterCache
  */
-#ifndef OPM_CHI_PARAMETER_CACHE_HPP
-#define OPM_CHI_PARAMETER_CACHE_HPP
+#ifndef OPM_COMPOSITIONAL_PARAMETER_CACHE_HPP
+#define OPM_COMPOSITIONAL_PARAMETER_CACHE_HPP
 
 #include <cassert>
 
