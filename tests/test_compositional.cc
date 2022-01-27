@@ -35,7 +35,8 @@
 namespace Opm::Properties {
 
 namespace TTag {
-    struct CompositionalNcpEcfvProblem {using InheritsFrom = std::tuple<CompositionalProblem, FlashModel>;};
+    struct CompositionalNcpEcfvProblem 
+    {using InheritsFrom = std::tuple<CompositionalProblem, FlashModel>;};
 
 }
 template <class TypeTag>
