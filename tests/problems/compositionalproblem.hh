@@ -39,9 +39,10 @@
 //#include <boost/format.hpp>  // boost::format
 
 //NOTE: these files are from old chiwoms....:
-#include "twophasefluidsystem.hh"
-#include "CompositionalFlash.hpp"
-
+//#include "twophasefluidsystem.hh"
+//#include "CompositionalFlash.hpp"
+#include <opm/material/fluidsystems/compositionalfluid/twophasefluidsystem.hh>
+#include <opm/material/constraintsolvers/CompositionalFlash2.hpp>
 //WHAT DO WE NEED HERE:
 #include <opm/models/immiscible/immisciblemodel.hh>
 #include <opm/simulators/linalg/parallelistlbackend.hh>
@@ -129,7 +130,7 @@ private:
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
 
 public:
-    using type = Opm::TwoPhaseThreeComponentFluidSystem<Scalar>;
+    using type = Opm::TwoPhaseTwoComponentFluidSystem<Scalar>;
 };
 
 // Set the material Law

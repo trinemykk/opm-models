@@ -135,11 +135,7 @@ if (BUILD_EXAMPLES)
     SOURCES art2dgf/art2dgf.cc
     EXE_NAME art2dgf)
 
-  EwomsAddApplication(compositional
-    SOURCES compositional/compositional.cpp
-    EXE_NAME compositional)
-
-  add_dependencies(test-suite art2dgf compositional)
+  add_dependencies(test-suite art2dgf)
 
   opm_add_test(art2dgf
     NO_COMPILE
@@ -212,6 +208,7 @@ foreach(tapp co2injection_flash_ni_vcfv
              powerinjection_darcy_fd
              powerinjection_darcy_ad
              cuvette_pvs
+             test_compositional
              infiltration_pvs
              lens_richards_vcfv
              lens_richards_ecfv
