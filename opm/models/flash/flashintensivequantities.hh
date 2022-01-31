@@ -163,11 +163,47 @@ public:
         /////////////
         int spatialIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
         FlashSolver::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
-        
-        /////////////
-        // Compute rel. perm and viscosities
-        /////////////
+
+        // Update phases        
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;
+        paramCache.updatePhase(fluidState_, FluidSystem::oilPhaseIdx);
+        
+        const Scalar R = Opm::Constants<Scalar>::R;
+        Evaluation Z_L = (paramCache.molarVolume(FluidSystem::oilPhaseIdx) * fluidState_.pressure(FluidSystem::oilPhaseIdx) )/
+        (R * fluidState_.temperature(FluidSystem::oilPhaseIdx));
+        paramCache.updatePhase(fluidState_, FluidSystem::gasPhaseIdx);
+        Evaluation Z_V = (paramCache.molarVolume(FluidSystem::gasPhaseIdx) * fluidState_.pressure(FluidSystem::gasPhaseIdx) )/
+        (R * fluidState_.temperature(FluidSystem::gasPhaseIdx));
+
+
+        // Update saturation
+        Evaluation L = fluidState_.L(0);
+        Evaluation So = Opm::max((L*Z_L/(L*Z_L+(1-L)*Z_V)), 0.0);
+        Evaluation Sg = Opm::max(1-So, 0.0);
+        Scalar sumS = Opm::getValue(So) + Opm::getValue(Sg);
+        So /= sumS;
+        Sg /= sumS;
+        
+        fluidState_.setSaturation(0, So);
+        fluidState_.setSaturation(1, Sg);
+
+        // Print saturation
+         if (flashVerbosity == 5) {
+             std::cout << "So = " << So <<std::endl;
+             std::cout << "Sg = " << Sg <<std::endl;
+           }
+
+        // Print saturation
+         if (flashVerbosity == 5) {
+             std::cout << "So = " << So <<std::endl;
+             std::cout << "Sg = " << Sg <<std::endl;
+             std::cout << "Z_L = " << Z_L <<std::endl;
+             std::cout << "Z_V = " << Z_V <<std::endl;
+         }
+   
+        /////////////
+        // Compute rel. perm and viscosities and densities
+        /////////////
         const MaterialLawParams& materialParams = problem.materialLawParams(elemCtx, dofIdx, timeIdx);
 
         // calculate relative permeabilities
@@ -175,7 +211,7 @@ public:
                                             materialParams, fluidState_);
         Opm::Valgrind::CheckDefined(relativePermeability_);
 
-        // set the phase viscosities
+        // set the phase viscosities and density
         for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
             paramCache.updatePhase(fluidState_, phaseIdx);
 
@@ -184,6 +220,9 @@ public:
 
             mobility_[phaseIdx] = relativePermeability_[phaseIdx] / mu;
             Opm::Valgrind::CheckDefined(mobility_[phaseIdx]);
+
+            const Evaluation& rho = FluidSystem::density(fluidState_, paramCache, phaseIdx);
+            fluidState_.setDensity(phaseIdx, rho);
         }
 
         /////////////
