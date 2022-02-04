@@ -213,6 +213,11 @@ struct InitialTimeStepSize<TypeTag, TTag::CompositionalProblem> {
     static constexpr type value = 30;
 };
 
+//TEST AMG LINEAR solver
+//template<class TypeTag>
+//struct LinearSolverSplice<TypeTag, TTag::CompositionalProblem>
+//{ using type = TTag::ParallelAmgLinearSolver; };
+
 template <class TypeTag>
 struct LinearSolverTolerance<TypeTag, TTag::CompositionalProblem> {
     using type = GetPropType<TypeTag, Scalar>;
@@ -749,7 +754,7 @@ private:
             fs.setLvalue(Ltmp);
 
             // Run flash solver
-            FlashSolver::solve(fs, zInit, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+            //FlashSolver::solve(fs, zInit, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
 
             // Calculate pressure again
             Evaluation densityL = fs.density(oilPhaseIdx);
