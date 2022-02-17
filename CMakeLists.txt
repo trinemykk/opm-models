@@ -199,6 +199,8 @@ foreach(tapp co2injection_flash_ni_vcfv
              co2injection_immiscible_vcfv
              co2injection_immiscible_ecfv
              co2injection_ncp_ecfv
+             co2smeaheiainjection_ncp_ecfv
+             smeaheiaSingle
              co2injection_pvs_ecfv
              co2injection_immiscible_ni_ecfv
              co2injection_ncp_ni_ecfv
