@@ -54,6 +54,7 @@
 #include <opm/grid/polyhedralgrid/dgfparser.hh>
 #include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
 #include <opm/models/immiscible/immisciblemodel.hh>
+#include <opm/models/common/transfluxmodule.hh>
 #include <opm/models/io/unstructuredgridvanguard.hh>
 #include <opm/simulators/linalg/parallelamgbackend.hh>
 #include <sstream>
@@ -162,6 +163,11 @@ struct Problem<TypeTag, TTag::Co2SmeaheiaInjectionBaseProblem> {
     using type = Opm::Co2SmeaheiaInjectionProblem<TypeTag>;
 };
 
+// Set the problem property
+template <class TypeTag>
+struct FluxModule<TypeTag, TTag::Co2SmeaheiaInjectionBaseProblem> {
+    using type = TransFluxModule<TypeTag>;
+};
 
 
 // Set fluid configuration
@@ -477,6 +483,7 @@ public:
         
         coarsePorosity_ = 0.3;
         loadPorosity_();//reservoirPorosity_ = 0.3;
+        loadPermeability_();
 
         // residual saturations
         reservoirMaterialParams_.setResidualSaturation(liquidPhaseIdx, 0.2);
@@ -503,6 +510,8 @@ public:
         solidEnergyLawParams_.finalize();
         injectionRate_ = EWOMS_GET_PARAM(TypeTag, Scalar, InjectionRate);
 
+
+        calculateWellVolume_();
         shutin_ = 60 * 60 * 24 * 365 * 50;
 		openinj_ = 0; //60 * 60 * 24 * 1 * 1; //wait one day
 		max_time_step_size_ = EWOMS_GET_PARAM(TypeTag, Scalar, MaxTimeStepSize);
