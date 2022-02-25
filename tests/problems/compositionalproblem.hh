@@ -27,10 +27,18 @@
  */
 #ifndef EWOMS_COMPOSITIONAL_PROBLEM_HH
 #define EWOMS_COMPOSITIONAL_PROBLEM_HH
+#include <dune/common/fmatrix.hh>
+#include <dune/common/fvector.hh>
+#include <dune/common/version.hh>
+#include <dune/grid/yaspgrid.hh>
+
+#include <opm/common/Exceptions.hpp>
 
 #include <opm/material/constraintsolvers/CompositionalFlash2.hpp> //TODO: PUT IN THE CORRECT ONE HERE
 #include <opm/material/fluidsystems/compositionalfluid/twophasefluidsystem.hh>
-
+#include <opm/material/common/Exceptions.hpp>
+#include <opm/material/common/Unused.hpp>
+#include <opm/material/common/Valgrind.hpp>
 #include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
 #include <opm/models/flash/flashmodel.hh>
 #include <opm/models/immiscible/immisciblemodel.hh>
@@ -39,19 +47,11 @@
 #include <opm/models/utils/start.hh>
 #include <opm/simulators/linalg/parallelistlbackend.hh>
 
-#include <opm/common/Exceptions.hpp>
-#include <opm/material/common/Exceptions.hpp>
-#include <opm/material/common/Unused.hpp>
-#include <opm/material/common/Valgrind.hpp>
-
-#include <dune/common/fmatrix.hh>
-#include <dune/common/fvector.hh>
-#include <dune/common/version.hh>
-#include <dune/grid/yaspgrid.hh>
 
 
-namespace Opm
-{
+
+
+namespace Opm {
 template <class TypeTag>
 class CompositionalProblem;
 } // namespace Opm
@@ -59,11 +59,9 @@ class CompositionalProblem;
 namespace Opm::Properties
 {
 
-namespace TTag
-{
-    struct CompositionalProblem {
-    };
-} // end namespace TTag
+namespace TTag {
+struct CompositionalProblem {};
+}   // namespace TTag
 
 // declare the Compositional problem specify property tags
 template <class TypeTag, class MyTypeTag>
@@ -343,13 +341,9 @@ struct EnableEnergy<TypeTag, TTag::CompositionalProblem> {
     static constexpr bool value = false;
 };
 
-} // namespace Opm::Properties
+}  // namespace Opm::Properties
 
-
-
-
-namespace Opm
-{
+namespace Opm {
 /*!
  * \ingroup TestProblems
  *
@@ -377,17 +371,7 @@ class CompositionalProblem : public GetPropType<TypeTag, Properties::BaseProblem
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
     using MaterialLawParams = GetPropType<TypeTag, Properties::MaterialLawParams>;
     using Indices = GetPropType<TypeTag, Properties::Indices>;
-    using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
-    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
-    using BoundaryRateVector = GetPropType<TypeTag, Properties::BoundaryRateVector>;
-    using Toolbox = Opm::MathToolbox<Evaluation>;
-    using CoordScalar = typename GridView::ctype;
-    using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
-    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
-    using Model = GetPropType<TypeTag, Properties::Model>;
-    using H2O = typename Opm::H2O<Scalar>;
-    using Brine = typename Opm::Brine<Scalar, H2O>;
-
+    
     enum { dim = GridView::dimension };
     enum { dimWorld = GridView::dimensionworld };
     enum { numPhases = FluidSystem::numPhases };
@@ -400,7 +384,17 @@ class CompositionalProblem : public GetPropType<TypeTag, Properties::BaseProblem
     enum { numComponents = getPropValue<TypeTag, Properties::NumComponents>() };
     enum { enableEnergy = getPropValue<TypeTag, Properties::EnableEnergy>() };
     enum { enableDiffusion = getPropValue<TypeTag, Properties::EnableDiffusion>() };
-    enum { enableGravity = getPropValue<TypeTag, Properties::EnableGravity>() };
+    enum { enableGravity = getPropValue<TypeTag, Properties::EnableGravity>() };<TypeTag, Properties::PrimaryVariables>;
+    using RateVector = GetPropType<TypeTag, Properties::RateVector>;
+    using BoundaryRateVector = GetPropType<TypeTag, Properties::BoundaryRateVector>;
+    using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
+    using Simulator = GetPropType<TypeTag, Properties::Simulator>;
+    using Model = GetPropType<TypeTag, Properties::Model>;
+    using H2O = typename Opm::H2O<Scalar>;
+    using Brine = typename Opm::Brine<Scalar, H2O>;
+    using Toolbox = Opm::MathToolbox<Evaluation>;
+    using CoordScalar = typename GridView::ctype;
+    
 
     using GlobalPosition = Dune::FieldVector<CoordScalar, dimWorld>;
     using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
