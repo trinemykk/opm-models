@@ -98,6 +98,12 @@ struct WorldDim {
     using type = UndefinedProperty; 
 };
 
+
+template <class TypeTag, class MyTypeTag>
+struct CsvFilePath { 
+    using type = UndefinedProperty; 
+};
+
 template <class TypeTag, class MyTypeTag>
 struct GridDim { 
     using type = UndefinedProperty; 
@@ -328,6 +334,12 @@ struct InitialTimeStepSize<TypeTag, TTag::Co2SmeaheiaInjectionBaseProblem> {
     static constexpr type value = 1.0 * 24 * 60 * 60;
 };
 
+// Add output file name
+template<class TypeTag>
+struct CsvFilePath<TypeTag, TTag::Co2SmeaheiaInjectionBaseProblem> { 
+    static constexpr auto value = "../results/"; 
+};
+
 // The default for the initial time step size of the simulation
 template <class TypeTag>
 struct MaxTimeStepSize<TypeTag, TTag::Co2SmeaheiaInjectionBaseProblem> {
@@ -462,6 +474,7 @@ public:
         maxDepth_ = EWOMS_GET_PARAM(TypeTag, Scalar, MaxDepth);
         temperature_ = EWOMS_GET_PARAM(TypeTag, Scalar, Temperature);
 
+        csvFilePath_ = EWOMS_GET_PARAM(TypeTag, std::string, CsvFilePath);
         // initialize the tables of the fluid system
         // FluidSystem::init();
         FluidSystem::init(/*Tmin=*/temperatureLow_,
@@ -511,7 +524,16 @@ public:
         injectionRate_ = EWOMS_GET_PARAM(TypeTag, Scalar, InjectionRate);
 
 
+        std::ostringstream fileName;
+        fileName << csvFilePath_ << getPropValue<TypeTag, Properties::SimulationName>();
+        fileName << ".csv";
+        csvFileName_ = fileName.str();
+
+        const char *cstr = csvFileName_.c_str();
+        if( remove( cstr ) != 0 )
+            perror( "Error deleting file" );
         calculateWellVolume_();
+
         shutin_ = 60 * 60 * 24 * 365 * 50;
 		openinj_ = 0; //60 * 60 * 24 * 1 * 1; //wait one day
 		max_time_step_size_ = EWOMS_GET_PARAM(TypeTag, Scalar, MaxTimeStepSize);
@@ -540,6 +562,7 @@ public:
         EWOMS_REGISTER_PARAM(TypeTag, unsigned, FluidSystemNumTemperature,
                              "The number of intervals between the lower and "
                              "upper temperature");
+        EWOMS_REGISTER_PARAM(TypeTag, std::string, CsvFilePath, "File path for mass leak");
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, InjectionRate,
                              "The injection rate [kg / s]");
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, ReservoirLayerTop,
@@ -580,6 +603,9 @@ public:
         oss << "_rate_" << EWOMS_GET_PARAM(TypeTag, Scalar, InjectionRate);
         return oss.str();
     }
+    const std::string csvFileName() const {
+        return csvFileName_;
+    }
     /*!
      * \copydoc FvBaseProblem::endTimeStep
      */
@@ -614,6 +640,17 @@ public:
         file.exceptions(file.exceptions() | std::ios::failbit | std::ifstream::badbit);
 
         file << line;
+    }
+
+        Scalar nextTimeStepSize() const
+    {
+        Scalar dt = ParentType::nextTimeStepSize();
+	   if (asImp_().simulator().time() < openinj_){ 
+            return std::min(dt, openinj_ - asImp_().simulator().time());}
+       else if (asImp_().simulator().time() < shutin_){
+            return std::min(dt, shutin_ - asImp_().simulator().time());}
+       else
+			return std::min(dt, max_time_step_size_);
     }
 
         /*!
@@ -929,6 +966,9 @@ protected:
     DimMatrix coarseK_;
     Scalar reservoirLayerBottom_;
     Scalar reservoirLayerTop_;
+
+    std::string csvFilePath_;
+    std::string csvFileName_;
 
     std::vector<Scalar> reservoirPorosity_;
     Scalar coarsePorosity_;
