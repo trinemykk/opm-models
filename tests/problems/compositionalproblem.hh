@@ -28,85 +28,69 @@
 #ifndef EWOMS_COMPOSITIONAL_PROBLEM_HH
 #define EWOMS_COMPOSITIONAL_PROBLEM_HH
 
-#include <opm/material/constraintsolvers/CompositionalFlash2.hpp> //TODO: PUT IN THE CORRECT ONE HERE
-#include <opm/material/fluidsystems/compositionalfluid/twophasefluidsystem.hh>
+#include <opm/common/Exceptions.hpp>
 
+#include <opm/models/immiscible/immisciblemodel.hh>
 #include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
 #include <opm/models/flash/flashmodel.hh>
-#include <opm/models/immiscible/immisciblemodel.hh>
 #include <opm/models/io/structuredgridvanguard.hh>
 #include <opm/models/utils/propertysystem.hh>
 #include <opm/models/utils/start.hh>
+
 #include <opm/simulators/linalg/parallelistlbackend.hh>
 
-#include <opm/common/Exceptions.hpp>
 #include <opm/material/common/Exceptions.hpp>
+#include <opm/material/constraintsolvers/CompositionalFlash2.hpp> //TODO: PUT IN THE CORRECT ONE HERE
+#include <opm/material/fluidsystems/compositionalfluid/twophasefluidsystem.hh>
 #include <opm/material/common/Unused.hpp>
 #include <opm/material/common/Valgrind.hpp>
 
-#include <dune/common/fmatrix.hh>
-#include <dune/common/fvector.hh>
-#include <dune/common/version.hh>
 #include <dune/grid/yaspgrid.hh>
+#include <dune/grid/io/file/dgfparser/dgfyasp.hh>
+
+#include <dune/common/version.hh>
+#include <dune/common/fvector.hh>
+#include <dune/common/fmatrix.hh>
+
+#include <sstream>
+#include <iostream>
+#include <string>
 
 
-namespace Opm
-{
+namespace Opm {
 template <class TypeTag>
 class CompositionalProblem;
 } // namespace Opm
 
-namespace Opm::Properties
-{
+namespace Opm::Properties {
 
-namespace TTag
-{
-    struct CompositionalProblem {
-    };
+namespace TTag {
+struct CompositionalProblem {};
 } // end namespace TTag
 
 // declare the Compositional problem specify property tags
 template <class TypeTag, class MyTypeTag>
-struct Temperature {
-    using type = UndefinedProperty;
-};
+struct Temperature { using type = UndefinedProperty; };
+template <class TypeTag, class MyTypeTag>
+struct SimulationName { using type = UndefinedProperty; };
+template <class TypeTag, class MyTypeTag>
+struct Gravityfactor { using type = UndefinedProperty; };
+template <class TypeTag, class MyTypeTag>
+struct EpisodeLength { using type = UndefinedProperty;};
+template <class TypeTag, class MyTypeTag>
+struct Inflowrate { using type = UndefinedProperty;};
 
 template <class TypeTag, class MyTypeTag>
-struct Gravityfactor {
-    using type = UndefinedProperty;
-};
-
-template <class TypeTag, class MyTypeTag>
-struct SimulationName {
-    using type = UndefinedProperty;
-};
-
-template <class TypeTag, class MyTypeTag>
-struct EpisodeLength {
-    using type = UndefinedProperty;
-};
-
-template <class TypeTag, class MyTypeTag>
-struct Inflowrate {
-    using type = UndefinedProperty;
-};
-
-template <class TypeTag, class MyTypeTag>
-struct Initialpressure {
-    using type = UndefinedProperty;
-};
+struct Initialpressure { using type = UndefinedProperty;};
 
 // Set the grid type
 template <class TypeTag>
-struct Grid<TypeTag, TTag::CompositionalProblem> {
-    using type = Dune::YaspGrid<3>;
-};
+struct Grid<TypeTag, TTag::CompositionalProblem> { using type = Dune::YaspGrid<3>; };
 
 // Set the problem property
 template <class TypeTag>
-struct Problem<TypeTag, TTag::CompositionalProblem> {
-    using type = Opm::CompositionalProblem<TypeTag>;
-};
+struct Problem<TypeTag, TTag::CompositionalProblem> 
+{ using type = Opm::CompositionalProblem<TypeTag>; };
 
 // Set flash solver
 template <class TypeTag>
@@ -122,7 +106,8 @@ public:
 
 // Set fluid configuration
 template <class TypeTag>
-struct FluidSystem<TypeTag, TTag::CompositionalProblem> {
+struct FluidSystem<TypeTag, TTag::CompositionalProblem> 
+{
 private:
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
 
@@ -132,13 +117,12 @@ public:
 
 // Set the material Law
 template <class TypeTag>
-struct MaterialLaw<TypeTag, TTag::CompositionalProblem> {
+struct MaterialLaw<TypeTag, TTag::CompositionalProblem> 
+{
 private:
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
-    enum {
-        oilPhaseIdx = FluidSystem::oilPhaseIdx,
-        gasPhaseIdx = FluidSystem::gasPhaseIdx,
-    };
+    enum { oilPhaseIdx = FluidSystem::oilPhaseIdx };
+    enum { gasPhaseIdx = FluidSystem::gasPhaseIdx };
 
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
     using Traits = Opm::TwoPhaseMaterialTraits<Scalar,
@@ -150,22 +134,22 @@ private:
     // saturations
 
     using EffMaterialLaw = Opm::NullMaterial<Traits>;
+    //using EffMaterialLaw = Opm::RegularizedBrooksCorey<Traits>;
 
 public:
     // define the material law parameterized by absolute saturations
-    using type = EffMaterialLaw;
+     //using type = Opm::EffToAbsLaw<EffMaterialLaw>;
+     using type = EffMaterialLaw;
 };
 
 // Write the Newton convergence behavior to disk?
 template <class TypeTag>
 struct NewtonWriteConvergence<TypeTag, TTag::CompositionalProblem> {
-    static constexpr bool value = false;
-};
+static constexpr bool value = false; };
 
 // Enable gravity
 template <class TypeTag>
-struct EnableGravity<TypeTag, TTag::CompositionalProblem> {
-    static constexpr bool value = true;
+struct EnableGravity<TypeTag, TTag::CompositionalProblem> { static constexpr bool value = true;
 };
 
 // set the defaults for the problem specific properties ?????
@@ -348,8 +332,7 @@ struct EnableEnergy<TypeTag, TTag::CompositionalProblem> {
 
 
 
-namespace Opm
-{
+namespace Opm {
 /*!
  * \ingroup TestProblems
  *
@@ -371,25 +354,27 @@ template <class TypeTag>
 class CompositionalProblem : public GetPropType<TypeTag, Properties::BaseProblem>
 {
     using ParentType = GetPropType<TypeTag, Properties::BaseProblem>;
+
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
     using GridView = GetPropType<TypeTag, Properties::GridView>;
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
-    using MaterialLawParams = GetPropType<TypeTag, Properties::MaterialLawParams>;
+    enum { dim = GridView::dimension };
+    enum { dimWorld = GridView::dimensionworld };
     using Indices = GetPropType<TypeTag, Properties::Indices>;
     using PrimaryVariables = GetPropType<TypeTag, Properties::PrimaryVariables>;
     using RateVector = GetPropType<TypeTag, Properties::RateVector>;
     using BoundaryRateVector = GetPropType<TypeTag, Properties::BoundaryRateVector>;
-    using Toolbox = Opm::MathToolbox<Evaluation>;
-    using CoordScalar = typename GridView::ctype;
     using MaterialLaw = GetPropType<TypeTag, Properties::MaterialLaw>;
     using Simulator = GetPropType<TypeTag, Properties::Simulator>;
     using Model = GetPropType<TypeTag, Properties::Model>;
+    using MaterialLawParams = GetPropType<TypeTag, Properties::MaterialLawParams>;    
+
     using H2O = typename Opm::H2O<Scalar>;
     using Brine = typename Opm::Brine<Scalar, H2O>;
+    using Toolbox = Opm::MathToolbox<Evaluation>;
+    using CoordScalar = typename GridView::ctype;
 
-    enum { dim = GridView::dimension };
-    enum { dimWorld = GridView::dimensionworld };
     enum { numPhases = FluidSystem::numPhases };
     enum { oilPhaseIdx = FluidSystem::oilPhaseIdx };
     enum { gasPhaseIdx = FluidSystem::gasPhaseIdx };
@@ -494,16 +479,21 @@ public:
     {
         ParentType::registerParameters();
 
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Temperature, "The temperature [K] in the reservoir");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Gravityfactor, "The gravityfactor [-] of the reservoir");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Inflowrate, "The inflow rate [?] on the left boundary of the reservoir");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Initialpressure, "The initial pressure [Pa s] in the reservoir");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Temperature, 
+                            "The temperature [K] in the reservoir");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Gravityfactor, 
+                            "The gravityfactor [-] of the reservoir");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Inflowrate, 
+                            "The inflow rate [?] on the left boundary of the reservoir");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Initialpressure, 
+                            "The initial pressure [Pa s] in the reservoir");
         EWOMS_REGISTER_PARAM(TypeTag,
                              std::string,
                              SimulationName,
                              "The name of the simulation used for the output "
                              "files");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, EpisodeLength, "Time interval [s] for episode length");
+        EWOMS_REGISTER_PARAM(TypeTag, Scalar, EpisodeLength, 
+                            "Time interval [s] for episode length");
     }
 
     /*!
@@ -547,9 +537,20 @@ public:
         Scalar tol = this->model().newtonMethod().tolerance() * 1e5;
         this->model().checkConservativeness(tol);
 
-        // Calculate storage terms
+ // Calculate storage terms
         PrimaryVariables storageO, storageW;
         this->model().globalPhaseStorage(storageO, oilPhaseIdx);
+
+        // Calculate storage terms
+         PrimaryVariables storageL, storageG;
+         this->model().globalPhaseStorage(storageL, /*phaseIdx=*/0);
+         this->model().globalPhaseStorage(storageG, /*phaseIdx=*/1);
+
+         // Write mass balance information for rank 0
+         if (this->gridView().comm().rank() == 0) {
+             std::cout << "Storage: liquid=[" << storageL << "]"
+                       << " gas=[" << storageG << "]\n" << std::flush;
+         }
     }
 
     /*!
@@ -559,14 +560,13 @@ public:
     void initial(PrimaryVariables& values, const Context& context, unsigned spaceIdx, unsigned timeIdx) const
     {
         Opm::CompositionalFluidState<Evaluation, FluidSystem> fs;
-        initialFs(fs, context, spaceIdx, timeIdx);
+        initialFluidState(fs, context, spaceIdx, timeIdx);
         values.assignNaive(fs);
     }
 
     // Constant temperature
     template <class Context>
-    Scalar
-    temperature(const Context& context OPM_UNUSED, unsigned spaceIdx OPM_UNUSED, unsigned timeIdx OPM_UNUSED) const
+    Scalar temperature(const Context& context OPM_UNUSED, unsigned spaceIdx OPM_UNUSED, unsigned timeIdx OPM_UNUSED) const
     {
         return temperature_;
     }
@@ -621,7 +621,7 @@ public:
             values.setMassRate(massRate);
         } else if (onRightBoundary_(pos)) {
             Opm::CompositionalFluidState<Evaluation, FluidSystem> fs;
-            initialFs(fs, context, spaceIdx, timeIdx);
+            initialFluidState(fs, context, spaceIdx, timeIdx);
             values.setFreeFlow(context, spaceIdx, timeIdx, fs);
         } else
             values.setNoFlow(); // closed on top and bottom
@@ -669,18 +669,12 @@ private:
         return pos[XDIM] > (this->boundingBoxMax()[XDIM] + this->boundingBoxMin()[XDIM]) / 2;
     }
 
-    DimMatrix K_;
-    Scalar porosity_;
-    Scalar temperature_;
-    Scalar gravityfactor_;
-    MaterialLawParams mat_;
-    DimVector gravity_;
 
     /*!
      * \copydoc FvBaseProblem::initial
      */
     template <class FluidState, class Context>
-    void initialFs(FluidState& fs, const Context& context, unsigned spaceIdx, unsigned timeIdx) const
+    void initialFluidState(FluidState& fs, const Context& context, unsigned spaceIdx, unsigned timeIdx) const
     {
         // get capillary pressure
         Scalar pC[numPhases];
@@ -766,6 +760,13 @@ private:
             fs.setPressure(gasPhaseIdx, p_init);
         }
     }
+
+    DimMatrix K_;
+    Scalar porosity_;
+    Scalar temperature_;
+    Scalar gravityfactor_;
+    MaterialLawParams mat_;
+    DimVector gravity_;
 };
 } // namespace Opm
 
