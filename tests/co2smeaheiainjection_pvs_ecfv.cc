@@ -29,7 +29,7 @@
 #include "config.h"
 
 #include <opm/models/utils/start.hh>
-#include <opm/models/npvs/pvsmodel.hh>
+#include <opm/models/pvs/pvsmodel.hh>
 #include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
 #include "problems/co2smeaheiainjectionproblem.hh"
 
