@@ -139,7 +139,7 @@ public:
                 const Evaluation& Ktmp = hint->fluidState().K(compIdx);
                 fluidState_.setKvalue(compIdx, Ktmp);
             }
-            const Evaluation& Ltmp = hint->fluidState().L(0);
+            const Evaluation& Ltmp = hint->fluidState().L();
             fluidState_.setLvalue(Ltmp);
         }
         else if (hint2) {
@@ -147,7 +147,7 @@ public:
                 const Evaluation& Ktmp = hint2->fluidState().K(compIdx);
                 fluidState_.setKvalue(compIdx, Ktmp);
             }
-            const Evaluation& Ltmp = hint2->fluidState().L(0);
+            const Evaluation& Ltmp = hint2->fluidState().L();
             fluidState_.setLvalue(Ltmp);
         }
         else {
@@ -163,6 +163,8 @@ public:
         /////////////
         int spatialIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
         FlashSolver::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+        //Flash::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+
 
         // Update phases        
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;
@@ -177,7 +179,7 @@ public:
 
 
         // Update saturation
-        Evaluation L = fluidState_.L(0);
+        Evaluation L = fluidState_.L();
         Evaluation So = Opm::max((L*Z_L/(L*Z_L+(1-L)*Z_V)), 0.0);
         Evaluation Sg = Opm::max(1-So, 0.0);
         Scalar sumS = Opm::getValue(So) + Opm::getValue(Sg);

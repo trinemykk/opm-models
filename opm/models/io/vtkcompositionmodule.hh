@@ -195,7 +195,7 @@ public:
             const auto& fs = intQuants.fluidState();
 
             if (LOutput_()) 
-                L_[I] = Toolbox::value(fs.L(0));
+                L_[I] = Toolbox::value(fs.L());
 
             for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
                 for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
