@@ -211,6 +211,7 @@ foreach(tapp co2injection_flash_ni_vcfv
              co2injectiontest_immiscible_ecfv
              co2injectiontest_flash_ecfv
              co2injectiontestcompositional_compositionalflash_ecfv
+             juliacompositional_compositionalflash_ecfv
              powerinjection_forchheimer_fd
              powerinjection_forchheimer_ad
              powerinjection_darcy_fd
