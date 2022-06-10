@@ -23,7 +23,7 @@
 /*!
  * \file
  *
- * \copydoc Opm::Co2InjectionCompositional
+ * \copydoc Opm::Juliacompositionalproblem
  */
 #ifndef EWOMS_COMPOSITIONAL_PROBLEM_HH
 #define EWOMS_COMPOSITIONAL_PROBLEM_HH
@@ -40,8 +40,7 @@
 #include <opm/simulators/linalg/parallelistlbackend.hh>
 
 #include <opm/material/common/Exceptions.hpp>
-#include <opm/material/constraintsolvers/ChiFlash.hpp> //TODO: PUT IN THE CORRECT ONE HERE
-//#include <opm/material/constraintsolvers/CompositopnalFlash2.hpp> 
+#include <opm/material/constraintsolvers/ChiFlash.hpp> 
 #include <opm/material/fluidsystems/chifluid/twophasefluidsystem.hh>
 #include <opm/material/fluidsystems/chifluid/juliathreecomponentfluidsystem.hh>
 #include <opm/material/common/Unused.hpp>
@@ -179,7 +178,7 @@ struct Inflowrate<TypeTag, TTag::Co2InjectionCompositional> {
 template <class TypeTag>
 struct Initialpressure<TypeTag, TTag::Co2InjectionCompositional> {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = MIN_PRES;
+    static constexpr type value = 100;//MIN_PRES;
 };
 
 template <class TypeTag>
@@ -233,7 +232,7 @@ struct MaxTimeStepSize<TypeTag, TTag::Co2InjectionCompositional> {
 template <class TypeTag>
 struct NewtonMaxIterations<TypeTag, TTag::Co2InjectionCompositional> {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 10;
+    static constexpr type value = 30;
 };
 
 template <class TypeTag>
@@ -340,7 +339,7 @@ namespace Opm {
 /*!
  * \ingroup TestProblems
  *
- * \brief Problem where
+ * \brief 3 component testproblem with CO2 Methane NDekan
  *
  *
  *
@@ -752,12 +751,11 @@ private:
 
     // TODO: only, p, z need the derivatives.
     const double flash_tolerance = 1.e-12; // just to test the setup in co2-compositional
-    const int flash_verbosity = 1;
+    //const int flash_verbosity = 1;
     const std::string flash_twophase_method = "newton"; // "ssi"
     // const std::string flash_twophase_method = "ssi";
     // const std::string flash_twophase_method = "ssi+newton";
 
-    // TODO: should we set these?
     // Set initial K and L
     for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
         const Evaluation Ktmp = fs.wilsonK_(compIdx);
@@ -765,64 +763,20 @@ private:
     }
     const Evaluation Ltmp = 1.;
     fs.setLvalue(Ltmp);
-/*         // get capillary pressure
-        Scalar pC[numPhases];
-        const auto& matParams = this->materialLawParams(context, spaceIdx, timeIdx);
-        MaterialLaw::capillaryPressures(pC, matParams, fs);
 
-        // pressure; set simple hydrostatic pressure initially.
-        // OBS: If horizontal (NZ = 1), then h = Z_SIZE/2 since boundingBoxMax is cell edge
-        Scalar init_pressure = EWOMS_GET_PARAM(TypeTag, Scalar, Initialpressure);
-        bool enable_gravity = EWOMS_GET_PARAM(TypeTag, bool, EnableGravity);
-        Scalar p_init;
-        if (enable_gravity == true) {
-            Scalar densityW = Brine::liquidDensity(temperature_, Scalar(init_pressure));
-            const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
-            Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
-            p_init = (init_pressure * 1e5) + densityW * h * (-this->gravity_[1]);
-        } else
-            p_init = init_pressure * 1e5;
-        fs.setPressure(oilPhaseIdx, p_init);
-        fs.setPressure(gasPhaseIdx, p_init); */
+    // get capillary pressure
+    Scalar pC[numPhases];
+    const auto& matParams = this->materialLawParams(context, spaceIdx, timeIdx);
+    MaterialLaw::capillaryPressures(pC, matParams, fs);
 
-/*         // composition
-        fs.setMoleFraction(oilPhaseIdx, Comp0Idx, MFCOMP0);
-        fs.setMoleFraction(oilPhaseIdx, Comp1Idx, MFCOMP1);
-        fs.setMoleFraction(oilPhaseIdx, Comp2Idx, MFCOMP2);
 
-        fs.setMoleFraction(gasPhaseIdx, Comp0Idx, MFCOMP0);
-        fs.setMoleFraction(gasPhaseIdx, Comp1Idx, MFCOMP1);
-        fs.setMoleFraction(gasPhaseIdx, Comp2Idx, MFCOMP2);
-
-        // saturation, oil-filled
-        fs.setSaturation(FluidSystem::oilPhaseIdx, 1.0);
-        fs.setSaturation(FluidSystem::gasPhaseIdx, 0.0);
-
-        // temperature
-        fs.setTemperature(temperature_);
-
-        // Density
-        typename FluidSystem::template ParameterCache<Evaluation> paramCache;
-        paramCache.updatePhase(fs, oilPhaseIdx);
-        paramCache.updatePhase(fs, gasPhaseIdx);
-        fs.setDensity(oilPhaseIdx, FluidSystem::density(fs, paramCache, oilPhaseIdx));
-        fs.setDensity(gasPhaseIdx, FluidSystem::density(fs, paramCache, gasPhaseIdx)); */
-
-/*         if (enable_gravity == true) {
+    // do a initial flash
+    Scalar init_pressure = EWOMS_GET_PARAM(TypeTag, Scalar, Initialpressure);
+    bool enable_gravity = EWOMS_GET_PARAM(TypeTag, bool, EnableGravity);
+    if (0) {
             // //
             // Run flash to get new density to correct pressure estimate
             // //
-            // Set up z
-            ComponentVector zInit(0.0);
-            Scalar sumMoles = 0.0;
-            for (unsigned phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx) {
-                for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-                    Scalar tmp = Opm::getValue(fs.molarity(phaseIdx, compIdx) * fs.saturation(phaseIdx));
-                    zInit[compIdx] += Opm::max(tmp, 1e-8);
-                    sumMoles += tmp;
-                }
-            }
-            zInit /= sumMoles;
 
             // Flash solver setup
             Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
@@ -839,7 +793,7 @@ private:
             fs.setLvalue(Ltmp);
 
             // Run flash solver
-            //FlashSolver::solve(fs, zInit, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+            FlashSolver::solve(fs, zInit, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
 
             // Calculate pressure again
             Evaluation densityL = fs.density(oilPhaseIdx);
@@ -849,7 +803,21 @@ private:
             p_init = (init_pressure * 1e5) + Opm::getValue(densityL) * h * 9.81;
             fs.setPressure(oilPhaseIdx, p_init);
             fs.setPressure(gasPhaseIdx, p_init);
-        }*/
+        } else {
+            p_init = init_pressure * 1e5;
+                        
+            // Set K and L initial
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                const Evaluation Ktmp = fs.wilsonK_(compIdx);
+                fs.setKvalue(compIdx, Ktmp);
+            }
+            const Evaluation& Ltmp = -1.0;
+            fs.setLvalue(Ltmp);
+        }
+
+        fs.setPressure(oilPhaseIdx, p_init);
+        fs.setPressure(gasPhaseIdx, p_init); 
+  
     }
 
     DimMatrix K_;
