@@ -259,7 +259,7 @@ public:
             return;
         }
 
-/*         if (moleFracOutput_())
+         if (moleFracOutput_())
             this->commitPhaseComponentBuffer_(baseWriter, "moleFrac_%s^%s", moleFrac_);
         if (massFracOutput_())
             this->commitPhaseComponentBuffer_(baseWriter, "massFrac_%s^%s", massFrac_);
@@ -275,7 +275,7 @@ public:
         if (fugacityOutput_())
             this->commitComponentBuffer_(baseWriter, "fugacity^%s", fugacity_);
         if (fugacityCoeffOutput_())
-            this->commitPhaseComponentBuffer_(baseWriter, "fugacityCoeff_%s^%s", fugacityCoeff_);*/
+            this->commitPhaseComponentBuffer_(baseWriter, "fugacityCoeff_%s^%s", fugacityCoeff_);
         if (LOutput_())
             this->commitScalarBuffer_(baseWriter, "L", L_); 
     }
