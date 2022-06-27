@@ -41,7 +41,8 @@
 
 #include <opm/material/common/Exceptions.hpp>
 #include <opm/material/constraintsolvers/ChiFlash.hpp> 
-#include <opm/material/fluidsystems/chifluid/twophasefluidsystem.hh>
+#include <opm/material/fluidsystems/chifluid/chiwoms.h> 
+//#include <opm/material/fluidsystems/chifluid/twophasefluidsystem.hh>
 #include <opm/material/fluidsystems/chifluid/co2brinefluidsystem.hh>
 #include <opm/material/common/Unused.hpp>
 #include <opm/material/common/Valgrind.hpp>
@@ -371,15 +372,12 @@ class Co2InjectionCompositional : public GetPropType<TypeTag, Properties::BasePr
     using Model = GetPropType<TypeTag, Properties::Model>;
     using MaterialLawParams = GetPropType<TypeTag, Properties::MaterialLawParams>;    
 
-    using H2O = typename Opm::H2O<Scalar>;
-    using Brine = typename Opm::Brine<Scalar, H2O>;
     using Toolbox = Opm::MathToolbox<Evaluation>;
     using CoordScalar = typename GridView::ctype;
 
     enum { numPhases = FluidSystem::numPhases };
     enum { oilPhaseIdx = FluidSystem::oilPhaseIdx };
     enum { gasPhaseIdx = FluidSystem::gasPhaseIdx };
-    enum { Comp2Idx = FluidSystem::Comp2Idx };
     enum { Comp1Idx = FluidSystem::Comp1Idx };
     enum { Comp0Idx = FluidSystem::Comp0Idx };
     enum { conti0EqIdx = Indices::conti0EqIdx };
@@ -688,12 +686,10 @@ private:
     // input
     Evaluation p_init = Evaluation::createVariable(10e5, 0); // 10 bar
     ComponentVector comp;
-    comp[0] = Evaluation::createVariable(0.1, 1);
-    comp[1] = Evaluation::createVariable(0.9, 2);
-    comp[2] = 1. - comp[0] - comp[1];
+    comp[0] = Evaluation::createVariable(0.9, 1);
+    comp[1] = 1. - comp[0];//Evaluation::createVariable(0.9, 2);
     ComponentVector sat;
     sat[0] = 1.0; sat[1] = 1.0-sat[0];
-    // TODO: should we put the derivative against the temperature here?
     Scalar temp = 300.0;
 
     // TODO: no capillary pressure for now
@@ -703,12 +699,9 @@ private:
 
     fs.setMoleFraction(FluidSystem::oilPhaseIdx, FluidSystem::Comp0Idx, comp[0]);
     fs.setMoleFraction(FluidSystem::oilPhaseIdx, FluidSystem::Comp1Idx, comp[1]);
-    fs.setMoleFraction(FluidSystem::oilPhaseIdx, FluidSystem::Comp2Idx, comp[2]);
-
 
     fs.setMoleFraction(FluidSystem::gasPhaseIdx, FluidSystem::Comp0Idx, comp[0]);
     fs.setMoleFraction(FluidSystem::gasPhaseIdx, FluidSystem::Comp1Idx, comp[1]);
-    fs.setMoleFraction(FluidSystem::gasPhaseIdx, FluidSystem::Comp2Idx, comp[2]);
 
     // It is used here only for calculate the z
     fs.setSaturation(FluidSystem::oilPhaseIdx, sat[0]);
