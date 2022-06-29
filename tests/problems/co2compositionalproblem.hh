@@ -36,14 +36,13 @@
 #include <opm/models/io/structuredgridvanguard.hh>
 #include <opm/models/utils/propertysystem.hh>
 #include <opm/models/utils/start.hh>
+#include <tests/problems/co2injectionproperties.h> 
 
 #include <opm/simulators/linalg/parallelistlbackend.hh>
 
 #include <opm/material/common/Exceptions.hpp>
-#include <opm/material/constraintsolvers/ChiFlash.hpp> 
-#include <opm/material/fluidsystems/chifluid/chiwoms.h> 
-//#include <opm/material/fluidsystems/chifluid/twophasefluidsystem.hh>
-#include <opm/material/fluidsystems/chifluid/co2brinefluidsystem.hh>
+#include <opm/material/constraintsolvers/PTFlash.hpp> 
+#include <opm/material/fluidsystems/co2brinefluidsystem.hh>
 #include <opm/material/common/Unused.hpp>
 #include <opm/material/common/Valgrind.hpp>
 
@@ -103,7 +102,7 @@ private:
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
 
 public:
-    using type = Opm::ChiFlash<Scalar, FluidSystem>; //TODO RENAME
+    using type = Opm::PTFlash<Scalar, FluidSystem>;
 };
 
 // Set fluid configuration
