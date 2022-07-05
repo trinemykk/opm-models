@@ -42,9 +42,12 @@
 #include <opm/material/common/Exceptions.hpp>
 #include <opm/material/constraintsolvers/ChiFlash.hpp> 
 #include <opm/material/fluidsystems/chifluid/twophasefluidsystem.hh>
+#include <opm/material/fluidsystems/chifluid/chiwoms.h>
 #include <opm/material/fluidsystems/chifluid/juliathreecomponentfluidsystem.hh>
 #include <opm/material/common/Unused.hpp>
 #include <opm/material/common/Valgrind.hpp>
+//#include <tests/problems/co2injectionproperties.h>
+
 
 #include <dune/grid/yaspgrid.hh>
 #include <dune/grid/io/file/dgfparser/dgfyasp.hh>
