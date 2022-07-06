@@ -40,13 +40,13 @@
 #include <opm/simulators/linalg/parallelistlbackend.hh>
 
 #include <opm/material/common/Exceptions.hpp>
-#include <opm/material/constraintsolvers/ChiFlash.hpp> 
-#include <opm/material/fluidsystems/chifluid/twophasefluidsystem.hh>
-#include <opm/material/fluidsystems/chifluid/chiwoms.h>
-#include <opm/material/fluidsystems/chifluid/juliathreecomponentfluidsystem.hh>
+#include <opm/material/constraintsolvers/PTFlash.hpp> 
+//#include <opm/material/fluidsystems/chifluid/twophasefluidsystem.hh>
+//#include <opm/material/fluidsystems/chifluid/chiwoms.h>
+#include <opm/material/fluidsystems/threecomponentfluidsystem.hh>
 #include <opm/material/common/Unused.hpp>
 #include <opm/material/common/Valgrind.hpp>
-//#include <tests/problems/co2injectionproperties.h>
+#include <tests/problems/co2injectionproperties.h>
 
 
 #include <dune/grid/yaspgrid.hh>
@@ -105,7 +105,7 @@ private:
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
 
 public:
-    using type = Opm::ChiFlash<Scalar, FluidSystem>; //TODO RENAME
+    using type = Opm::PTFlash<Scalar, FluidSystem>; //TODO RENAME
 };
 
 // Set fluid configuration
@@ -117,7 +117,7 @@ private:
 
 public:
     //using type = Opm::TwoPhaseTwoComponentFluidSystem<Scalar>;
-    using type = Opm::JuliaThreeComponentFluidSystem<Scalar>;
+    using type = Opm::ThreeComponentFluidSystem<Scalar>;
 
 };
 
@@ -376,8 +376,6 @@ class Co2InjectionCompositional : public GetPropType<TypeTag, Properties::BasePr
     using Model = GetPropType<TypeTag, Properties::Model>;
     using MaterialLawParams = GetPropType<TypeTag, Properties::MaterialLawParams>;    
 
-    using H2O = typename Opm::H2O<Scalar>;
-    using Brine = typename Opm::Brine<Scalar, H2O>;
     using Toolbox = Opm::MathToolbox<Evaluation>;
     using CoordScalar = typename GridView::ctype;
 
@@ -684,7 +682,7 @@ private:
     void initialFluidState(FluidState& fs, const Context& context, unsigned spaceIdx, unsigned timeIdx) const
     {
     using Scalar = double;
-    using FluidSystem = Opm::JuliaThreeComponentFluidSystem<Scalar>;
+    using FluidSystem = Opm::ThreeComponentFluidSystem<Scalar>;
 
     constexpr auto numComponents = FluidSystem::numComponents;
     using Evaluation = Opm::DenseAd::Evaluation<double, numComponents>;
@@ -727,8 +725,8 @@ private:
         paramCache.updatePhase(fs, FluidSystem::gasPhaseIdx);
         fs.setDensity(FluidSystem::oilPhaseIdx, FluidSystem::density(fs, paramCache, FluidSystem::oilPhaseIdx));
         fs.setDensity(FluidSystem::gasPhaseIdx, FluidSystem::density(fs, paramCache, FluidSystem::gasPhaseIdx));
-        fs.setViscosity(FluidSystem::oilPhaseIdx, FluidSystem::viscosity(fs, paramCache, FluidSystem::oilPhaseIdx));
-        fs.setViscosity(FluidSystem::gasPhaseIdx, FluidSystem::viscosity(fs, paramCache, FluidSystem::gasPhaseIdx));
+        //fs.setViscosity(FluidSystem::oilPhaseIdx, FluidSystem::viscosity(fs, paramCache, FluidSystem::oilPhaseIdx));
+        //fs.setViscosity(FluidSystem::gasPhaseIdx, FluidSystem::viscosity(fs, paramCache, FluidSystem::gasPhaseIdx));
     }
 
     ComponentVector zInit(0.); // TODO; zInit needs to be normalized.
@@ -796,7 +794,11 @@ private:
             fs.setLvalue(Ltmp);
 
             // Run flash solver
-            FlashSolver::solve(fs, zInit, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+            //FlashSolver::solve(fs, zInit, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+            //using Flash = Opm::PTFlash<double, FluidSystem>;
+
+            FlashSolver::solve(fs, zInit, spatialIdx, flash_twophase_method, flash_tolerance, flashVerbosity);
+
 
             // Calculate pressure again
             Evaluation densityL = fs.density(oilPhaseIdx);
