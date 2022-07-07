@@ -30,7 +30,7 @@
 #include <opm/models/utils/start.hh>
 //#include <opm/models/immiscible/immisciblemodel.hh>
 //#include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
-#include "problems/juliacompositionalproblem.hh"
+#include "problems/oldjuliacompositionalproblem.hh"
 //#include "problems/threephasecompositionalproblem.hh"
 
 

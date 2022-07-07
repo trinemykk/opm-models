@@ -162,10 +162,10 @@ public:
         // Compute the phase compositions and densities 
         /////////////
         int spatialIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
-        //FlashSolver::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
+        FlashSolver::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
         //Flash::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
         //using Flash = Opm::PTFlash<double, FluidSystem>;
-        FlashSolver::solve(fluidState_, z, spatialIdx, flashTwoPhaseMethod, flashTolerance, flashVerbosity);
+        //FlashSolver::solve(fluidState_, z, spatialIdx, flashTwoPhaseMethod, flashTolerance, flashVerbosity);
 
 
         // Update phases        
