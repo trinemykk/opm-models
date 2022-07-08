@@ -32,7 +32,7 @@
 
 #include <opm/models/immiscible/immisciblemodel.hh>
 #include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
-#include <opm/models/compositionalflash/flashmodel.hh>
+#include <opm/models/ptflash/flashmodel.hh>
 #include <opm/models/io/structuredgridvanguard.hh>
 #include <opm/models/utils/propertysystem.hh>
 #include <opm/models/utils/start.hh>
