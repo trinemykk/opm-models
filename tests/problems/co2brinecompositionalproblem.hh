@@ -380,7 +380,7 @@ class Co2InjectionCompositional : public GetPropType<TypeTag, Properties::BasePr
     enum { numPhases = FluidSystem::numPhases };
     enum { oilPhaseIdx = FluidSystem::oilPhaseIdx };
     enum { gasPhaseIdx = FluidSystem::gasPhaseIdx };
-    enum { Comp2Idx = FluidSystem::Comp2Idx };
+    //enum { Comp2Idx = FluidSystem::Comp2Idx };
     enum { Comp1Idx = FluidSystem::Comp1Idx };
     enum { Comp0Idx = FluidSystem::Comp0Idx };
     enum { conti0EqIdx = Indices::conti0EqIdx };
@@ -689,7 +689,7 @@ private:
     // input
     Evaluation p_init = Evaluation::createVariable(10e5, 0); // 10 bar
     ComponentVector comp;
-    comp[0] = Evaluation::createVariable(0.5, 1);
+    comp[0] = Evaluation::createVariable(0.9, 1);
     comp[1] = 1. - comp[0]; //Evaluation::createVariable(0.3, 2);
     //comp[2] = 1. - comp[0] - comp[1];
     ComponentVector sat;
@@ -704,11 +704,11 @@ private:
 
     fs.setMoleFraction(FluidSystem::oilPhaseIdx, FluidSystem::Comp0Idx, comp[0]);
     fs.setMoleFraction(FluidSystem::oilPhaseIdx, FluidSystem::Comp1Idx, comp[1]);
-    fs.setMoleFraction(FluidSystem::oilPhaseIdx, FluidSystem::Comp2Idx, comp[2]);
+    //fs.setMoleFraction(FluidSystem::oilPhaseIdx, FluidSystem::Comp2Idx, comp[2]);
 
     fs.setMoleFraction(FluidSystem::gasPhaseIdx, FluidSystem::Comp0Idx, comp[0]);
     fs.setMoleFraction(FluidSystem::gasPhaseIdx, FluidSystem::Comp1Idx, comp[1]);
-    fs.setMoleFraction(FluidSystem::gasPhaseIdx, FluidSystem::Comp2Idx, comp[2]);
+    //fs.setMoleFraction(FluidSystem::gasPhaseIdx, FluidSystem::Comp2Idx, comp[2]);
 
     // It is used here only for calculate the z
     fs.setSaturation(FluidSystem::oilPhaseIdx, sat[0]);
