@@ -42,7 +42,6 @@
 #include <opm/material/common/Exceptions.hpp>
 #include <opm/material/constraintsolvers/PTFlash.hpp> 
 #include <opm/material/fluidsystems/Co2BrineFluidSystem.hh>
-#include <opm/material/common/Unused.hpp>
 #include <opm/material/common/Valgrind.hpp>
 #include <tests/problems/co2injectionproperties.h>
 
@@ -443,7 +442,7 @@ public:
 
     template <class Context>
     const DimVector&
-    gravity(const Context& context OPM_UNUSED, unsigned spaceIdx OPM_UNUSED, unsigned timeIdx OPM_UNUSED) const
+    gravity([[maybe_unused]]const Context& context, [[maybe_unused]] unsigned spaceIdx, [[maybe_unused]] unsigned timeIdx) const
     {
         return gravity();
     }
@@ -569,7 +568,7 @@ public:
 
     // Constant temperature
     template <class Context>
-    Scalar temperature(const Context& context OPM_UNUSED, unsigned spaceIdx OPM_UNUSED, unsigned timeIdx OPM_UNUSED) const
+    Scalar temperature([[maybe_unused]] const Context& context, [[maybe_unused]] unsigned spaceIdx, [[maybe_unused]] unsigned timeIdx) const
     {
         return temperature_;
     }
@@ -577,23 +576,23 @@ public:
     // Constant gravityfactor
     template <class Context>
     Scalar
-    gravityfactor(const Context& context OPM_UNUSED, unsigned spaceIdx OPM_UNUSED, unsigned timeIdx OPM_UNUSED) const
+    gravityfactor([[maybe_unused]] const Context& context, [[maybe_unused]] unsigned spaceIdx, [[maybe_unused]] unsigned timeIdx) const
     {
         return gravityfactor_;
     }
 
     // Constant permeability
     template <class Context>
-    const DimMatrix& intrinsicPermeability(const Context& context OPM_UNUSED,
-                                           unsigned spaceIdx OPM_UNUSED,
-                                           unsigned timeIdx OPM_UNUSED) const
+    const DimMatrix& intrinsicPermeability([[maybe_unused]] const Context& context,
+                                           [[maybe_unused]] unsigned spaceIdx,
+                                           [[maybe_unused]] unsigned timeIdx) const
     {
         return K_;
     }
 
     // Constant porosity
     template <class Context>
-    Scalar porosity(const Context& context OPM_UNUSED, unsigned spaceIdx OPM_UNUSED, unsigned timeIdx OPM_UNUSED) const
+    Scalar porosity([[maybe_unused]] const Context& context, [[maybe_unused]] unsigned spaceIdx, [[maybe_unused]] unsigned timeIdx) const
     {
         return porosity_;
     }
@@ -602,9 +601,9 @@ public:
      * \copydoc FvBaseMultiPhaseProblem::materialLawParams
      */
     template <class Context>
-    const MaterialLawParams& materialLawParams(const Context& context OPM_UNUSED,
-                                               unsigned spaceIdx OPM_UNUSED,
-                                               unsigned timeIdx OPM_UNUSED) const
+    const MaterialLawParams& materialLawParams([[maybe_unused]] const Context& context,
+                                               [[maybe_unused]] unsigned spaceIdx,
+                                               [[maybe_unused]] unsigned timeIdx) const
     {
         return this->mat_;
     }
@@ -634,9 +633,9 @@ public:
     // No source terms
     template <class Context>
     void source(RateVector& source_rate,
-                const Context& context OPM_UNUSED,
-                unsigned spaceIdx OPM_UNUSED,
-                unsigned timeIdx OPM_UNUSED) const
+                [[maybe_unused]] const Context& context,
+                [[maybe_unused]] unsigned spaceIdx,
+                [[maybe_unused]] unsigned timeIdx) const
     {
         source_rate = Scalar(0.0);
     }
