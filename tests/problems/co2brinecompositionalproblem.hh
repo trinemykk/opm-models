@@ -625,6 +625,8 @@ public:
             Opm::CompositionalFluidState<Evaluation, FluidSystem> fs;
             initialFluidState(fs, context, spaceIdx, timeIdx);
             values.setFreeFlow(context, spaceIdx, timeIdx, fs);
+            //values.setNoFlow(); // closed on top and bottom
+
         } else
             values.setNoFlow(); // closed on top and bottom
     }
@@ -688,13 +690,14 @@ private:
     // input
     Evaluation p_init = Evaluation::createVariable(10e5, 0); // 10 bar
     ComponentVector comp;
+    //comp[0] = Evaluation::createVariable(0.9, 1);
     comp[0] = Evaluation::createVariable(0.9, 1);
     comp[1] = 1. - comp[0]; //Evaluation::createVariable(0.3, 2);
     //comp[2] = 1. - comp[0] - comp[1];
     ComponentVector sat;
     sat[0] = 1.0; sat[1] = 1.0-sat[0];
     // TODO: should we put the derivative against the temperature here?
-    Scalar temp = 300.0;
+    Scalar temp = 400.0;
 
     // TODO: no capillary pressure for now
     
@@ -750,8 +753,8 @@ private:
     // TODO: only, p, z need the derivatives.
     const double flash_tolerance = 1.e-12; // just to test the setup in co2-compositional
     //const int flash_verbosity = 1;
-    const std::string flash_twophase_method = "newton"; // "ssi"
-    // const std::string flash_twophase_method = "ssi";
+    //const std::string flash_twophase_method = "newton"; // "ssi"
+    const std::string flash_twophase_method = "ssi";
     // const std::string flash_twophase_method = "ssi+newton";
 
     // Set initial K and L
