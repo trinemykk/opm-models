@@ -423,7 +423,7 @@ public:
         // rock...
         Scalar rockCompressibility = problem.rockCompressibility(globalSpaceIdx);
         if (rockCompressibility > 0.0) {
-            Scalar rockRefPressure = problem.rockReferencePressure(globalSpaceIdx);
+            Scalar rockRefPressure = problem.rockReferencePressure(elemCtx, dofIdx, timeIdx);
             Evaluation x;
             if (FluidSystem::phaseIsActive(oilPhaseIdx)) {
                 x = rockCompressibility*(fluidState_.pressure(oilPhaseIdx) - rockRefPressure);
