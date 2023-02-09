@@ -424,14 +424,22 @@ public:
                     const auto& sg = fluidState_.saturation(FluidSystem::gasPhaseIdx);
                     
                     Scalar chi = oilVaporizationControl.getMaxDRSDT(fluidState_.pvtRegionIndex());
-                    Scalar Kg = 0.185/chi;///2.7;
+
+                    //testing ****
+                    Scalar Kg = 0.13/chi;///2.7;
                     Scalar Smo = 1.0 / (1.0 + std::pow(Kg, 0.5));
+                    //Evaluation rsnew = fluidState_.Rs() - RsSat * sg;
                     Evaluation S = (fluidState_.Rs() - RsSat * sg) / (RsSat * ( 1.0 - sg));
-                    Evaluation X = Opm::min(1.0, Opm::max(0.0, Opm::pow((S - Smo)/ (1.0 - Smo),1)));
-                    Scalar tl = 0.85;
+                    Evaluation X = Opm::min(1.0, Opm::max(0.0, Opm::pow((S - Smo)/ (1.0 - Smo),1.0)));
+                    Scalar tl = 1.0;
+                    //end testing*****
                     //Evaluation X = Opm::min(1.0, Opm::max(0.0, ((fluidState_.Rs() - 0.5 * RsSat)/ (0.5 * RsSat))-1));
                     //Evaluation X = Opm::min(1.0, Opm::max(0.0, Opm::pow(((fluidState_.Rs() - 0.5 * RsSat)/ (0.5 * RsSat)),2)-1));
-					//THISoriginal //Evaluation X = Opm::min(1.0, Opm::max(0.0,(fluidState_.Rs() / (RsSat))));
+					//Scalar rsnew = rs - rssat * sg;
+                    //Scalar rs = rsnew;
+                    
+                    //Evaluation X = Opm::min(1.0, Opm::max(0.0,(fluidState_.Rs() / (RsSat))));
+                    //Scalar tl = 1.0;
                     //Scalar Kg = 2.7;
                     //Scalar Smo = 1.0 / (1.0 + std::pow(Kg, 0.5));
                     //Scalar Smo = 0.0; //test4
