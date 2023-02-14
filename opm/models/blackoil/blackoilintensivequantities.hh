@@ -413,7 +413,7 @@ public:
             rho *= FluidSystem::referenceDensity(oilPhaseIdx, pvtRegionIdx);
             if (FluidSystem::enableDissolvedGas()) {
                 
-                				const auto& oilVaporizationControl = problem.simulator().vanguard().schedule()[problem.episodeIndex()].oilvap();
+                const auto& oilVaporizationControl = problem.simulator().vanguard().schedule()[problem.episodeIndex()].oilvap();
 				if(oilVaporizationControl.drsdtConvective()) {
 					const auto& RsSat = enableExtbo ? asImp_().rs() :
 					FluidSystem::saturatedDissolutionFactor(fluidState_,
@@ -422,38 +422,13 @@ public:
                                                             SoMax);
 					const auto& rhoSat = FluidSystem::saturatedDensity(fluidState_, oilPhaseIdx, pvtRegionIdx);
                     const auto& sg = fluidState_.saturation(FluidSystem::gasPhaseIdx);
-                    
-                    Scalar chi = oilVaporizationControl.getMaxDRSDT(fluidState_.pvtRegionIndex());
 
-                    //testing ****
-                    Scalar Kg = 0.13/chi;///2.7;
-                    Scalar Smo = 1.0 / (1.0 + std::pow(Kg, 0.5));
-                    //Evaluation rsnew = fluidState_.Rs() - RsSat * sg;
-                    Evaluation S = (fluidState_.Rs() - RsSat * sg) / (RsSat * ( 1.0 - sg));
-                    Evaluation X = Opm::min(1.0, Opm::max(0.0, Opm::pow((S - Smo)/ (1.0 - Smo),1.0)));
-                    Scalar tl = 1.0;
-                    //end testing*****
-                    //Evaluation X = Opm::min(1.0, Opm::max(0.0, ((fluidState_.Rs() - 0.5 * RsSat)/ (0.5 * RsSat))-1));
-                    //Evaluation X = Opm::min(1.0, Opm::max(0.0, Opm::pow(((fluidState_.Rs() - 0.5 * RsSat)/ (0.5 * RsSat)),2)-1));
-					//Scalar rsnew = rs - rssat * sg;
-                    //Scalar rs = rsnew;
-                    
-                    //Evaluation X = Opm::min(1.0, Opm::max(0.0,(fluidState_.Rs() / (RsSat))));
-                    //Scalar tl = 1.0;
-                    //Scalar Kg = 2.7;
-                    //Scalar Smo = 1.0 / (1.0 + std::pow(Kg, 0.5));
-                    //Scalar Smo = 0.0; //test4
-                    //tester denne:
-                    //Evaluation rsnew = fluidState_.Rs() - RsSat * sg;//test0
-                    //i denne som me forstår
-                    //Evaluation alpha = ((fluidState_.Rs()/RsSat) - Smo)/ (1.0 - Smo);//test1-4
-                    //Evaluation alpha = (fluidState_.Rs() - Smo * RsSat)/ (Smo * RsSat);//test1-4
-                    //denne funka bra, men forstår me ikkjeEvaluation alpha2 = (fluidState_.Rs() - Smo*RsSat)/ (Smo * RsSat);
-                    //Evaluation X = Opm::min(1.0, Opm::max(0.0, Opm::pow(alpha,1)));
-                    //Evaluation X = Opm::min(1.0, Opm::max(0.0, Opm::pow(alpha,1)));
-					//TL factor for incomplete mixing
-					rho += Opm::pow(X,tl)*(rhoSat - rho);
-                    //rho += X * (rhoSat - rho);
+                    Scalar chi = oilVaporizationControl.getMaxDRSDT(fluidState_.pvtRegionIndex());
+                    Scalar Kg = 0.13/chi;
+                    Scalar Smo = 1.0 / (1.0 + std::pow(Kg, 0.5));
+                    Evaluation S = (fluidState_.Rs() - RsSat * sg) / (RsSat * ( 1.0 - sg));
+                    Evaluation X = Opm::min(1.0, Opm::max(0.0, Opm::pow((S - Smo)/ (1.0 - Smo),1.0)));
+
 				} else {
                 rho +=
                     fluidState_.invB(oilPhaseIdx) *
