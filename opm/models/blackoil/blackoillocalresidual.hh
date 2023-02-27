@@ -266,7 +266,7 @@ public:
 				//Scalar Kg = 0.13/Xhi;
 				Scalar Kg = 0.2/Xhi;
 					//Scalar Kg = 2.7;
-				Scalar Smo = 0.3; //1.0 / (1.0 + std::pow(Kg, 0.5));
+				Scalar Smo = 0.35; //1.0 / (1.0 + std::pow(Kg, 0.5));
 				Evaluation sg = up.fluidState().saturation(FluidSystem::gasPhaseIdx);
 				Evaluation S = (Rs - RsSat * sg) / (RsSat * ( 1.0 - sg));
 				
