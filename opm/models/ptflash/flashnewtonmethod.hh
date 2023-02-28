@@ -32,7 +32,7 @@
 
 #include <opm/models/nonlinear/newtonmethod.hh>
 
-#include <opm/material/common/Exceptions.hpp>
+#include <opm/common/Exceptions.hpp>
 
 #include <algorithm>
 
