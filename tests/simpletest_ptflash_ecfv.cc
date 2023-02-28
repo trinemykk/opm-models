@@ -23,29 +23,42 @@
 /*!
  * \file
  *
- * \brief Test for the isothermal VCVF discretization based on non-linear
- *        complementarity problems.
+ * \brief Box problem with two phases and multiple components
  */
 #include "config.h"
 
 #include <opm/models/utils/start.hh>
-#include <opm/models/ncp/ncpmodel.hh>
-#include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
-#include "problems/co2smeaheiainjectionproblem.hh"
+//#include <opm/models/immiscible/immisciblemodel.hh>
+//#include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
+#include "problems/simpletestproblem.hh"
+
 
 namespace Opm::Properties {
 
-// Create new type tags
 namespace TTag {
-struct Co2SmeaheiaInjectionNcpEcfvProblem { using InheritsFrom = std::tuple<Co2SmeaheiaInjectionBaseProblem, NcpModel>; };
-} // end namespace TTag
-template<class TypeTag>
-struct SpatialDiscretizationSplice<TypeTag, TTag::Co2SmeaheiaInjectionNcpEcfvProblem> { using type = TTag::EcfvDiscretization; };
+    struct SimpleTestEcfvProblem 
+{
+    using InheritsFrom = std::tuple<SimpleTest, FlashModel>;
+};
+}
+
+template <class TypeTag>
+struct SpatialDiscretizationSplice<TypeTag, TTag::SimpleTestEcfvProblem>
+{
+    using type = TTag::EcfvDiscretization;
+};
+//TESTAD
+template <class TypeTag>
+struct LocalLinearizerSplice<TypeTag, TTag::SimpleTestEcfvProblem>
+{
+    using type = TTag::AutoDiffLocalLinearizer;
+};
+
 
 } // namespace Opm::Properties
 
 int main(int argc, char **argv)
 {
-    using EcfvProblemTypeTag = Opm::Properties::TTag::Co2SmeaheiaInjectionNcpEcfvProblem;
+    using EcfvProblemTypeTag = Opm::Properties::TTag::SimpleTestEcfvProblem;
     return Opm::start<EcfvProblemTypeTag>(argc, argv);
 }

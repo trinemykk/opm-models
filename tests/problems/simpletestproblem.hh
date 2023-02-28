@@ -23,34 +23,25 @@
 /*!
  * \file
  *
- * \copydoc Opm::threecomponentcompositionalproblem
+ * \copydoc Opm::simpletestproblem
  */
-#ifndef EWOMS_COMPOSITIONAL_PROBLEM_HH
-#define EWOMS_COMPOSITIONAL_PROBLEM_HH
+#ifndef EWOMS_SIMPLETEST_PROBLEM_HH
+#define EWOMS_SIMPLETEST_PROBLEM_HH
 
 #include <opm/common/Exceptions.hpp>
-
+#include <opm/material/constraintsolvers/PTFlash.hpp> 
+#include <opm/material/fluidsystems/threecomponentfluidsystem.hh>
+#include <opm/material/common/Valgrind.hpp>
 #include <opm/models/immiscible/immisciblemodel.hh>
 #include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
 #include <opm/models/ptflash/flashmodel.hh>
 #include <opm/models/io/structuredgridvanguard.hh>
 #include <opm/models/utils/propertysystem.hh>
 #include <opm/models/utils/start.hh>
-#include <tests/problems/co2injectionproperties.h>
-
-
 #include <opm/simulators/linalg/parallelistlbackend.hh>
-
-#include <opm/material/common/Exceptions.hpp>
-#include <opm/material/constraintsolvers/PTFlash.hpp> 
-#include <opm/material/fluidsystems/threecomponentfluidsystem.hh>
-#include <opm/material/fluidsystems/twophasefluidsystem.hh>
-#include <opm/material/common/Unused.hpp>
-#include <opm/material/common/Valgrind.hpp>
-
+#include <opm/simulators/linalg/parallelbicgstabbackend.hh>
 #include <dune/grid/yaspgrid.hh>
 #include <dune/grid/io/file/dgfparser/dgfyasp.hh>
-
 #include <dune/common/version.hh>
 #include <dune/common/fvector.hh>
 #include <dune/common/fmatrix.hh>
@@ -59,70 +50,63 @@
 #include <iostream>
 #include <string>
 
-
 namespace Opm {
 template <class TypeTag>
-class Co2InjectionCompositional;
+class SimpleTest;
 } // namespace Opm
 
 namespace Opm::Properties {
 
 namespace TTag {
-struct Co2InjectionCompositional {};
+struct SimpleTest {};
 } // end namespace TTag
 
-// declare the Compositional problem specify property tags
+// declare the "simpletest" problem specify property tags
 template <class TypeTag, class MyTypeTag>
 struct Temperature { using type = UndefinedProperty; };
 template <class TypeTag, class MyTypeTag>
 struct SimulationName { using type = UndefinedProperty; };
 template <class TypeTag, class MyTypeTag>
-struct Gravityfactor { using type = UndefinedProperty; };
-template <class TypeTag, class MyTypeTag>
 struct EpisodeLength { using type = UndefinedProperty;};
-template <class TypeTag, class MyTypeTag>
-struct Inflowrate { using type = UndefinedProperty;};
 
 template <class TypeTag, class MyTypeTag>
 struct Initialpressure { using type = UndefinedProperty;};
 
-// Set the grid type
+// Set the grid type: --->1D
 template <class TypeTag>
-struct Grid<TypeTag, TTag::Co2InjectionCompositional> { using type = Dune::YaspGrid<3>; };
+struct Grid<TypeTag, TTag::SimpleTest> { using type = Dune::YaspGrid</*dim=*/2>; };
 
 // Set the problem property
 template <class TypeTag>
-struct Problem<TypeTag, TTag::Co2InjectionCompositional> 
-{ using type = Opm::Co2InjectionCompositional<TypeTag>; };
+struct Problem<TypeTag, TTag::SimpleTest> 
+{ using type = Opm::SimpleTest<TypeTag>; };
 
 // Set flash solver
 template <class TypeTag>
-struct FlashSolver<TypeTag, TTag::Co2InjectionCompositional> {
+struct FlashSolver<TypeTag, TTag::SimpleTest> {
 private:
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
     using Evaluation = GetPropType<TypeTag, Properties::Evaluation>;
 
 public:
-    using type = Opm::PTFlash<Scalar, FluidSystem>; //TODO RENAME
+    using type = Opm::PTFlash<Scalar, FluidSystem>;
 };
 
 // Set fluid configuration
 template <class TypeTag>
-struct FluidSystem<TypeTag, TTag::Co2InjectionCompositional> 
+struct FluidSystem<TypeTag, TTag::SimpleTest> 
 {
 private:
     using Scalar = GetPropType<TypeTag, Properties::Scalar>;
 
 public:
-    //using type = Opm::TwoPhaseTwoComponentFluidSystem<Scalar>;
     using type = Opm::ThreeComponentFluidSystem<Scalar>;
-
 };
 
 // Set the material Law
 template <class TypeTag>
-struct MaterialLaw<TypeTag, TTag::Co2InjectionCompositional> 
+struct MaterialLaw<TypeTag, TTag::SimpleTest> 
 {
 private:
     using FluidSystem = GetPropType<TypeTag, Properties::FluidSystem>;
@@ -135,200 +119,171 @@ private:
                                                /*nonWettingPhaseIdx=*/FluidSystem::oilPhaseIdx,
                                                /*gasPhaseIdx=*/FluidSystem::gasPhaseIdx>;
 
-    // define the material law which is parameterized by effective
-    // saturations
+    // define the material law which is parameterized by effective saturations
 
     using EffMaterialLaw = Opm::NullMaterial<Traits>;
     //using EffMaterialLaw = Opm::RegularizedBrooksCorey<Traits>;
 
 public:
-    // define the material law parameterized by absolute saturations
-     //using type = Opm::EffToAbsLaw<EffMaterialLaw>;
      using type = EffMaterialLaw;
 };
 
 // Write the Newton convergence behavior to disk?
 template <class TypeTag>
-struct NewtonWriteConvergence<TypeTag, TTag::Co2InjectionCompositional> {
+struct NewtonWriteConvergence<TypeTag, TTag::SimpleTest> {
 static constexpr bool value = false; };
 
-// Enable gravity
+// Enable gravity false
 template <class TypeTag>
-struct EnableGravity<TypeTag, TTag::Co2InjectionCompositional> { static constexpr bool value = true;
+struct EnableGravity<TypeTag, TTag::SimpleTest> { static constexpr bool value = false;
 };
 
-// set the defaults for the problem specific properties ?????
-
+// set the defaults for the problem specific properties
  template <class TypeTag>
- struct Temperature<TypeTag, TTag::Co2InjectionCompositional> {
+ struct Temperature<TypeTag, TTag::SimpleTest> {
      using type = GetPropType<TypeTag, Scalar>;
-     static constexpr type value = 300;//273.15 + TEMPERATURE;
+     static constexpr type value = 423.25;;
  };
 
 template <class TypeTag>
-struct Gravityfactor<TypeTag, TTag::Co2InjectionCompositional> {
+struct Initialpressure<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = GRAVITYFACTOR;
+    static constexpr type value = 1e5;
 };
 
 template <class TypeTag>
-struct Inflowrate<TypeTag, TTag::Co2InjectionCompositional> {
-    using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = INFLOW_RATE;
-};
-
-template <class TypeTag>
-struct Initialpressure<TypeTag, TTag::Co2InjectionCompositional> {
-    using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 100;//MIN_PRES;
-};
-
-template <class TypeTag>
-struct SimulationName<TypeTag, TTag::Co2InjectionCompositional> {
-    static constexpr auto value = "compositional";
+struct SimulationName<TypeTag, TTag::SimpleTest> {
+    static constexpr auto value = "simpletest";
 };
 
 // The default for the end time of the simulation
 template <class TypeTag>
-struct EndTime<TypeTag, TTag::Co2InjectionCompositional> {
+struct EndTime<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = SIM_TIME * 24. * 60. * 60.;
+    static constexpr type value = 1 * 24. * 60. * 60.;//1 day
 };
 
 // convergence control
 template <class TypeTag>
-struct InitialTimeStepSize<TypeTag, TTag::Co2InjectionCompositional> {
+struct InitialTimeStepSize<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 30;
 };
 
-//TEST AMG LINEAR solver
-//template<class TypeTag>
-//struct LinearSolverSplice<TypeTag, TTag::Co2InjectionCompositional>
-//{ using type = TTag::ParallelAmgLinearSolver; };
-
 template <class TypeTag>
-struct LinearSolverTolerance<TypeTag, TTag::Co2InjectionCompositional> {
+struct LinearSolverTolerance<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 1e-3;
 };
 
 template <class TypeTag>
-struct LinearSolverAbsTolerance<TypeTag, TTag::Co2InjectionCompositional> {
+struct LinearSolverAbsTolerance<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 0.;
 };
 
 template <class TypeTag>
-struct NewtonTolerance<TypeTag, TTag::Co2InjectionCompositional> {
+struct NewtonTolerance<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 1e-3;
 };
 
 template <class TypeTag>
-struct MaxTimeStepSize<TypeTag, TTag::Co2InjectionCompositional> {
+struct MaxTimeStepSize<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 60 * 60;
 };
 
 template <class TypeTag>
-struct NewtonMaxIterations<TypeTag, TTag::Co2InjectionCompositional> {
+struct NewtonMaxIterations<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 30;
 };
 
 template <class TypeTag>
-struct NewtonTargetIterations<TypeTag, TTag::Co2InjectionCompositional> {
+struct NewtonTargetIterations<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 6;
 };
 
 // output
-
 template <class TypeTag>
-struct VtkWriteFilterVelocities<TypeTag, TTag::Co2InjectionCompositional> {
+struct VtkWriteFilterVelocities<TypeTag, TTag::SimpleTest> {
     static constexpr bool value = true;
 };
 
 template <class TypeTag>
-struct VtkWritePotentialGradients<TypeTag, TTag::Co2InjectionCompositional> {
+struct VtkWritePotentialGradients<TypeTag, TTag::SimpleTest> {
     static constexpr bool value = true;
 };
 
 template <class TypeTag>
-struct VtkWriteTotalMassFractions<TypeTag, TTag::Co2InjectionCompositional> {
+struct VtkWriteTotalMassFractions<TypeTag, TTag::SimpleTest> {
     static constexpr bool value = true;
 };
 
 template <class TypeTag>
-struct VtkWriteTotalMoleFractions<TypeTag, TTag::Co2InjectionCompositional> {
+struct VtkWriteTotalMoleFractions<TypeTag, TTag::SimpleTest> {
     static constexpr bool value = true;
 };
 
 template <class TypeTag>
-struct VtkWriteFugacityCoeffs<TypeTag, TTag::Co2InjectionCompositional> {
+struct VtkWriteFugacityCoeffs<TypeTag, TTag::SimpleTest> {
     static constexpr bool value = true;
 };
 
 template <class TypeTag>
-struct VtkWriteLiquidMoleFractions<TypeTag, TTag::Co2InjectionCompositional> {
+struct VtkWriteLiquidMoleFractions<TypeTag, TTag::SimpleTest> {
     static constexpr bool value = true;
 };
 
 template <class TypeTag>
-struct VtkWriteEquilibriumConstants<TypeTag, TTag::Co2InjectionCompositional> {
+struct VtkWriteEquilibriumConstants<TypeTag, TTag::SimpleTest> {
     static constexpr bool value = true;
 };
 
 // write restart for every hour
 template <class TypeTag>
-struct EpisodeLength<TypeTag, TTag::Co2InjectionCompositional> {
+struct EpisodeLength<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
     static constexpr type value = 60. * 60.;
 };
 
 // mesh grid
 template <class TypeTag>
-struct Vanguard<TypeTag, TTag::Co2InjectionCompositional> {
+struct Vanguard<TypeTag, TTag::SimpleTest> {
     using type = Opm::StructuredGridVanguard<TypeTag>;
 };
 
 template <class TypeTag>
-struct DomainSizeX<TypeTag, TTag::Co2InjectionCompositional> {
+struct DomainSizeX<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = X_SIZE; // meter
+    static constexpr type value = 1; // meter
 };
 
 template <class TypeTag>
-struct CellsX<TypeTag, TTag::Co2InjectionCompositional> {
-    static constexpr int value = NX;
-};
-
-template <class TypeTag>
-struct DomainSizeY<TypeTag, TTag::Co2InjectionCompositional> {
+struct DomainSizeY<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = Y_SIZE; // meter
+    static constexpr type value = 1.0;
 };
 
 template <class TypeTag>
-struct CellsY<TypeTag, TTag::Co2InjectionCompositional> {
-    static constexpr int value = NY;
-};
-
-template <class TypeTag>
-struct DomainSizeZ<TypeTag, TTag::Co2InjectionCompositional> {
+struct DomainSizeZ<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = Z_SIZE; // meter
+    static constexpr type value = 1.0;
 };
 
-template <class TypeTag>
-struct CellsZ<TypeTag, TTag::Co2InjectionCompositional> {
-    static constexpr int value = NZ;
-};
+template<class TypeTag>
+struct CellsX<TypeTag, TTag::SimpleTest> { static constexpr int value = 3; };
+template<class TypeTag>
+struct CellsY<TypeTag, TTag::SimpleTest> { static constexpr int value = 1; };
+template<class TypeTag>
+struct CellsZ<TypeTag, TTag::SimpleTest> { static constexpr int value = 1; };
+
 
 // compositional, with diffusion
 template <class TypeTag>
-struct EnableEnergy<TypeTag, TTag::Co2InjectionCompositional> {
+struct EnableEnergy<TypeTag, TTag::SimpleTest> {
     static constexpr bool value = false;
 };
 
@@ -341,22 +296,11 @@ namespace Opm {
 /*!
  * \ingroup TestProblems
  *
- * \brief 3 component testproblem with CO2 Methane NDekan
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
+ * \brief 3 component simple testproblem with ["CO2", "C1", "C10"]
  *
  */
 template <class TypeTag>
-class Co2InjectionCompositional : public GetPropType<TypeTag, Properties::BaseProblem>
+class SimpleTest : public GetPropType<TypeTag, Properties::BaseProblem>
 {
     using ParentType = GetPropType<TypeTag, Properties::BaseProblem>;
 
@@ -394,24 +338,15 @@ class Co2InjectionCompositional : public GetPropType<TypeTag, Properties::BasePr
     using GlobalPosition = Dune::FieldVector<CoordScalar, dimWorld>;
     using DimMatrix = Dune::FieldMatrix<Scalar, dimWorld, dimWorld>;
     using DimVector = Dune::FieldVector<Scalar, dimWorld>;
-    using FullField = Dune::FieldMatrix<Scalar, NX, NY>;
-    using FieldColumn = Dune::FieldVector<Scalar, NY>;
     using ComponentVector = Dune::FieldVector<Evaluation, numComponents>;
     using FlashSolver = GetPropType<TypeTag, Properties::FlashSolver>;
-
-    const unsigned XDIM = 0;
-    const unsigned YDIM = 1;
-    const unsigned ZDIM = 2;
-
-    // influx on the left boundary
-    Scalar rate;
 
 public:
     using FluidState = Opm::CompositionalFluidState<Evaluation, FluidSystem, enableEnergy>;
     /*!
      * \copydoc Doxygen::defaultProblemConstructor
      */
-    Co2InjectionCompositional(Simulator& simulator)
+    SimpleTest(Simulator& simulator)
         : ParentType(simulator)
     {
         Scalar epi_len = EWOMS_GET_PARAM(TypeTag, Scalar, EpisodeLength);
@@ -421,43 +356,17 @@ public:
     void initPetrophysics()
     {
         temperature_ = EWOMS_GET_PARAM(TypeTag, Scalar, Temperature);
-        K_ = this->toDimMatrix_(PERMEABILITY * 1.e-15);
-        porosity_ = POROSITY;
+        K_ = this->toDimMatrix_(9.869232667160131e-14);
+        porosity_ = 0.1;
     }
-
-    void initGravity()
-    {
-        gravity_ = 0.0;
-        gravityfactor_ = EWOMS_GET_PARAM(TypeTag, Scalar, Gravityfactor);
-        if (EWOMS_GET_PARAM(TypeTag, bool, EnableGravity))
-            gravity_[dimWorld - 1] = gravityfactor_ * (-9.81);
-    }
-
-    /*!
-     * \brief Returns the acceleration due to gravity \f$\mathrm{[m/s^2]}\f$.
-     *
-     * \param context Reference to the object which represents the
-     *                current execution context.
-     * \param spaceIdx The local index of spatial entity defined by the context
-     * \param timeIdx The index used by the time discretization.
-     */
 
     template <class Context>
     const DimVector&
-    gravity(const Context& context OPM_UNUSED, unsigned spaceIdx OPM_UNUSED, unsigned timeIdx OPM_UNUSED) const
+    gravity([[maybe_unused]]const Context& context, [[maybe_unused]] unsigned spaceIdx, [[maybe_unused]] unsigned timeIdx) const
     {
         return gravity();
     }
 
-    /*!
-     * \brief Returns the acceleration due to gravity \f$\mathrm{[m/s^2]}\f$.
-     *
-     * This method is used for problems where the gravitational
-     * acceleration does not depend on the spatial position. The
-     * default behaviour is that if the <tt>EnableGravity</tt>
-     * property is true, \f$\boldsymbol{g} = ( 0,\dots,\ -9.81)^T \f$ holds,
-     * else \f$\boldsymbol{g} = ( 0,\dots, 0)^T \f$.
-     */
     const DimVector& gravity() const
     {
         return gravity_;
@@ -471,9 +380,6 @@ public:
         ParentType::finishInit();
         // initialize fixed parameters; temperature, permeability, porosity
         initPetrophysics();
-
-        // initialize gravity
-        initGravity();
     }
 
     /*!
@@ -485,10 +391,6 @@ public:
 
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, Temperature, 
                             "The temperature [K] in the reservoir");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Gravityfactor, 
-                            "The gravityfactor [-] of the reservoir");
-        EWOMS_REGISTER_PARAM(TypeTag, Scalar, Inflowrate, 
-                            "The inflow rate [?] on the left boundary of the reservoir");
         EWOMS_REGISTER_PARAM(TypeTag, Scalar, Initialpressure, 
                             "The initial pressure [Pa s] in the reservoir");
         EWOMS_REGISTER_PARAM(TypeTag,
@@ -541,7 +443,7 @@ public:
         Scalar tol = this->model().newtonMethod().tolerance() * 1e5;
         this->model().checkConservativeness(tol);
 
- // Calculate storage terms
+        // Calculate storage terms
         PrimaryVariables storageO, storageW;
         this->model().globalPhaseStorage(storageO, oilPhaseIdx);
 
@@ -551,10 +453,10 @@ public:
          this->model().globalPhaseStorage(storageG, /*phaseIdx=*/1);
 
          // Write mass balance information for rank 0
-         if (this->gridView().comm().rank() == 0) {
-             std::cout << "Storage: liquid=[" << storageL << "]"
-                       << " gas=[" << storageG << "]\n" << std::flush;
-         }
+        //  if (this->gridView().comm().rank() == 0) {
+        //      std::cout << "Storage: liquid=[" << storageL << "]"
+        //                << " gas=[" << storageG << "]\n" << std::flush;
+        //  }
     }
 
     /*!
@@ -566,35 +468,29 @@ public:
         Opm::CompositionalFluidState<Evaluation, FluidSystem> fs;
         initialFluidState(fs, context, spaceIdx, timeIdx);
         values.assignNaive(fs);
+        std::cout << "primary variables for cell " << context.globalSpaceIndex(spaceIdx, timeIdx) << ": " << values << "\n";
     }
 
     // Constant temperature
     template <class Context>
-    Scalar temperature(const Context& context OPM_UNUSED, unsigned spaceIdx OPM_UNUSED, unsigned timeIdx OPM_UNUSED) const
+    Scalar temperature([[maybe_unused]] const Context& context, [[maybe_unused]] unsigned spaceIdx, [[maybe_unused]] unsigned timeIdx) const
     {
         return temperature_;
     }
 
-    // Constant gravityfactor
-    template <class Context>
-    Scalar
-    gravityfactor(const Context& context OPM_UNUSED, unsigned spaceIdx OPM_UNUSED, unsigned timeIdx OPM_UNUSED) const
-    {
-        return gravityfactor_;
-    }
 
     // Constant permeability
     template <class Context>
-    const DimMatrix& intrinsicPermeability(const Context& context OPM_UNUSED,
-                                           unsigned spaceIdx OPM_UNUSED,
-                                           unsigned timeIdx OPM_UNUSED) const
+    const DimMatrix& intrinsicPermeability([[maybe_unused]] const Context& context,
+                                           [[maybe_unused]] unsigned spaceIdx,
+                                           [[maybe_unused]] unsigned timeIdx) const
     {
         return K_;
     }
 
     // Constant porosity
     template <class Context>
-    Scalar porosity(const Context& context OPM_UNUSED, unsigned spaceIdx OPM_UNUSED, unsigned timeIdx OPM_UNUSED) const
+    Scalar porosity([[maybe_unused]] const Context& context, [[maybe_unused]] unsigned spaceIdx, [[maybe_unused]] unsigned timeIdx) const
     {
         return porosity_;
     }
@@ -603,76 +499,32 @@ public:
      * \copydoc FvBaseMultiPhaseProblem::materialLawParams
      */
     template <class Context>
-    const MaterialLawParams& materialLawParams(const Context& context OPM_UNUSED,
-                                               unsigned spaceIdx OPM_UNUSED,
-                                               unsigned timeIdx OPM_UNUSED) const
+    const MaterialLawParams& materialLawParams([[maybe_unused]] const Context& context,
+                                               [[maybe_unused]] unsigned spaceIdx,
+                                               [[maybe_unused]] unsigned timeIdx) const
     {
         return this->mat_;
     }
 
+    // No flow (introduce fake wells instead)
     template <class Context>
-    void boundary(BoundaryRateVector& values, const Context& context, unsigned spaceIdx, unsigned timeIdx) const
-    {
-        // const Scalar eps = std::numeric_limits<double>::epsilon();
-        const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
-
-        if (onLeftBoundary_(pos)) {
-            Scalar inflowrate = EWOMS_GET_PARAM(TypeTag, Scalar, Inflowrate);
-            RateVector massRate(0.0);
-            massRate = 0.0;
-            massRate[contiCO2EqIdx] = inflowrate; // kg / (m^2 * s)
-
-            values.setMassRate(massRate);
-        } else if (onRightBoundary_(pos)) {
-            Opm::CompositionalFluidState<Evaluation, FluidSystem> fs;
-            initialFluidState(fs, context, spaceIdx, timeIdx);
-            values.setFreeFlow(context, spaceIdx, timeIdx, fs);
-        } else
-            values.setNoFlow(); // closed on top and bottom
-    }
-
+    void boundary(BoundaryRateVector& values,
+                  const Context& /*context*/,
+                  unsigned /*spaceIdx*/,
+                  unsigned /*timeIdx*/) const
+    { values.setNoFlow(); }
 
     // No source terms
     template <class Context>
     void source(RateVector& source_rate,
-                const Context& context OPM_UNUSED,
-                unsigned spaceIdx OPM_UNUSED,
-                unsigned timeIdx OPM_UNUSED) const
+                [[maybe_unused]] const Context& context,
+                [[maybe_unused]] unsigned spaceIdx,
+                [[maybe_unused]] unsigned timeIdx) const
     {
         source_rate = Scalar(0.0);
     }
 
 private:
-    bool onLeftBoundary_(const GlobalPosition& pos) const
-    {
-        return pos[XDIM] < 1e-6;
-    }
-
-    bool onRightBoundary_(const GlobalPosition& pos) const
-    {
-        return pos[XDIM] > this->boundingBoxMax()[XDIM] - 1e-6;
-    }
-
-    bool onLowerBoundary_(const GlobalPosition& pos) const
-    {
-        return pos[ZDIM] < 1e-6;
-    }
-
-    bool onUpperBoundary_(const GlobalPosition& pos) const
-    {
-        return pos[ZDIM] > this->boundingBoxMax()[ZDIM] - 1e-6;
-    }
-
-    bool aboveMiddle_(const GlobalPosition& pos) const
-    {
-        return pos[ZDIM] >= (this->boundingBoxMax()[ZDIM] + this->boundingBoxMin()[ZDIM]) / 2;
-    }
-
-    bool leftMiddle(const GlobalPosition& pos) const
-    {
-        return pos[XDIM] > (this->boundingBoxMax()[XDIM] + this->boundingBoxMin()[XDIM]) / 2;
-    }
-
 
     /*!
      * \copydoc FvBaseProblem::initial
@@ -687,19 +539,39 @@ private:
     using Evaluation = Opm::DenseAd::Evaluation<double, numComponents>;
     typedef Dune::FieldVector<Evaluation, numComponents> ComponentVector;
 
-    // input
-    Evaluation p_init = Evaluation::createVariable(10e5, 0); // 10 bar
+    // input from Olav
+    //z0 = [0.5, 0.3, 0.2]
+    //zi = [0.99, 0.01-1e-3, 1e-3]
+    //p0 = 75e5
+    //T0 = 423.25
+    int inj = 0;
+    int prod = 2;
+    int spatialIdx = context.globalSpaceIndex(spaceIdx, timeIdx);
     ComponentVector comp;
     comp[0] = Evaluation::createVariable(0.5, 1);
     comp[1] = Evaluation::createVariable(0.3, 2);
     comp[2] = 1. - comp[0] - comp[1];
+    if (spatialIdx == inj){
+        comp[0] = Evaluation::createVariable(0.99, 1);
+        comp[1] = Evaluation::createVariable(0.01-1e-3, 2);
+        comp[2] = 1. - comp[0] - comp[1]; 
+    }
     ComponentVector sat;
     sat[0] = 1.0; sat[1] = 1.0-sat[0];
     // TODO: should we put the derivative against the temperature here?
-    Scalar temp = 300.0;
+    Scalar temp = 423.25;
 
     // TODO: no capillary pressure for now
-    
+    Scalar p0 = 75e5;
+
+    Evaluation p_init = Evaluation::createVariable(75e5, 0); // 75 bar
+    if (spatialIdx == inj){
+         p_init *= 2.0; 
+     }
+    if (spatialIdx == prod) {
+         p_init *= 0.5;
+     }
+
     fs.setPressure(FluidSystem::oilPhaseIdx, p_init);
     fs.setPressure(FluidSystem::gasPhaseIdx, p_init);
 
@@ -752,8 +624,8 @@ private:
     // TODO: only, p, z need the derivatives.
     const double flash_tolerance = 1.e-12; // just to test the setup in co2-compositional
     //const int flash_verbosity = 1;
-    const std::string flash_twophase_method = "newton"; // "ssi"
-    // const std::string flash_twophase_method = "ssi";
+    //const std::string flash_twophase_method = "newton"; // "ssi"
+    const std::string flash_twophase_method = "ssi";
     // const std::string flash_twophase_method = "ssi+newton";
 
     // Set initial K and L
@@ -761,69 +633,31 @@ private:
         const Evaluation Ktmp = fs.wilsonK_(compIdx);
         fs.setKvalue(compIdx, Ktmp);
     }
-    const Evaluation Ltmp = 1.;
-    fs.setLvalue(Ltmp);
 
     // get capillary pressure
     Scalar pC[numPhases];
     const auto& matParams = this->materialLawParams(context, spaceIdx, timeIdx);
     MaterialLaw::capillaryPressures(pC, matParams, fs);
-
-
-    // do a initial flash
     Scalar init_pressure = EWOMS_GET_PARAM(TypeTag, Scalar, Initialpressure);
-    bool enable_gravity = EWOMS_GET_PARAM(TypeTag, bool, EnableGravity);
-    if (0) {
-            // //
-            // Run flash to get new density to correct pressure estimate
-            // //
 
-            // Flash solver setup
-            Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
-            int flashVerbosity = EWOMS_GET_PARAM(TypeTag, int, FlashVerbosity);
-            std::string flashTwoPhaseMethod = EWOMS_GET_PARAM(TypeTag, std::string, FlashTwoPhaseMethod);
-            int spatialIdx = context.globalSpaceIndex(spaceIdx, timeIdx);
-
-            // Set K and L initial
-            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-                const Evaluation Ktmp = fs.wilsonK_(compIdx);
-                fs.setKvalue(compIdx, Ktmp);
-            }
-            const Evaluation& Ltmp = -1.0;
-            fs.setLvalue(Ltmp);
-
-            // Run flash solver
-            FlashSolver::solve(fs, zInit, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
-
-            // Calculate pressure again
-            Evaluation densityL = fs.density(oilPhaseIdx);
-
-            const GlobalPosition& pos = context.pos(spaceIdx, timeIdx);
-            Scalar h = this->boundingBoxMax()[ZDIM] - pos[ZDIM];
-            p_init = (init_pressure * 1e5) + Opm::getValue(densityL) * h * 9.81;
-            fs.setPressure(oilPhaseIdx, p_init);
-            fs.setPressure(gasPhaseIdx, p_init);
-        } else {
-            p_init = init_pressure * 1e5;
+    p_init = init_pressure * 1e5;
                         
-            // Set K and L initial
-            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-                const Evaluation Ktmp = fs.wilsonK_(compIdx);
-                fs.setKvalue(compIdx, Ktmp);
-            }
-            const Evaluation& Ltmp = -1.0;
-            fs.setLvalue(Ltmp);
-        }
-
-        fs.setPressure(oilPhaseIdx, p_init);
-        fs.setPressure(gasPhaseIdx, p_init); 
+    // Set K and L initial
+    for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+        const Evaluation Ktmp = fs.wilsonK_(compIdx);
+        fs.setKvalue(compIdx, Ktmp);
+    }
+    const Evaluation& Ltmp = -1.0;
+    fs.setLvalue(Ltmp);
+        
+    fs.setPressure(oilPhaseIdx, p_init);
+    fs.setPressure(gasPhaseIdx, p_init); 
   
     }
 
     DimMatrix K_;
     Scalar porosity_;
     Scalar temperature_;
-    Scalar gravityfactor_;
     MaterialLawParams mat_;
     DimVector gravity_;
 };
