@@ -44,7 +44,7 @@
 #include <opm/material/fluidsystems/Co2BrineFluidSystem.hh>
 #include <opm/material/common/Valgrind.hpp>
 #include <tests/problems/co2injectionproperties.h>
-
+#include <opm/simulators/linalg/parallelbicgstabbackend.hh>
 
 #include <dune/grid/yaspgrid.hh>
 #include <dune/grid/io/file/dgfparser/dgfyasp.hh>
