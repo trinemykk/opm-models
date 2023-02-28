@@ -39,7 +39,7 @@
 
 #include <opm/simulators/linalg/parallelistlbackend.hh>
 
-#include <opm/material/common/Exceptions.hpp>
+#include <opm/common/Exceptions.hpp>
 #include <opm/material/constraintsolvers/PTFlash.hpp> 
 #include <opm/material/fluidsystems/Co2BrineFluidSystem.hh>
 #include <opm/material/common/Valgrind.hpp>
