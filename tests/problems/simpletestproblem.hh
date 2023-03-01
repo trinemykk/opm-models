@@ -357,6 +357,7 @@ public:
     {
         temperature_ = EWOMS_GET_PARAM(TypeTag, Scalar, Temperature);
         K_ = this->toDimMatrix_(9.869232667160131e-14);
+
         porosity_ = 0.1;
     }
 
@@ -492,7 +493,15 @@ public:
     template <class Context>
     Scalar porosity([[maybe_unused]] const Context& context, [[maybe_unused]] unsigned spaceIdx, [[maybe_unused]] unsigned timeIdx) const
     {
-        return porosity_;
+        int spatialIdx = context.globalSpaceIndex(spaceIdx, timeIdx);
+        int inj = 0;
+        int prod = 2;
+        if (spatialIdx == inj)
+            return 1.0;
+        else if (spatialIdx == prod)
+            return 1.0;
+        else
+            return porosity_;
     }
 
     /*!
