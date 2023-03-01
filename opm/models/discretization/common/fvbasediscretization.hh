@@ -312,9 +312,9 @@ struct TimeDiscHistorySize<TypeTag, TTag::FvBaseDiscretization> { static constex
 template<class TypeTag>
 struct ExtensiveStorageTerm<TypeTag, TTag::FvBaseDiscretization> { static constexpr bool value = false; };
 
-// use volumetric residuals is default
+// use volumetric residuals is not default
 template<class TypeTag>
-struct UseVolumetricResidual<TypeTag, TTag::FvBaseDiscretization> { static constexpr bool value = true; };
+struct UseVolumetricResidual<TypeTag, TTag::FvBaseDiscretization> { static constexpr bool value = false; };
 
 //! eWoms is mainly targeted at research, so experimental features are enabled by
 //! default.
