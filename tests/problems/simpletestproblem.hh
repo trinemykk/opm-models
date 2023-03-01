@@ -160,7 +160,7 @@ struct SimulationName<TypeTag, TTag::SimpleTest> {
 template <class TypeTag>
 struct EndTime<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 1 * 24. * 60. * 60.;//1 day
+    static constexpr type value = 2 * 24. * 60. * 60.;//2 day
 };
 
 // convergence control
@@ -634,24 +634,8 @@ private:
         fs.setKvalue(compIdx, Ktmp);
     }
 
-    // get capillary pressure
-    Scalar pC[numPhases];
-    const auto& matParams = this->materialLawParams(context, spaceIdx, timeIdx);
-    MaterialLaw::capillaryPressures(pC, matParams, fs);
-    Scalar init_pressure = EWOMS_GET_PARAM(TypeTag, Scalar, Initialpressure);
-
-    p_init = init_pressure * 1e5;
-                        
-    // Set K and L initial
-    for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-        const Evaluation Ktmp = fs.wilsonK_(compIdx);
-        fs.setKvalue(compIdx, Ktmp);
-    }
     const Evaluation& Ltmp = -1.0;
     fs.setLvalue(Ltmp);
-        
-    fs.setPressure(oilPhaseIdx, p_init);
-    fs.setPressure(gasPhaseIdx, p_init); 
   
     }
 
