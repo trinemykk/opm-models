@@ -254,36 +254,24 @@ public:
                                                             up.pvtRegionIndex(),
                                                             SoMax);
 															
-				//const auto& rhoSat = FluidSystem::saturatedDensity(fluidState_, oilPhaseIdx, pvtRegionIdx);
-				//Evaluation X = 0.4*Opm::min(1.0, Opm::max(0.0, Opm::pow((fluidState_.Rs() - 0.35*RsSat)/ (0.35 * RsSat),2)));
 				Evaluation Sm = Opm::min(0.999, Opm::max(0.001, Rs/RsSat));
-					//TL factor for incomplete mixing
-				//Scalar tl = 1.0;
-				//calar Kg = 1.6;
-				//Evaluation X = (1.0 - Sm) / ((1.0 - Sm)/(Sm * Kg) + 1.0);
 				const Scalar Xhi = oilVaporizationControl.getMaxDRSDT(intQuantsIn.pvtRegionIndex());
-
-				//Scalar Kg = 0.13/Xhi;
-				Scalar Kg = 0.2/Xhi;
-					//Scalar Kg = 2.7;
 				Scalar Smo = 0.35; //1.0 / (1.0 + std::pow(Kg, 0.5));
 				Evaluation sg = up.fluidState().saturation(FluidSystem::gasPhaseIdx);
 				Evaluation S = (Rs - RsSat * sg) / (RsSat * ( 1.0 - sg));
-				
-				//if (S > Smo || down.fluidState().Rs() > 0 ) 
+				 
                 if ( (S > Smo || down.fluidState().Rs() > 0) &&  down.fluidState().saturation(FluidSystem::gasPhaseIdx) < 1e-9){
 					
-				const auto& invB = up.fluidState().invB(oilPhaseIdx);
-				// what will be the flux when muliplied with trans_mob
-				const auto convectiveFlux = Xhi*invB*g*distZ*delta_rho*Rs; 
-				unsigned activeGasCompIdx = Indices::canonicalToActiveComponentIndex(gasCompIdx);
-				// Since the upwind direction may have changed from what was used to compute the mobility. 
-				// We keep the derivative of the trans_mob
-				if (upIdx == focusDofIdx)
-					flux[conti0EqIdx + activeGasCompIdx] += trans_mob * (convectiveFlux);
-				else 
-					flux[conti0EqIdx + activeGasCompIdx] += trans_mob * Opm::getValue(convectiveFlux);
-				
+				    const auto& invB = up.fluidState().invB(oilPhaseIdx);
+				    // what will be the flux when muliplied with trans_mob
+				    const auto convectiveFlux = Xhi*invB*g*distZ*delta_rho*Rs; 
+				    unsigned activeGasCompIdx = Indices::canonicalToActiveComponentIndex(gasCompIdx);
+				    // Since the upwind direction may have changed from what was used to compute the mobility. 
+				    // We keep the derivative of the trans_mob
+				    if (upIdx == focusDofIdx)
+					    flux[conti0EqIdx + activeGasCompIdx] += trans_mob * (convectiveFlux);
+				    else 
+					    flux[conti0EqIdx + activeGasCompIdx] += trans_mob * Opm::getValue(convectiveFlux);
 				}
         
 			}

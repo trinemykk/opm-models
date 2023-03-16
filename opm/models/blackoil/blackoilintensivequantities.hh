@@ -414,26 +414,11 @@ public:
             if (FluidSystem::enableDissolvedGas()) {
                 
                 const auto& oilVaporizationControl = problem.simulator().vanguard().schedule()[problem.episodeIndex()].oilvap();
-				if(oilVaporizationControl.drsdtConvective()) {
-					const auto& RsSat = enableExtbo ? asImp_().rs() :
-					FluidSystem::saturatedDissolutionFactor(fluidState_,
-                                                            oilPhaseIdx,
-                                                            pvtRegionIdx,
-                                                            SoMax);
-					const auto& rhoSat = FluidSystem::saturatedDensity(fluidState_, oilPhaseIdx, pvtRegionIdx);
-                    const auto& sg = fluidState_.saturation(FluidSystem::gasPhaseIdx);
-
-                    Scalar chi = oilVaporizationControl.getMaxDRSDT(fluidState_.pvtRegionIndex());
-                    Scalar Kg = 0.13/chi;
-                    Scalar Smo = 1.0 / (1.0 + std::pow(Kg, 0.5));
-                    Evaluation S = (fluidState_.Rs() - RsSat * sg) / (RsSat * ( 1.0 - sg));
-                    Evaluation X = Opm::min(1.0, Opm::max(0.0, Opm::pow((S - Smo)/ (1.0 - Smo),1.0)));
-
-				} else {
-                rho +=
-                    fluidState_.invB(oilPhaseIdx) *
-                    fluidState_.Rs() *
-                    FluidSystem::referenceDensity(gasPhaseIdx, pvtRegionIdx);
+				if(!oilVaporizationControl.drsdtConvective()) {
+                    rho +=
+                        fluidState_.invB(oilPhaseIdx) *
+                        fluidState_.Rs() *
+                        FluidSystem::referenceDensity(gasPhaseIdx, pvtRegionIdx);
                 }
             }
             fluidState_.setDensity(oilPhaseIdx, rho);
