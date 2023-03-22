@@ -229,22 +229,21 @@ public:
 			const auto& rho_sat_ex = Opm::getValue(FluidSystem::saturatedDensity(intQuantsEx.fluidState(), oilPhaseIdx, intQuantsEx.pvtRegionIndex()));
 			const auto& rho_in = intQuantsIn.fluidState().density(oilPhaseIdx);
 			const auto& rho_ex = Opm::getValue(intQuantsEx.fluidState().density(oilPhaseIdx));
-			const auto delta_rho = (rho_sat_ex + rho_sat_in - rho_in -rho_ex)/2;
-		
+			const auto delta_rho = (rho_sat_ex + rho_sat_in - rho_in -rho_ex)/2;		
 			const auto& pressureDiff = extQuants.pressureDifference(oilPhaseIdx);
-			if (Opm::abs(pressureDiff) > 1e-12){ // 1e-9
+            const auto pressure_difference_convective_mixing =  delta_rho * g * distZ;
+			if (Opm::abs(pressure_difference_convective_mixing) > 1e-12){ // 1e-9
 		
 				// find new upstream direction
-				const auto pressure_difference_convective_mixing = pressureDiff + delta_rho * g * distZ;
 				unsigned upIdx = scvf.interiorIndex();
 				unsigned downIdx = scvf.exteriorIndex();
 				if (pressure_difference_convective_mixing > 0) {
 					upIdx = scvf.exteriorIndex();
 					downIdx = scvf.interiorIndex();
 				}
+                Scalar trans = problem.transmissibility(elemCtx, scvf.interiorIndex(), scvf.exteriorIndex());
+                Scalar faceArea = scvf.area();
 		
-				// we get the tranmissibility times the mobility by dividing flux with the pressure difference
-				const auto trans_mob = extQuants.volumeFlux(oilPhaseIdx)/ pressureDiff;		
 				const IntensiveQuantities& up = elemCtx.intensiveQuantities(upIdx, timeIdx);
 				const IntensiveQuantities& down = elemCtx.intensiveQuantities(downIdx, timeIdx);
 				const auto& Rs =  up.fluidState().Rs();	
@@ -253,31 +252,34 @@ public:
                                                             oilPhaseIdx,
                                                             up.pvtRegionIndex(),
                                                             SoMax);
-															
+				
+                const Evaluation& transMult = up.rockCompTransMultiplier();												
 				Evaluation Sm = Opm::min(0.999, Opm::max(0.001, Rs/RsSat));
 				const Scalar Xhi = oilVaporizationControl.getMaxDRSDT(intQuantsIn.pvtRegionIndex());
 				Scalar Smo = 0.35; //1.0 / (1.0 + std::pow(Kg, 0.5));
 				Evaluation sg = up.fluidState().saturation(FluidSystem::gasPhaseIdx);
 				Evaluation S = (Rs - RsSat * sg) / (RsSat * ( 1.0 - sg));
+                //if (rs >= (rssat * sg))
 				 
-                if ( (S > Smo || down.fluidState().Rs() > 0) &&  down.fluidState().saturation(FluidSystem::gasPhaseIdx) < 1e-9){
+				if ( (S > Smo || down.fluidState().Rs() > 0) && down.fluidState().saturation(FluidSystem::gasPhaseIdx) <= 0.0) {
 					
 				    const auto& invB = up.fluidState().invB(oilPhaseIdx);
+                    const auto& visc = up.fluidState().viscosity(oilPhaseIdx);
+
 				    // what will be the flux when muliplied with trans_mob
-				    const auto convectiveFlux = Xhi*invB*g*distZ*delta_rho*Rs; 
+				    const auto convectiveFlux = -trans*transMult*Xhi*invB*g*distZ*delta_rho*Rs/(visc*faceArea); 
 				    unsigned activeGasCompIdx = Indices::canonicalToActiveComponentIndex(gasCompIdx);
 				    // Since the upwind direction may have changed from what was used to compute the mobility. 
 				    // We keep the derivative of the trans_mob
-				    if (upIdx == focusDofIdx)
-					    flux[conti0EqIdx + activeGasCompIdx] += trans_mob * (convectiveFlux);
-				    else 
-					    flux[conti0EqIdx + activeGasCompIdx] += trans_mob * Opm::getValue(convectiveFlux);
+				if (upIdx == focusDofIdx)
+					flux[conti0EqIdx + activeGasCompIdx] += convectiveFlux;
+				else 
+					flux[conti0EqIdx + activeGasCompIdx] += Opm::getValue(convectiveFlux);
+				
 				}
         
 			}
 		}	
-
-
         // deal with solvents (if present)
         SolventModule::computeFlux(flux, elemCtx, scvfIdx, timeIdx);
 
