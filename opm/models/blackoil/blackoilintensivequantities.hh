@@ -299,6 +299,7 @@ public:
             else if constexpr (compositionSwitchEnabled)
                 fluidState_.setRs(0.0);
         }
+        
 
         if (priVars.primaryVarsMeaningGas() == PrimaryVariables::GasMeaning::Rv) {
             const auto& Rv = priVars.makeEvaluation(Indices::compositionSwitchIdx, timeIdx);

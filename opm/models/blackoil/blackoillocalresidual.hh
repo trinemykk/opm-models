@@ -261,7 +261,7 @@ public:
 				Evaluation S = (Rs - RsSat * sg) / (RsSat * ( 1.0 - sg));
                 //if (rs >= (rssat * sg))
 				 
-				if ( (S > Smo || down.fluidState().Rs() > 0) && down.fluidState().saturation(FluidSystem::gasPhaseIdx) <= 0.0) {
+				if ( (S > Smo || down.fluidState().Rs() > 0) ) { //&& down.fluidState().saturation(FluidSystem::gasPhaseIdx) <= 0.0) {
 					
 				    const auto& invB = up.fluidState().invB(oilPhaseIdx);
                     const auto& visc = up.fluidState().viscosity(oilPhaseIdx);
