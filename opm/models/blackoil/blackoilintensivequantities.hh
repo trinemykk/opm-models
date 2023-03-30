@@ -300,7 +300,6 @@ public:
                 fluidState_.setRs(0.0);
         }
         
-
         if (priVars.primaryVarsMeaningGas() == PrimaryVariables::GasMeaning::Rv) {
             const auto& Rv = priVars.makeEvaluation(Indices::compositionSwitchIdx, timeIdx);
             fluidState_.setRv(Rv);
@@ -412,8 +411,7 @@ public:
         if (FluidSystem::phaseIsActive(oilPhaseIdx)) {
             rho = fluidState_.invB(oilPhaseIdx);
             rho *= FluidSystem::referenceDensity(oilPhaseIdx, pvtRegionIdx);
-            if (FluidSystem::enableDissolvedGas()) {
-                
+            if (FluidSystem::enableDissolvedGas()) {                
                 const auto& oilVaporizationControl = problem.simulator().vanguard().schedule()[problem.episodeIndex()].oilvap();
 				if(!oilVaporizationControl.drsdtConvective()) {
                     rho +=
