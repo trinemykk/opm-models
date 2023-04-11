@@ -273,9 +273,11 @@ protected:
     {
         const auto& resid = localResidual_.residual();
 
-        for (unsigned eqIdx = 0; eqIdx < numEq; eqIdx++)
+        for (unsigned eqIdx = 0; eqIdx < numEq; eqIdx++){
             residual_[focusDofIdx][eqIdx] = resid[focusDofIdx][eqIdx].value();
-
+            std::cout << "residual = " << residual_[focusDofIdx][eqIdx] << std::endl;
+        }
+        
         int spatialIdx = elemCtx.globalSpaceIndex(focusDofIdx, /*timeIdx=*/0);
         std::cout << "Focus cell = " << spatialIdx << std::endl;
         size_t numDof = elemCtx.numDof(/*timeIdx=*/0);

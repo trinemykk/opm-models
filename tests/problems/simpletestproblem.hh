@@ -142,7 +142,7 @@ struct EnableGravity<TypeTag, TTag::SimpleTest> { static constexpr bool value = 
  template <class TypeTag>
  struct Temperature<TypeTag, TTag::SimpleTest> {
      using type = GetPropType<TypeTag, Scalar>;
-     static constexpr type value = 423.25;;
+     static constexpr type value = 300;
  };
 
 template <class TypeTag>
@@ -560,11 +560,11 @@ private:
     comp[0] = Evaluation::createVariable(0.5, 1);
     comp[1] = Evaluation::createVariable(0.3, 2);
     comp[2] = 1. - comp[0] - comp[1];
-    if (spatialIdx == inj){
-        comp[0] = Evaluation::createVariable(0.99, 1);
-        comp[1] = Evaluation::createVariable(0.01-1e-3, 2);
-        comp[2] = 1. - comp[0] - comp[1]; 
-    }
+     if (spatialIdx == inj){
+         comp[0] = Evaluation::createVariable(0.99, 1);
+         comp[1] = Evaluation::createVariable(0.01-1e-3, 2);
+         comp[2] = 1. - comp[0] - comp[1]; 
+     }
     ComponentVector sat;
     sat[0] = 1.0; sat[1] = 1.0-sat[0];
     // TODO: should we put the derivative against the temperature here?
@@ -573,13 +573,13 @@ private:
     // TODO: no capillary pressure for now
     Scalar p0 = 75e5;
 
-    Evaluation p_init = Evaluation::createVariable(75e5, 0); // 75 bar
-    if (spatialIdx == inj){
-         p_init *= 2.0; 
-     }
-    if (spatialIdx == prod) {
-         p_init *= 0.5;
-     }
+    Evaluation p_init = Evaluation::createVariable(10e5, 0); // 75 bar
+     if (spatialIdx == inj){
+          p_init *= 2.0; 
+      }
+     if (spatialIdx == prod) {
+          p_init *= 0.5;
+      }
 
     fs.setPressure(FluidSystem::oilPhaseIdx, p_init);
     fs.setPressure(FluidSystem::gasPhaseIdx, p_init);
@@ -633,8 +633,8 @@ private:
     // TODO: only, p, z need the derivatives.
     const double flash_tolerance = 1.e-12; // just to test the setup in co2-compositional
     //const int flash_verbosity = 1;
-    //const std::string flash_twophase_method = "newton"; // "ssi"
-    const std::string flash_twophase_method = "ssi";
+    const std::string flash_twophase_method = "newton"; // "ssi"
+    //const std::string flash_twophase_method = "ssi";
     // const std::string flash_twophase_method = "ssi+newton";
 
     // Set initial K and L

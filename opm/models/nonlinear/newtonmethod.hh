@@ -314,6 +314,8 @@ public:
                 solveTimer_.start();
                 auto& residual = linearizer.residual();
                 const auto& jacobian = linearizer.jacobian();
+               // std::cout << "residual " << residual << std::endl;
+               // std::cout << "jacobian " << jacobian << std::endl;
                 linearSolver_.prepare(jacobian, residual);
                 linearSolver_.setResidual(residual);
                 linearSolver_.getResidual(residual);
