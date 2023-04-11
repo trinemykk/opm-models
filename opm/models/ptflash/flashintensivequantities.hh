@@ -107,25 +107,29 @@ public:
 
         const auto& priVars = elemCtx.primaryVars(dofIdx, timeIdx);
         const auto& problem = elemCtx.problem();
-        Scalar flashTolerance = EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
-        int flashVerbosity = EWOMS_GET_PARAM(TypeTag, int, FlashVerbosity);
+        
+        Scalar flashTolerance = 1.e-12;//EWOMS_GET_PARAM(TypeTag, Scalar, FlashTolerance);
+        int flashVerbosity = 0;//EWOMS_GET_PARAM(TypeTag, int, FlashVerbosity);
         std::string flashTwoPhaseMethod = EWOMS_GET_PARAM(TypeTag, std::string, FlashTwoPhaseMethod);
         
         // extract the total molar densities of the components
-        ComponentVector z;
-        Evaluation lastZ = 1.0;
-        for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
-            z[compIdx] = priVars.makeEvaluation(z0Idx + compIdx, timeIdx);
-            lastZ -= z[compIdx];
-        }
-        z[numComponents - 1] = lastZ;
+        ComponentVector z(0.);
+        {
+            Evaluation lastZ = 1.0;
+            for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
+                z[compIdx] = priVars.makeEvaluation(z0Idx + compIdx, timeIdx);
+                lastZ -= z[compIdx];
+            }
+            z[numComponents - 1] = lastZ;
 
-        Evaluation sumz = 0.0;
-        for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-            z[compIdx] = Opm::max(z[compIdx], 1e-8);
-            sumz +=z[compIdx];
+            Evaluation sumz = 0.0;
+            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                z[compIdx] = Opm::max(z[compIdx], 1e-8);
+                sumz +=z[compIdx];
+            }
+            z /= sumz;
+
         }
-        z /= sumz;
 
         Evaluation p = priVars.makeEvaluation(pressure0Idx, timeIdx);
         for (int phaseIdx = 0; phaseIdx < numPhases; ++phaseIdx)
@@ -135,38 +139,65 @@ public:
         const auto *hint = elemCtx.thermodynamicHint(dofIdx, timeIdx);
         const auto *hint2 = elemCtx.thermodynamicHint(dofIdx, 1);
         if (hint) {
-            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-                const Evaluation& Ktmp = hint->fluidState().K(compIdx);
-                fluidState_.setKvalue(compIdx, Ktmp);
-            }
-            const Evaluation& Ltmp = hint->fluidState().L();
-            fluidState_.setLvalue(Ltmp);
+             for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                 const Evaluation& Ktmp = hint->fluidState().K(compIdx);
+                 fluidState_.setKvalue(compIdx, Ktmp);
+             }
+             const Evaluation& Ltmp = hint->fluidState().L();
+             fluidState_.setLvalue(Ltmp);
         }
         else if (hint2) {
-            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-                const Evaluation& Ktmp = hint2->fluidState().K(compIdx);
-                fluidState_.setKvalue(compIdx, Ktmp);
-            }
-            const Evaluation& Ltmp = hint2->fluidState().L();
-            fluidState_.setLvalue(Ltmp);
+             for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                 const Evaluation& Ktmp = hint2->fluidState().K(compIdx);
+                 fluidState_.setKvalue(compIdx, Ktmp);
+             }
+             const Evaluation& Ltmp = hint2->fluidState().L();
+             fluidState_.setLvalue(Ltmp);
         }
         else {
-            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-                const Evaluation Ktmp = fluidState_.wilsonK_(compIdx);
-                fluidState_.setKvalue(compIdx, Ktmp);
-            }
-            const Evaluation& Ltmp = -1.0;
-            fluidState_.setLvalue(Ltmp);
-        }
+             for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+                 const Evaluation Ktmp = fluidState_.wilsonK_(compIdx);
+                 fluidState_.setKvalue(compIdx, Ktmp);
+             }
+             const Evaluation& Ltmp = -1.0;
+             fluidState_.setLvalue(Ltmp);
+         }
+
         /////////////
         // Compute the phase compositions and densities 
         /////////////
         int spatialIdx = elemCtx.globalSpaceIndex(dofIdx, timeIdx);
         //FlashSolver::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
         //Flash::solve(fluidState_, z, spatialIdx, flashVerbosity, flashTwoPhaseMethod, flashTolerance);
-        //using Flash = Opm::PTFlash<double, FluidSystem>;
+
+        
+        using Flash = Opm::PTFlash<double, FluidSystem>;
         FlashSolver::solve(fluidState_, z, spatialIdx, flashTwoPhaseMethod, flashTolerance, flashVerbosity);
 
+//printing of flashresult after solve
+    std::cout << " After flashsolve for cell " << spatialIdx << std::endl;
+    ComponentVector x, y;
+    Evaluation L0 = fluidState_.L();
+    for (unsigned comp_idx = 0; comp_idx < numComponents; ++comp_idx) {
+        x[comp_idx] = fluidState_.moleFraction(FluidSystem::oilPhaseIdx, comp_idx);
+        y[comp_idx] = fluidState_.moleFraction(FluidSystem::gasPhaseIdx, comp_idx);
+    }
+            for (unsigned comp_idx = 0; comp_idx < numComponents; ++comp_idx) {
+        std::cout << " x for component: " << comp_idx << "is " << x[comp_idx] << std::endl;
+         for (int i = 0; i < 3; ++i) {
+             std::cout << " x deriv " << i << " is: " << x[comp_idx].derivative(i) << std::endl;
+         }
+
+        std::cout << " y for component: " << comp_idx << "is " << y[comp_idx] << std::endl;
+         for (int i = 0; i < 3; ++i) {
+             std::cout << " y deriv " << i << " is: " << y[comp_idx].derivative(i) << std::endl;
+         }
+    }
+    std::cout << " L is " << L0 << std::endl;
+     for (int i = 0; i < L0.size(); ++i) {
+             std::cout << " L deriv " << i << " is: " << L0.derivative(i) << std::endl;
+     }
+     //end printinting 1
 
         // Update phases        
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;
