@@ -30,7 +30,7 @@
 
 #include <opm/common/Exceptions.hpp>
 #include <opm/material/constraintsolvers/PTFlash.hpp> 
-#include <opm/material/fluidsystems/threecomponentfluidsystem.hh>
+#include <opm/material/fluidsystems/ThreeComponentFluidSystem.hh>
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/models/immiscible/immisciblemodel.hh>
 #include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
