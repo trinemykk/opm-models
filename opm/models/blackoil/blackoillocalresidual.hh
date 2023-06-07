@@ -271,7 +271,7 @@ public:
                     const Evaluation& transMult = up.rockCompTransMultiplier();
                     Evaluation Sm = Opm::min(0.999, Opm::max(0.001, Rs/RsSat));
                     const Scalar Xhi = oilVaporizationControl.getMaxDRSDT(intQuantsIn.pvtRegionIndex());
-                    Scalar Smo = 0.34;
+                    Scalar Smo = oilVaporizationControl.getSmo(intQuantsIn.pvtRegionIndex()); //0.34;
                     Evaluation sg = up.fluidState().saturation(FluidSystem::gasPhaseIdx);
                     Evaluation S = (Rs - RsSat * sg) / (RsSat * ( 1.0 - sg));
                     if ( (S > Smo || down.fluidState().Rs() > 0) ) {
