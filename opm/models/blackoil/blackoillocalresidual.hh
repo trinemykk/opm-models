@@ -215,68 +215,79 @@ public:
 		const auto& oilVaporizationControl = problem.simulator().vanguard().schedule()[problem.episodeIndex()].oilvap();
 
 		if(oilVaporizationControl.drsdtConvective()) {
-			const auto& stencil = elemCtx.stencil(timeIdx);
+            const auto& stencil = elemCtx.stencil(timeIdx);
 			const auto& scvf = stencil.interiorFace(scvfIdx);
-			Scalar zIn = problem.dofCenterDepth(elemCtx, scvf.interiorIndex(), timeIdx);
-			Scalar zEx = problem.dofCenterDepth(elemCtx, scvf.exteriorIndex(), timeIdx);
-			// the distances from the DOF's depths. (i.e., the additional depth of the
-			// exterior DOF)
-			Scalar distZ = zIn - zEx;
-			Scalar g = problem.gravity()[2];
-			const auto& intQuantsIn = elemCtx.intensiveQuantities(scvf.interiorIndex(), timeIdx);
-			const auto& intQuantsEx = elemCtx.intensiveQuantities(scvf.exteriorIndex(), timeIdx);
-			const auto& rho_sat_in = FluidSystem::saturatedDensity(intQuantsIn.fluidState(), oilPhaseIdx, intQuantsIn.pvtRegionIndex());
-			const auto& rho_sat_ex = Opm::getValue(FluidSystem::saturatedDensity(intQuantsEx.fluidState(), oilPhaseIdx, intQuantsEx.pvtRegionIndex()));
-			const auto& rho_in = intQuantsIn.fluidState().density(oilPhaseIdx);
-			const auto& rho_ex = Opm::getValue(intQuantsEx.fluidState().density(oilPhaseIdx));
-			const auto delta_rho = (rho_sat_ex + rho_sat_in - rho_in -rho_ex)/2;		
-			const auto& pressureDiff = extQuants.pressureDifference(oilPhaseIdx);
-            const auto pressure_difference_convective_mixing =  delta_rho * g * distZ;
-			if (Opm::abs(pressure_difference_convective_mixing) > 1e-12){ // 1e-9
-		
-				// find new upstream direction
-				unsigned upIdx = scvf.interiorIndex();
-				unsigned downIdx = scvf.exteriorIndex();
-				if (pressure_difference_convective_mixing > 0) {
-					upIdx = scvf.exteriorIndex();
-					downIdx = scvf.interiorIndex();
-				}
-                Scalar trans = problem.transmissibility(elemCtx, scvf.interiorIndex(), scvf.exteriorIndex());
-                Scalar faceArea = scvf.area();
-		
-				const IntensiveQuantities& up = elemCtx.intensiveQuantities(upIdx, timeIdx);
-				const IntensiveQuantities& down = elemCtx.intensiveQuantities(downIdx, timeIdx);
-				const auto& Rs =  up.fluidState().Rs();	
-				const Evaluation SoMax = 0.0;
-				const auto& RsSat = FluidSystem::saturatedDissolutionFactor(up.fluidState(),
-                                                            oilPhaseIdx,
-                                                            up.pvtRegionIndex(),
-                                                            SoMax);
-				
-                const Evaluation& transMult = up.rockCompTransMultiplier();												
-				Evaluation Sm = Opm::min(0.999, Opm::max(0.001, Rs/RsSat));
-				const Scalar Xhi = oilVaporizationControl.getMaxDRSDT(intQuantsIn.pvtRegionIndex());
-				Scalar Smo = 0.34;
-				Evaluation sg = up.fluidState().saturation(FluidSystem::gasPhaseIdx);
-				Evaluation S = (Rs - RsSat * sg) / (RsSat * ( 1.0 - sg));
-				 
-				if ( (S > Smo || down.fluidState().Rs() > 0) ) {
-					
-				    const auto& invB = up.fluidState().invB(oilPhaseIdx);
-                    const auto& visc = up.fluidState().viscosity(oilPhaseIdx);
+            if (
+                elemCtx.intensiveQuantities(scvf.interiorIndex(), timeIdx).fluidState().Rs() > 0
+                || elemCtx.intensiveQuantities(scvf.exteriorIndex(), timeIdx).fluidState().Rs() > 0)
+            {
+                Scalar zIn = problem.dofCenterDepth(elemCtx, scvf.interiorIndex(), timeIdx);
+                Scalar zEx = problem.dofCenterDepth(elemCtx, scvf.exteriorIndex(), timeIdx);
+                // the distances from the DOF's depths. (i.e., the additional depth of the
+                // exterior DOF)
+                Scalar distZ = zIn - zEx;
+                Scalar g = problem.gravity()[2];
 
-				    // what will be the flux when muliplied with trans_mob
-				    const auto convectiveFlux = -trans*transMult*Xhi*invB*g*distZ*delta_rho*Rs/(visc*faceArea); 
-				    unsigned activeGasCompIdx = Indices::canonicalToActiveComponentIndex(gasCompIdx);
-				    // Since the upwind direction may have changed from what was used to compute the mobility. 
-				    // We keep the derivative of the trans_mob
-				if (upIdx == focusDofIdx)
-					flux[conti0EqIdx + activeGasCompIdx] += convectiveFlux;
-				else 
-					flux[conti0EqIdx + activeGasCompIdx] += Opm::getValue(convectiveFlux);
-				
-				}
-        
+                const auto& intQuantsIn = elemCtx.intensiveQuantities(scvf.interiorIndex(), timeIdx);
+                const Scalar rs_zero_in = 0.0;
+                const auto& t_in = Opm::getValue(intQuantsIn.fluidState().temperature(FluidSystem::oilPhaseIdx));
+                const auto& p_in = Opm::getValue(intQuantsIn.fluidState().pressure(FluidSystem::oilPhaseIdx));
+                const auto& rssat_in = Opm::getValue(intQuantsIn.fluidState().RsSat()); //FluidSystem::oilPvt().saturatedGasDissolutionFactor(intQuantsIn.pvtRegionIndex(), t_in, p_in);
+                const auto rho_in
+                    = FluidSystem::oilPvt().inverseFormationVolumeFactor(intQuantsIn.pvtRegionIndex(), t_in, p_in, rs_zero_in)
+                    * FluidSystem::oilPvt().oilReferenceDensity(intQuantsIn.pvtRegionIndex());
+                const auto rho_sat_in = FluidSystem::oilPvt().saturatedInverseFormationVolumeFactor(intQuantsIn.pvtRegionIndex(), t_in, p_in)
+                    * (FluidSystem::oilPvt().oilReferenceDensity(intQuantsIn.pvtRegionIndex())
+                    + rssat_in * FluidSystem::referenceDensity(FluidSystem::gasPhaseIdx, intQuantsIn.pvtRegionIndex()));
+
+                const auto& intQuantsEx = elemCtx.intensiveQuantities(scvf.exteriorIndex(), timeIdx);
+                const Scalar rs_zero_ex = 0.0;
+                const auto& t_ex = Opm::getValue(intQuantsEx.fluidState().temperature(FluidSystem::oilPhaseIdx));
+                const auto& p_ex = Opm::getValue(intQuantsEx.fluidState().pressure(FluidSystem::oilPhaseIdx));
+                const auto& rssat_ex = Opm::getValue(intQuantsEx.fluidState().RsSat()); //FluidSystem::oilPvt().saturatedGasDissolutionFactor(intQuantsEx.pvtRegionIndex(), t_ex, p_ex);
+                const auto rho_ex
+                    = FluidSystem::oilPvt().inverseFormationVolumeFactor(intQuantsEx.pvtRegionIndex(), t_ex, p_ex, rs_zero_ex)
+                    * FluidSystem::oilPvt().oilReferenceDensity(intQuantsEx.pvtRegionIndex());
+                const auto rho_sat_ex = FluidSystem::oilPvt().saturatedInverseFormationVolumeFactor(intQuantsEx.pvtRegionIndex(), t_ex, p_ex)
+                    * (FluidSystem::oilPvt().oilReferenceDensity(intQuantsEx.pvtRegionIndex())
+                    + rssat_ex * FluidSystem::referenceDensity(FluidSystem::gasPhaseIdx, intQuantsEx.pvtRegionIndex()));
+                const auto delta_rho = (rho_sat_ex + rho_sat_in - rho_in -rho_ex)/2;
+                const auto pressure_difference_convective_mixing =  delta_rho * g * distZ;
+                if (Opm::abs(pressure_difference_convective_mixing) > 1e-12){
+                    // find new upstream direction
+                    unsigned upIdx = scvf.interiorIndex();
+                    unsigned downIdx = scvf.exteriorIndex();
+                    if (pressure_difference_convective_mixing > 0) {
+                        upIdx = scvf.exteriorIndex();
+                        downIdx = scvf.interiorIndex();
+                    }
+                    Scalar trans = problem.transmissibility(elemCtx, scvf.interiorIndex(), scvf.exteriorIndex());
+                    Scalar faceArea = scvf.area();
+                    const IntensiveQuantities& up = elemCtx.intensiveQuantities(upIdx, timeIdx);
+                    const IntensiveQuantities& down = elemCtx.intensiveQuantities(downIdx, timeIdx);
+                    const auto& Rs =  up.fluidState().Rs();
+                    const Evaluation SoMax = 0.0;
+                    const auto& RsSat = up.fluidState().RsSat();
+                    const Evaluation& transMult = up.rockCompTransMultiplier();
+                    Evaluation Sm = Opm::min(0.999, Opm::max(0.001, Rs/RsSat));
+                    const Scalar Xhi = oilVaporizationControl.getMaxDRSDT(intQuantsIn.pvtRegionIndex());
+                    Scalar Smo = 0.34;
+                    Evaluation sg = up.fluidState().saturation(FluidSystem::gasPhaseIdx);
+                    Evaluation S = (Rs - RsSat * sg) / (RsSat * ( 1.0 - sg));
+                    if ( (S > Smo || down.fluidState().Rs() > 0) ) {
+                        const auto& invB = up.fluidState().invB(oilPhaseIdx);
+                        const auto& visc = up.fluidState().viscosity(oilPhaseIdx);
+                        // what will be the flux when muliplied with trans_mob
+                        const auto convectiveFlux = -trans*transMult*Xhi*invB*pressure_difference_convective_mixing*Rs/(visc*faceArea);
+                        unsigned activeGasCompIdx = Indices::canonicalToActiveComponentIndex(gasCompIdx);
+                        // Since the upwind direction may have changed from what was used to compute the mobility.
+                        // We keep the derivative of the trans_mob
+                    if (upIdx == focusDofIdx)
+                        flux[conti0EqIdx + activeGasCompIdx] += convectiveFlux;
+                    else
+                        flux[conti0EqIdx + activeGasCompIdx] += Opm::getValue(convectiveFlux);
+                    }
+                }
 			}
 		}	
         // deal with solvents (if present)

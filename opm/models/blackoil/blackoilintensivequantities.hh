@@ -282,6 +282,12 @@ public:
                         problem.maxOilSaturation(globalSpaceIdx));
         }
 
+        const Evaluation& RsSat = enableExtbo ? asImp_().rs() :
+            FluidSystem::saturatedDissolutionFactor(fluidState_,
+                                                    oilPhaseIdx,
+                                                    pvtRegionIdx,
+                                                    SoMax);
+        fluidState_.setRsSat(RsSat);
         // take the meaning of the switching primary variable into account for the gas
         // and oil phase compositions
         if (priVars.primaryVarsMeaningGas() == PrimaryVariables::GasMeaning::Rs) {
@@ -289,11 +295,7 @@ public:
             fluidState_.setRs(Rs);
         } else {
             if (FluidSystem::enableDissolvedGas()) { // Add So > 0? i.e. if only water set rs = 0)
-                const Evaluation& RsSat = enableExtbo ? asImp_().rs() :
-                    FluidSystem::saturatedDissolutionFactor(fluidState_,
-                                                            oilPhaseIdx,
-                                                            pvtRegionIdx,
-                                                            SoMax);
+
                 fluidState_.setRs(min(RsMax, RsSat));
             }
             else if constexpr (compositionSwitchEnabled)
@@ -362,6 +364,7 @@ public:
             const auto& b = FluidSystem::inverseFormationVolumeFactor(fluidState_, phaseIdx, pvtRegionIdx);
             fluidState_.setInvB(phaseIdx, b);
             const auto& mu = FluidSystem::viscosity(fluidState_, paramCache, phaseIdx);
+            fluidState_.setViscosity(phaseIdx, mu);
             for (int i = 0; i<nmobilities; i++) {
                 if (enableExtbo && phaseIdx == oilPhaseIdx) {
                     (*mobilities[i])[phaseIdx] /= asImp_().oilViscosity();
@@ -532,6 +535,7 @@ public:
      */
     const Evaluation& porosity() const
     { return porosity_; }
+
 
     /*!
      * The pressure-dependent transmissibility multiplier due to rock compressibility.
