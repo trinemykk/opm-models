@@ -256,12 +256,11 @@ public:
                 const Evaluation& transMult = up.rockCompTransMultiplier();												
 				Evaluation Sm = Opm::min(0.999, Opm::max(0.001, Rs/RsSat));
 				const Scalar Xhi = oilVaporizationControl.getMaxDRSDT(intQuantsIn.pvtRegionIndex());
-				Scalar Smo = 0.35; //1.0 / (1.0 + std::pow(Kg, 0.5));
+				Scalar Smo = 0.34;
 				Evaluation sg = up.fluidState().saturation(FluidSystem::gasPhaseIdx);
 				Evaluation S = (Rs - RsSat * sg) / (RsSat * ( 1.0 - sg));
-                //if (rs >= (rssat * sg))
 				 
-				if ( (S > Smo || down.fluidState().Rs() > 0) ) { //&& down.fluidState().saturation(FluidSystem::gasPhaseIdx) <= 0.0) {
+				if ( (S > Smo || down.fluidState().Rs() > 0) ) {
 					
 				    const auto& invB = up.fluidState().invB(oilPhaseIdx);
                     const auto& visc = up.fluidState().viscosity(oilPhaseIdx);
