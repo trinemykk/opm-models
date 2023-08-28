@@ -160,14 +160,15 @@ struct SimulationName<TypeTag, TTag::SimpleTest> {
 template <class TypeTag>
 struct EndTime<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 2 * 24. * 60. * 60.;//2 day
+    static constexpr type value = 3 * 24. * 60. * 60.;//3 days
 };
 
 // convergence control
 template <class TypeTag>
 struct InitialTimeStepSize<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 30;
+    //static constexpr type value = 30;
+    static constexpr type value = 1 * 24. * 60. * 60.;
 };
 
 template <class TypeTag>
@@ -255,10 +256,13 @@ struct Vanguard<TypeTag, TTag::SimpleTest> {
     using type = Opm::StructuredGridVanguard<TypeTag>;
 };
 
+//\Note: from the Julia code, the problem is a 1D problem with 3X1 cell.
+//\Note: DomainSizeX is 3.0 meters
+//\Note: DomainSizeY is 1.0 meters
 template <class TypeTag>
 struct DomainSizeX<TypeTag, TTag::SimpleTest> {
     using type = GetPropType<TypeTag, Scalar>;
-    static constexpr type value = 1; // meter
+    static constexpr type value = 3; // meter
 };
 
 template <class TypeTag>
@@ -496,9 +500,7 @@ public:
         int spatialIdx = context.globalSpaceIndex(spaceIdx, timeIdx);
         int inj = 0;
         int prod = 2;
-        if (spatialIdx == inj)
-            return 1.0;
-        else if (spatialIdx == prod)
+    if (spatialIdx == inj || spatialIdx == prod)
             return 1.0;
         else
             return porosity_;
@@ -568,18 +570,20 @@ private:
     ComponentVector sat;
     sat[0] = 1.0; sat[1] = 1.0-sat[0];
     // TODO: should we put the derivative against the temperature here?
-    Scalar temp = 423.25;
+    const Scalar temp = 423.25;
 
     // TODO: no capillary pressure for now
-    Scalar p0 = 75e5;
+    Scalar p0 = 75e5; //CONVERGENCE FAILURE WITH 75
 
-    Evaluation p_init = Evaluation::createVariable(10e5, 0); // 75 bar
-     if (spatialIdx == inj){
-          p_init *= 2.0; 
-      }
-     if (spatialIdx == prod) {
-          p_init *= 0.5;
-      }
+    //\Note, for an AD variable, if we multiply it with 2, the derivative will also be scalced with 2,
+    //\Note, so we should not do it.
+    if (spatialIdx == inj){
+        p0 *= 2.0;
+    }
+    if (spatialIdx == prod) {
+        p0 *= 0.5;
+    }
+    Evaluation p_init = Evaluation::createVariable(p0, 0);
 
     fs.setPressure(FluidSystem::oilPhaseIdx, p_init);
     fs.setPressure(FluidSystem::gasPhaseIdx, p_init);
@@ -609,26 +613,26 @@ private:
         fs.setViscosity(FluidSystem::gasPhaseIdx, FluidSystem::viscosity(fs, paramCache, FluidSystem::gasPhaseIdx));
     }
 
-    ComponentVector zInit(0.); // TODO; zInit needs to be normalized.
-    {
-        Scalar sumMoles = 0.0;
-        for (unsigned phaseIdx = 0; phaseIdx < FluidSystem::numPhases; ++phaseIdx) {
-            for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
-                Scalar tmp = Opm::getValue(fs.molarity(phaseIdx, compIdx) * fs.saturation(phaseIdx));
-                zInit[compIdx] += Opm::max(tmp, 1e-8);
-                sumMoles += tmp;
-            }
-        }
-        zInit /= sumMoles;
-        // initialize the derivatives
-        // TODO: the derivative eventually should be from the reservoir flow equations
-        Evaluation z_last = 1.;
-        for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
-            zInit[compIdx] = Evaluation::createVariable(Opm::getValue(zInit[compIdx]), compIdx + 1);
-            z_last -= zInit[compIdx];
-        }
-        zInit[numComponents - 1] = z_last;
-    }
+    // ComponentVector zInit(0.); // TODO; zInit needs to be normalized.
+    // {
+    //     Scalar sumMoles = 0.0;
+    //     for (unsigned phaseIdx = 0; phaseIdx < FluidSystem::numPhases; ++phaseIdx) {
+    //         for (unsigned compIdx = 0; compIdx < numComponents; ++compIdx) {
+    //             Scalar tmp = Opm::getValue(fs.molarity(phaseIdx, compIdx) * fs.saturation(phaseIdx));
+    //             zInit[compIdx] += Opm::max(tmp, 1e-8);
+    //             sumMoles += tmp;
+    //         }
+    //     }
+    //     zInit /= sumMoles;
+    //     // initialize the derivatives
+    //     // TODO: the derivative eventually should be from the reservoir flow equations
+    //     Evaluation z_last = 1.;
+    //     for (unsigned compIdx = 0; compIdx < numComponents - 1; ++compIdx) {
+    //         zInit[compIdx] = Evaluation::createVariable(Opm::getValue(zInit[compIdx]), compIdx + 1);
+    //         z_last -= zInit[compIdx];
+    //     }
+    //     zInit[numComponents - 1] = z_last;
+    // }
 
     // TODO: only, p, z need the derivatives.
     const double flash_tolerance = 1.e-12; // just to test the setup in co2-compositional
