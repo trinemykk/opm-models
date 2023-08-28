@@ -47,7 +47,7 @@
 #include <opm/models/io/vtkdiffusionmodule.hh>
 #include <opm/material/fluidmatrixinteractions/NullMaterial.hpp>
 #include <opm/material/fluidmatrixinteractions/MaterialTraits.hpp>
-#include <opm/material/constraintsolvers/NcpFlash.hpp>
+#include <opm/material/constraintsolvers/PTFlash.hpp>
 
 #include <sstream>
 #include <string>
@@ -71,14 +71,14 @@ struct FlashModel { using InheritsFrom = std::tuple<VtkDiffusion,
 template<class TypeTag>
 struct LocalResidual<TypeTag, TTag::FlashModel> { using type = Opm::FlashLocalResidual<TypeTag>; };
 
-//! Use the Ncp specific newton method for the flash model
+//! Use the PT flash specific newton method for the flash model
 template<class TypeTag>
 struct NewtonMethod<TypeTag, TTag::FlashModel> { using type = Opm::FlashNewtonMethod<TypeTag>; };
 
-//! Use the NCP flash solver by default
+//! Use the Pt flash solver by default
 template<class TypeTag>
 struct FlashSolver<TypeTag, TTag::FlashModel>
-{ using type = Opm::NcpFlash<GetPropType<TypeTag, Properties::Scalar>,
+{ using type = Opm::PtFlash<GetPropType<TypeTag, Properties::Scalar>,
                              GetPropType<TypeTag, Properties::FluidSystem>>; };
 
 //! Let the flash solver choose its tolerance by default
