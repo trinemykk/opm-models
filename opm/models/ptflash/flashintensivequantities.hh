@@ -175,29 +175,29 @@ public:
         FlashSolver::solve(fluidState_, z, spatialIdx, flashTwoPhaseMethod, flashTolerance, flashVerbosity);
 
 //printing of flashresult after solve
-    std::cout << " After flashsolve for cell " << spatialIdx << std::endl;
-    ComponentVector x, y;
-    Evaluation L0 = fluidState_.L();
-    for (unsigned comp_idx = 0; comp_idx < numComponents; ++comp_idx) {
-        x[comp_idx] = fluidState_.moleFraction(FluidSystem::oilPhaseIdx, comp_idx);
-        y[comp_idx] = fluidState_.moleFraction(FluidSystem::gasPhaseIdx, comp_idx);
-    }
-            for (unsigned comp_idx = 0; comp_idx < numComponents; ++comp_idx) {
-        std::cout << " x for component: " << comp_idx << "is " << x[comp_idx] << std::endl;
-         for (int i = 0; i < 3; ++i) {
-             std::cout << " x deriv " << i << " is: " << x[comp_idx].derivative(i) << std::endl;
-         }
+    // std::cout << " \n After flashsolve for cell " << spatialIdx << std::endl;
+    // ComponentVector x, y;
+    // Evaluation L0 = fluidState_.L();
+    // for (unsigned comp_idx = 0; comp_idx < numComponents; ++comp_idx) {
+    //     x[comp_idx] = fluidState_.moleFraction(FluidSystem::oilPhaseIdx, comp_idx);
+    //     y[comp_idx] = fluidState_.moleFraction(FluidSystem::gasPhaseIdx, comp_idx);
+    // }
+    //         for (unsigned comp_idx = 0; comp_idx < numComponents; ++comp_idx) {
+    //     std::cout << " x for component: " << comp_idx << " is " << x[comp_idx] << std::endl;
+    //      for (int i = 0; i < 3; ++i) {
+    //          std::cout << " x deriv " << i << " is: " << x[comp_idx].derivative(i) << std::endl;
+    //      }
 
-        std::cout << " y for component: " << comp_idx << "is " << y[comp_idx] << std::endl;
-         for (int i = 0; i < 3; ++i) {
-             std::cout << " y deriv " << i << " is: " << y[comp_idx].derivative(i) << std::endl;
-         }
-    }
-    std::cout << " L is " << L0 << std::endl;
-     for (int i = 0; i < L0.size(); ++i) {
-             std::cout << " L deriv " << i << " is: " << L0.derivative(i) << std::endl;
-     }
-     //end printinting 1
+    //     std::cout << " y for component: " << comp_idx << "is " << y[comp_idx] << std::endl;
+    //      for (int i = 0; i < 3; ++i) {
+    //          std::cout << " y deriv " << i << " is: " << y[comp_idx].derivative(i) << std::endl;
+    //      }
+    // }
+    // std::cout << " L is " << L0 << std::endl;
+    //  for (int i = 0; i < L0.size(); ++i) {
+    //          std::cout << " L deriv " << i << " is: " << L0.derivative(i) << std::endl;
+    //  }
+    //  //end printinting 1
 
         // Update phases        
         typename FluidSystem::template ParameterCache<Evaluation> paramCache;
@@ -221,6 +221,9 @@ public:
         
         fluidState_.setSaturation(0, So);
         fluidState_.setSaturation(1, Sg);
+
+        fluidState_.setCompressFactor(0, Z_L);
+        fluidState_.setCompressFactor(1, Z_V);
 
         // Print saturation
          if (flashVerbosity == 5) {
@@ -251,7 +254,9 @@ public:
             paramCache.updatePhase(fluidState_, phaseIdx);
 
             const Evaluation& mu = FluidSystem::viscosity(fluidState_, paramCache, phaseIdx);
+            
             fluidState_.setViscosity(phaseIdx, mu);
+            //fluidState_.setViscosity(phaseIdx, newmu);
 
             mobility_[phaseIdx] = relativePermeability_[phaseIdx] / mu;
             Opm::Valgrind::CheckDefined(mobility_[phaseIdx]);
