@@ -290,7 +290,9 @@ protected:
                     // with regard to the focus variable 'pvIdx' of the degree of freedom
                     // 'focusDofIdx'
                     jacobian_[dofIdx][focusDofIdx][eqIdx][pvIdx] = resid[dofIdx][eqIdx].derivative(pvIdx);
-                    std::cout << "J[" << spatialIdx2 << "][" << spatialIdx << "][" << eqIdx << "][" << pvIdx << "] = " << jacobian_[dofIdx][focusDofIdx][eqIdx][pvIdx] << std::endl;
+                    //std::cout << "J[" << spatialIdx2 << "][" << spatialIdx << "][" << eqIdx << "][" << pvIdx << "] = " << jacobian_[dofIdx][focusDofIdx][eqIdx][pvIdx] << std::endl;
+                    std::cout << "J[" << dofIdx+1 << "," << focusDofIdx+1 << "][" << eqIdx+1 << "," << pvIdx+1 << "] = " << jacobian_[dofIdx][focusDofIdx][eqIdx][pvIdx] << std::endl;
+
                     Valgrind::CheckDefined(jacobian_[dofIdx][focusDofIdx][eqIdx][pvIdx]);
                 }
             }

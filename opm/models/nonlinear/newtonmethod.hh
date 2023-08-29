@@ -44,6 +44,7 @@
 #include <dune/istl/istlexception.hh>
 #include <dune/common/classname.hh>
 #include <dune/common/parallel/mpihelper.hh>
+//#include <dune/istl/io.hh>
 
 #include <iostream>
 #include <sstream>
@@ -128,7 +129,7 @@ class NewtonMethod
 
     using Communicator = typename Dune::MPIHelper::MPICommunicator;
     using CollectiveCommunication = typename Dune::Communication<typename Dune::MPIHelper::MPICommunicator>;
-
+   // using PrintMatrix = typename Dune::printSparseMatrix<typename Dune::>;
 public:
     NewtonMethod(Simulator& simulator)
         : simulator_(simulator)
@@ -314,13 +315,12 @@ public:
                 solveTimer_.start();
                 auto& residual = linearizer.residual();
                 const auto& jacobian = linearizer.jacobian();
-               // std::cout << "residual " << residual << std::endl;
-               // std::cout << "jacobian " << jacobian << std::endl;
                 linearSolver_.prepare(jacobian, residual);
                 linearSolver_.setResidual(residual);
                 linearSolver_.getResidual(residual);
                 solveTimer_.stop();
 
+                //Dune::storeMatrixMarket(linearSolver_.overlappingMatrix_, "mymatrix" + ".mm");
                 // The preSolve_() method usually computes the errors, but it can do
                 // something else in addition. TODO: should its costs be counted to
                 // the linearization or to the update?
