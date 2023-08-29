@@ -29,8 +29,10 @@
 #define EWOMS_SIMPLETEST_PROBLEM_HH
 
 #include <opm/common/Exceptions.hpp>
+#include <opm/material/fluidmatrixinteractions/RegularizedBrooksCorey.hpp>
+#include <opm/material/fluidmatrixinteractions/BrooksCorey.hpp>
 #include <opm/material/constraintsolvers/PTFlash.hpp> 
-#include <opm/material/fluidsystems/threecomponentfluidsystem.hh>
+#include <opm/material/fluidsystems/ThreeComponentFluidSystem.hh>
 #include <opm/material/common/Valgrind.hpp>
 #include <opm/models/immiscible/immisciblemodel.hh>
 #include <opm/models/discretization/ecfv/ecfvdiscretization.hh>
@@ -122,7 +124,7 @@ private:
     // define the material law which is parameterized by effective saturations
 
     using EffMaterialLaw = Opm::NullMaterial<Traits>;
-    //using EffMaterialLaw = Opm::RegularizedBrooksCorey<Traits>;
+    //using EffMaterialLaw = Opm::BrooksCorey<Traits>;
 
 public:
      using type = EffMaterialLaw;
@@ -142,7 +144,7 @@ struct EnableGravity<TypeTag, TTag::SimpleTest> { static constexpr bool value = 
  template <class TypeTag>
  struct Temperature<TypeTag, TTag::SimpleTest> {
      using type = GetPropType<TypeTag, Scalar>;
-     static constexpr type value = 300;
+     static constexpr type value = 423.25;//TODO
  };
 
 template <class TypeTag>
@@ -363,6 +365,7 @@ public:
         K_ = this->toDimMatrix_(9.869232667160131e-14);
 
         porosity_ = 0.1;
+    
     }
 
     template <class Context>
@@ -506,7 +509,7 @@ public:
             return porosity_;
     }
 
-    /*!
+        /*!
      * \copydoc FvBaseMultiPhaseProblem::materialLawParams
      */
     template <class Context>
@@ -516,6 +519,7 @@ public:
     {
         return this->mat_;
     }
+
 
     // No flow (introduce fake wells instead)
     template <class Context>
