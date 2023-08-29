@@ -78,7 +78,7 @@ struct NewtonMethod<TypeTag, TTag::FlashModel> { using type = Opm::FlashNewtonMe
 //! Use the Pt flash solver by default
 template<class TypeTag>
 struct FlashSolver<TypeTag, TTag::FlashModel>
-{ using type = Opm::PtFlash<GetPropType<TypeTag, Properties::Scalar>,
+{ using type = Opm::PTFlash<GetPropType<TypeTag, Properties::Scalar>,
                              GetPropType<TypeTag, Properties::FluidSystem>>; };
 
 //! Let the flash solver choose its tolerance by default
