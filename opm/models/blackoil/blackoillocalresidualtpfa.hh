@@ -36,6 +36,7 @@
 #include "blackoilfoammodules.hh"
 #include "blackoilbrinemodules.hh"
 #include "blackoildiffusionmodule.hh"
+#include "blackoilconvectivemixingmodule.hh"
 #include "blackoildispersionmodule.hh"
 #include "blackoilmicpmodules.hh"
 #include <opm/material/fluidstates/BlackOilFluidState.hpp>
@@ -103,6 +104,7 @@ class BlackOilLocalResidualTPFA : public GetPropType<TypeTag, Properties::DiscLo
     using FoamModule = BlackOilFoamModule<TypeTag>;
     using BrineModule = BlackOilBrineModule<TypeTag>;
     using DiffusionModule = BlackOilDiffusionModule<TypeTag, enableDiffusion>;
+    using ConvectiveMixingModule = BlackOilConvectiveMixingModule<TypeTag>;
     using DispersionModule = BlackOilDispersionModule<TypeTag, enableDispersion>;
     using MICPModule = BlackOilMICPModule<TypeTag>;
 
@@ -395,7 +397,7 @@ public:
                 }
             }
 
-        }
+        }      
 
         // deal with solvents (if present)
         static_assert(!enableSolvent, "Relevant computeFlux() method must be implemented for this module before enabling.");
@@ -442,6 +444,17 @@ public:
         // deal with salt (if present)
         static_assert(!enableBrine, "Relevant computeFlux() method must be implemented for this module before enabling.");
         // BrineModule::computeFlux(flux, elemCtx, scvfIdx, timeIdx);
+
+        // deal with convective mixing
+        ConvectiveMixingModule::addConvectiveMixingFlux(flux,
+                                                        intQuantsIn,
+                                                        intQuantsEx,
+                                                        globalIndexIn,
+                                                        globalIndexEx,
+                                                        nbInfo.dZg,
+                                                        nbInfo.trans,
+                                                        nbInfo.faceArea);
+
 
         // deal with diffusion (if present). opm-models expects per area flux (added in the tmpdiffusivity).
         if constexpr(enableDiffusion){
@@ -617,7 +630,7 @@ public:
                                        RateVector& bdyFlux,
                                        const BoundaryConditionData& bdyInfo,
                                        const IntensiveQuantities& insideIntQuants,
-                                       [[maybe_unused]] unsigned globalSpaceIdx)
+                                       unsigned globalSpaceIdx)
     {
         OPM_TIMEBLOCK_LOCAL(computeBoundaryThermal);
         // only heat is allowed to flow through this boundary
