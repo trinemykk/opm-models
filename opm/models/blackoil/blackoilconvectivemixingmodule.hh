@@ -60,43 +60,29 @@ class BlackOilConvectiveMixingModule
 
 public:
 
-    #if HAVE_ECL_INPUT
-    /*!
-     * \brief Initialize all internal data structures needed by the convective mixing module
-     */
-    static void initFromState(const EclipseState& eclState, const Schedule& schedule)
+    struct ConvectiveMixingModuleParam
     {
-        std::size_t numRegions = eclState.runspec().tabdims().getNumPVTTables();
-        int episodeIdx = 0; // we dont allow for DRSDTCON to change during iterations. TODO: Add check
-        const auto& control = schedule[episodeIdx].oilvap();
-        active_ = control.drsdtConvective();
-        if (!active_) {
-            return;
-        }
-        Xhi_.resize(numRegions); 
-        Smo_.resize(numRegions); 
-        for (size_t i = 0; i < numRegions; ++i ) {
-            Xhi_[i] = control.getMaxDRSDT(i);
-            Smo_[i] = control.getPsi(i);
-        }
-    }
+        bool active_;
+        std::vector<Scalar> Xhi_;
+        std::vector<Scalar> Smo_;
+    };
 
-    static void beginEpisode(const EclipseState& eclState, const Schedule& schedule, const int episodeIdx)
+    #if HAVE_ECL_INPUT
+    static void beginEpisode(const EclipseState& eclState, const Schedule& schedule, const int episodeIdx, ConvectiveMixingModuleParam& info)
     {
         // check that Xhi and Smo didn't change
         std::size_t numRegions = eclState.runspec().tabdims().getNumPVTTables();
         const auto& control = schedule[episodeIdx].oilvap();
-        if (!active_) {
+        if (!info.active_) {
             return;
         }
-        bool changed = false;
-        for (size_t i = 0; i < numRegions; ++i ) {
-            if (Xhi_[i] != control.getMaxDRSDT(i) || Smo_[i] != control.getPsi(i)) {
-                changed = true;
-            }
+        if (info.Xhi_.empty()) {
+            info.Xhi_.resize(numRegions); 
+            info.Smo_.resize(numRegions); 
         }
-        if (changed) {
-            throw("SMO changed");
+        for (size_t i = 0; i < numRegions; ++i ) {
+            info.Xhi_[i] = control.getMaxDRSDT(i);
+            info.Smo_[i] = control.getPsi(i);
         }
     }
     #endif
@@ -134,7 +120,8 @@ public:
                                 globalIndexEx,
                                 distZ * g,
                                 trans,
-                                faceArea);
+                                faceArea,
+                                problem.moduleParams().convectiveMixingModuleParam);
     }
 
 
@@ -152,11 +139,12 @@ public:
                             const unsigned globalIndexEx,
                             const Scalar distZg, 
                             const Scalar trans,
-                            const Scalar faceArea)
+                            const Scalar faceArea,
+                            const ConvectiveMixingModuleParam& info)
     {
 
 
-        if (!active_) {
+        if (!info.active_) {
             return;
         }
 
@@ -258,11 +246,11 @@ public:
             
             Evaluation sg = up.fluidState().saturation(FluidSystem::gasPhaseIdx);
             Evaluation S = (Rsup - RsSat * sg) / (RsSat * ( 1.0 - sg));
-            if ( (S > Smo_[up.pvtRegionIndex()] || Rsdown > 0) ) {
+            if ( (S > info.Smo_[up.pvtRegionIndex()] || Rsdown > 0) ) {
                 const auto& invB = up.fluidState().invB(liquidPhaseIdx);
                 const auto& visc = up.fluidState().viscosity(liquidPhaseIdx);
                 // what will be the flux when muliplied with trans_mob
-                const auto convectiveFlux = -trans*transMult*Xhi_[up.pvtRegionIndex()]*invB*pressure_difference_convective_mixing*Rsup/(visc*faceArea);
+                const auto convectiveFlux = -trans*transMult*info.Xhi_[up.pvtRegionIndex()]*invB*pressure_difference_convective_mixing*Rsup/(visc*faceArea);
                 unsigned activeGasCompIdx = Indices::canonicalToActiveComponentIndex(FluidSystem::gasCompIdx);                   
                 if (globalUpIndex == globalIndexIn)
                     flux[conti0EqIdx + activeGasCompIdx] += convectiveFlux;
@@ -272,23 +260,7 @@ public:
         } 
     };
 
-    private:
-    static bool active_;
-    static std::vector<double> Xhi_;
-    static std::vector<double> Smo_;
 };
-
-template <typename TypeTag>
-bool
-BlackOilConvectiveMixingModule<TypeTag>::active_;
-
-template <typename TypeTag>
-std::vector<double>
-BlackOilConvectiveMixingModule<TypeTag>::Xhi_;
-
-template <typename TypeTag>
-std::vector<double>
-BlackOilConvectiveMixingModule<TypeTag>::Smo_;
 
 }
 #endif
