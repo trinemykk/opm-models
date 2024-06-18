@@ -38,6 +38,7 @@
 #include "blackoildiffusionmodule.hh"
 #include "blackoildispersionmodule.hh"
 #include "blackoilmicpmodules.hh"
+#include "blackoilconvectivemixingmodule.hh"
 
 #include <opm/common/TimingMacros.hpp>
 #include <opm/common/OpmLog/OpmLog.hpp>
@@ -132,6 +133,7 @@ class BlackOilIntensiveQuantities
 
     using DirectionalMobilityPtr = Opm::Utility::CopyablePtr<DirectionalMobility<TypeTag, Evaluation>>;
     using BrineModule = BlackOilBrineModule<TypeTag>;
+    using ConvectiveMixingModule = BlackOilConvectiveMixingModule<TypeTag, enableConvectiveMixing>;
 
 
 public:
@@ -406,7 +408,8 @@ public:
             rho = fluidState_.invB(waterPhaseIdx);
             rho *= FluidSystem::referenceDensity(waterPhaseIdx, pvtRegionIdx);
             if (FluidSystem::enableDissolvedGasInWater()) {
-				if(!enableConvectiveMixing) {
+                bool ConvectiveMixingActive = ConvectiveMixingModule::active(elemCtx);
+				if(!ConvectiveMixingActive) {
                     rho +=
                         fluidState_.invB(waterPhaseIdx) *
                         fluidState_.Rsw() *

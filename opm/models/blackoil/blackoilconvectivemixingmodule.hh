@@ -84,25 +84,32 @@ public:
     #endif
 
     template <class Context>
-    static void addConvectiveMixingFlux(RateVector& flux, 
-                                        const Context& elemCtx,
-                                        unsigned scvfIdx, 
-                                        unsigned timeIdx)
+    static bool active(const Context&) {
+        return false;
+    }
+
+    template <class Context>
+    static void addConvectiveMixingFlux(RateVector&, 
+                                        const Context&,
+                                        unsigned, 
+                                        unsigned)
     {}
+
     /*!
      * \brief Adds the convective mixing mass flux flux to the flux vector over a flux
      *        integration point.
      */
-    static void addConvectiveMixingFlux(RateVector& flux,
-                            const IntensiveQuantities& intQuantsIn,
-                            const IntensiveQuantities& intQuantsEx,
-                            const unsigned globalIndexIn,
-                            const unsigned globalIndexEx,
-                            const Scalar distZg, 
-                            const Scalar trans,
-                            const Scalar faceArea,
-                            const ConvectiveMixingModuleParam& info)
+    static void addConvectiveMixingFlux(RateVector&,
+                            const IntensiveQuantities&,
+                            const IntensiveQuantities&,
+                            const unsigned,
+                            const unsigned,
+                            const Scalar, 
+                            const Scalar,
+                            const Scalar,
+                            const ConvectiveMixingModuleParam&)
     {}
+
 };
 template <class TypeTag>
 class BlackOilConvectiveMixingModule<TypeTag, /*enableConvectiveMixing=*/true>
@@ -147,6 +154,12 @@ public:
         }
     }
     #endif
+
+    template <class Context>
+    static bool active(const Context& elemCtx) {
+        const auto& problem = elemCtx.problem();
+        return problem.moduleParams().convectiveMixingModuleParam.active_;
+    }
 
     template <class Context>
     static void addConvectiveMixingFlux(RateVector& flux, 
@@ -290,7 +303,6 @@ public:
             unsigned globalUpIndex = (upIdx == interiorDofIdx) ? globalIndexIn : globalIndexEx;
 
             const auto& down = (downIdx == interiorDofIdx) ? intQuantsIn : intQuantsEx;
-            unsigned globalDownIndex = (downIdx == interiorDofIdx) ? globalIndexIn : globalIndexEx;
 
             const auto& Rsup =  (FluidSystem::phaseIsActive(FluidSystem::waterPhaseIdx)) ?
                                 up.fluidState().Rsw() :
