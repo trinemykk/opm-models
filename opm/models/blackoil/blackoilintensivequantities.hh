@@ -440,8 +440,9 @@ public:
         if (FluidSystem::phaseIsActive(oilPhaseIdx)) {
             rho = fluidState_.invB(oilPhaseIdx);
             rho *= FluidSystem::referenceDensity(oilPhaseIdx, pvtRegionIdx);
-            if (FluidSystem::enableDissolvedGas()) {                
-				if(!enableConvectiveMixing) {
+            if (FluidSystem::enableDissolvedGas()) {   
+                bool ConvectiveMixingActive = ConvectiveMixingModule::active(elemCtx);             
+				if(!ConvectiveMixingActive) {
                     rho +=
                         fluidState_.invB(oilPhaseIdx) *
                         fluidState_.Rs() *
