@@ -140,7 +140,7 @@ public:
         // check that Xhi and Psi didn't change
         std::size_t numRegions = eclState.runspec().tabdims().getNumPVTTables();
         const auto& control = schedule[episodeIdx].oilvap();
-        info.active_ = false;//control.drsdtConvective();
+        info.active_ = control.drsdtConvective();
         if (!info.active_) {
             return;
         }
