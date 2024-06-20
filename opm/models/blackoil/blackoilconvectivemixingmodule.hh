@@ -140,7 +140,7 @@ public:
         // check that Xhi and Psi didn't change
         std::size_t numRegions = eclState.runspec().tabdims().getNumPVTTables();
         const auto& control = schedule[episodeIdx].oilvap();
-        info.active_ = control.drsdtConvective();
+        info.active_ = false;//control.drsdtConvective();
         if (!info.active_) {
             return;
         }
@@ -158,7 +158,7 @@ public:
     template <class Context>
     static bool active(const Context& elemCtx) {
         const auto& problem = elemCtx.problem();
-        return problem.moduleParams().convectiveMixingModuleParam.active_;
+        return false;//problem.moduleParams().convectiveMixingModuleParam.active_;
     }
 
     template <class Context>
