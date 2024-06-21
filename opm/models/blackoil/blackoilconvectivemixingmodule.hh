@@ -129,7 +129,7 @@ public:
 
     struct ConvectiveMixingModuleParam
     {
-        bool active_;
+        bool active_{false};
         std::vector<Scalar> Xhi_;
         std::vector<Scalar> Psi_;
     };
@@ -141,6 +141,7 @@ public:
         std::size_t numRegions = eclState.runspec().tabdims().getNumPVTTables();
         const auto& control = schedule[episodeIdx].oilvap();
         info.active_ = control.drsdtConvective();
+        std::cout << control.drsdtConvective() << std::endl;
         if (!info.active_) {
             return;
         }
@@ -157,8 +158,11 @@ public:
 
     template <class Context>
     static bool active(const Context& elemCtx) {
+        
         const auto& problem = elemCtx.problem();
-        return false;//problem.moduleParams().convectiveMixingModuleParam.active_;
+        //if (problem.moduleParams().convectiveMixingModuleParam.active_)
+            //std::cout << "heiii " << problem.moduleParams().convectiveMixingModuleParam.active_ << std::endl;
+        return problem.moduleParams().convectiveMixingModuleParam.active_;
     }
 
     template <class Context>
