@@ -652,7 +652,7 @@ public:
             return;
         }
         const unsigned int numCells = model_().numTotalDof();
-        
+
 #ifdef _OPENMP
 #pragma omp parallel for
 #endif

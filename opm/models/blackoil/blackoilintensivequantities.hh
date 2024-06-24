@@ -306,8 +306,7 @@ public:
         if (FluidSystem::phaseIsActive(FluidSystem::oilPhaseIdx)) {
             SoMax = max(fluidState_.saturation(oilPhaseIdx),
                         problem.maxOilSaturation(globalSpaceIdx));
-        
-        
+        }
         // take the meaning of the switching primary variable into account for the gas
         // and oil phase compositions
         if (priVars.primaryVarsMeaningGas() == PrimaryVariables::GasMeaning::Rs) {
@@ -317,15 +316,15 @@ public:
             if (FluidSystem::enableDissolvedGas()) { // Add So > 0? i.e. if only water set rs = 0)
                 const Evaluation& RsSat = enableExtbo ? asImp_().rs() :
                 FluidSystem::saturatedDissolutionFactor(fluidState_,
-                                                    oilPhaseIdx,
-                                                    pvtRegionIdx,
-                                                    SoMax);
+                                                        oilPhaseIdx,
+                                                        pvtRegionIdx,
+                                                        SoMax);
                 fluidState_.setRs(min(RsMax, RsSat));
             }
             else if constexpr (compositionSwitchEnabled)
                 fluidState_.setRs(0.0);
         }
-        }
+
         if (priVars.primaryVarsMeaningGas() == PrimaryVariables::GasMeaning::Rv) {
             const auto& Rv = priVars.makeEvaluation(Indices::compositionSwitchIdx, timeIdx);
             fluidState_.setRv(Rv);
@@ -440,8 +439,8 @@ public:
         if (FluidSystem::phaseIsActive(oilPhaseIdx)) {
             rho = fluidState_.invB(oilPhaseIdx);
             rho *= FluidSystem::referenceDensity(oilPhaseIdx, pvtRegionIdx);
-            if (FluidSystem::enableDissolvedGas()) {   
-                bool ConvectiveMixingActive = ConvectiveMixingModule::active(elemCtx);             
+            if (FluidSystem::enableDissolvedGas()) {
+                bool ConvectiveMixingActive = ConvectiveMixingModule::active(elemCtx);
 				if(!ConvectiveMixingActive) {
                     rho +=
                         fluidState_.invB(oilPhaseIdx) *
