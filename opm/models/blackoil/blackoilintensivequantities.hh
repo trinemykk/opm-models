@@ -412,11 +412,17 @@ public:
         }
 
         if (FluidSystem::phaseIsActive(oilPhaseIdx)) {
+            const auto& oilVaporizationControl = problem.simulator().vanguard().schedule()[problem.episodeIndex()].oilvap();
             rho = fluidState_.invB(oilPhaseIdx);
             rho *= FluidSystem::referenceDensity(oilPhaseIdx, pvtRegionIdx);
-            if (FluidSystem::enableDissolvedGas()) {                
-                const auto& oilVaporizationControl = problem.simulator().vanguard().schedule()[problem.episodeIndex()].oilvap();
-				if(!oilVaporizationControl.drsdtConvective()) {
+            if (FluidSystem::enableDissolvedGas()) {
+                if(oilVaporizationControl.drsdtConvective()) {   
+                    const auto& t = fluidState_.temperature(oilPhaseIdx);
+                    const auto& p = fluidState_.pressure(oilPhaseIdx);
+                    const auto bo = FluidSystem::oilPvt().inverseFormationVolumeFactor(pvtRegionIdx, t, p, Evaluation(0.0));
+                    rho = bo * FluidSystem::referenceDensity(oilPhaseIdx, pvtRegionIdx);
+                }          
+				else {
                     rho +=
                         fluidState_.invB(oilPhaseIdx) *
                         fluidState_.Rs() *
