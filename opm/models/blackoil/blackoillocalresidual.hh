@@ -233,9 +233,9 @@ public:
                 const auto& t_in = Opm::getValue(intQuantsIn.fluidState().temperature(FluidSystem::oilPhaseIdx));
                 const auto& p_in = Opm::getValue(intQuantsIn.fluidState().pressure(FluidSystem::oilPhaseIdx));
                 const auto& rssat_in = Opm::getValue(intQuantsIn.fluidState().RsSat()); //FluidSystem::oilPvt().saturatedGasDissolutionFactor(intQuantsIn.pvtRegionIndex(), t_in, p_in);
-                const auto rho_in
-                    = FluidSystem::oilPvt().inverseFormationVolumeFactor(intQuantsIn.pvtRegionIndex(), t_in, p_in, rs_zero_in)
-                    * FluidSystem::oilPvt().oilReferenceDensity(intQuantsIn.pvtRegionIndex());
+                const auto rho_in = intQuantsIn.fluidState().density(oilPhaseIdx);
+                    //= FluidSystem::oilPvt().inverseFormationVolumeFactor(intQuantsIn.pvtRegionIndex(), t_in, p_in, rs_zero_in)
+                    //* FluidSystem::oilPvt().oilReferenceDensity(intQuantsIn.pvtRegionIndex());
                 const auto rho_sat_in = FluidSystem::oilPvt().saturatedInverseFormationVolumeFactor(intQuantsIn.pvtRegionIndex(), t_in, p_in)
                     * (FluidSystem::oilPvt().oilReferenceDensity(intQuantsIn.pvtRegionIndex())
                     + rssat_in * FluidSystem::referenceDensity(FluidSystem::gasPhaseIdx, intQuantsIn.pvtRegionIndex()));
@@ -245,9 +245,9 @@ public:
                 const auto& t_ex = Opm::getValue(intQuantsEx.fluidState().temperature(FluidSystem::oilPhaseIdx));
                 const auto& p_ex = Opm::getValue(intQuantsEx.fluidState().pressure(FluidSystem::oilPhaseIdx));
                 const auto& rssat_ex = Opm::getValue(intQuantsEx.fluidState().RsSat()); //FluidSystem::oilPvt().saturatedGasDissolutionFactor(intQuantsEx.pvtRegionIndex(), t_ex, p_ex);
-                const auto rho_ex
-                    = FluidSystem::oilPvt().inverseFormationVolumeFactor(intQuantsEx.pvtRegionIndex(), t_ex, p_ex, rs_zero_ex)
-                    * FluidSystem::oilPvt().oilReferenceDensity(intQuantsEx.pvtRegionIndex());
+                const auto rho_ex = Opm::getValue(intQuantsEx.fluidState().density(oilPhaseIdx));
+                    //= FluidSystem::oilPvt().inverseFormationVolumeFactor(intQuantsEx.pvtRegionIndex(), t_ex, p_ex, rs_zero_ex)
+                    //* FluidSystem::oilPvt().oilReferenceDensity(intQuantsEx.pvtRegionIndex());
                 const auto rho_sat_ex = FluidSystem::oilPvt().saturatedInverseFormationVolumeFactor(intQuantsEx.pvtRegionIndex(), t_ex, p_ex)
                     * (FluidSystem::oilPvt().oilReferenceDensity(intQuantsEx.pvtRegionIndex())
                     + rssat_ex * FluidSystem::referenceDensity(FluidSystem::gasPhaseIdx, intQuantsEx.pvtRegionIndex()));
