@@ -278,7 +278,7 @@ public:
                     Scalar Smo = oilVaporizationControl.getSmo(intQuantsIn.pvtRegionIndex()); //0.34;
                     Evaluation sg = up.fluidState().saturation(FluidSystem::gasPhaseIdx);
                     Evaluation S = (Rs - RsSat * sg) / (RsSat * ( 1.0 - sg));
-                    if ( (S > Smo || down.fluidState().Rs() > 0) ) {
+                    //if ( (S > Smo || down.fluidState().Rs() > 0) ) {
                         const auto& invB = up.fluidState().invB(oilPhaseIdx);
                         const auto& visc = up.fluidState().viscosity(oilPhaseIdx);
                         // what will be the flux when muliplied with trans_mob
@@ -290,7 +290,7 @@ public:
                         flux[conti0EqIdx + activeGasCompIdx] += convectiveFlux;
                     else
                         flux[conti0EqIdx + activeGasCompIdx] += Opm::getValue(convectiveFlux);
-                    }
+                    //}
                 }
 			}
 		}	
