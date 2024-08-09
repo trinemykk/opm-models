@@ -276,13 +276,16 @@ public:
                     Evaluation Sm = Opm::min(0.999, Opm::max(0.001, Rs/RsSat));
                     const Scalar Xhi = oilVaporizationControl.getMaxDRSDT(intQuantsIn.pvtRegionIndex());
                     Scalar Smo = oilVaporizationControl.getSmo(intQuantsIn.pvtRegionIndex()); //0.34;
+                    const Evaluation RsupC = Opm::min(Rs, RsSat*Smo);
+
                     Evaluation sg = up.fluidState().saturation(FluidSystem::gasPhaseIdx);
                     Evaluation S = (Rs - RsSat * sg) / (RsSat * ( 1.0 - sg));
                     //if ( (S > Smo || down.fluidState().Rs() > 0) ) {
                         const auto& invB = up.fluidState().invB(oilPhaseIdx);
                         const auto& visc = up.fluidState().viscosity(oilPhaseIdx);
                         // what will be the flux when muliplied with trans_mob
-                        const auto convectiveFlux = -trans*transMult*Xhi*invB*pressure_difference_convective_mixing*Rs/(visc*faceArea);
+                        // const auto convectiveFlux = -trans*transMult*Xhi*invB*pressure_difference_convective_mixing*Rs/(visc*faceArea);
+                        const auto convectiveFlux = -trans*transMult*Xhi*invB*pressure_difference_convective_mixing*RsupC/(visc*faceArea);
                         unsigned activeGasCompIdx = Indices::canonicalToActiveComponentIndex(gasCompIdx);
                         // Since the upwind direction may have changed from what was used to compute the mobility.
                         // We keep the derivative of the trans_mob
